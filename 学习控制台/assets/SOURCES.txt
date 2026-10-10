@@ -1,0 +1,19 @@
+PolyU official identity assets
+
+These original assets are obtained from The Hong Kong Polytechnic University.
+They are displayed at their original proportions and colors.
+
+University identity source:
+https://www.polyu.edu.hk/about-polyu/university-identity/
+
+polyu-logo.png — official homepage wordmark
+https://www.polyu.edu.hk/assets/img/main-logo-3x.png
+
+polyu-favicon.ico — official homepage favicon
+https://www.polyu.edu.hk/-/media/department/home/setting/favicon.ico
+
+polyu-emblem.jpg — official University Identity emblem image
+https://www.polyu.edu.hk/-/media/department/home/content/about-polyu/university-identity/logo_1200x672_with-bg.jpg
+
+Retrieved 2026-10-04. The app is a student-created personal study tool.
+It is not an official university application or an assertion of endorsement.

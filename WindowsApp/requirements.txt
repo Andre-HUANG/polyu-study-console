@@ -1,0 +1,36 @@
+# Windows x64 / CPython 3.12 only. Install inside the project build venv.
+pywebview==6.2.1
+pythonnet==3.2.0
+clr_loader==0.3.1
+bottle==0.13.4
+proxy_tools==0.1.0
+# This upstream release only has an sdist. Verify its content during download.
+proxy_tools @ https://files.pythonhosted.org/packages/source/p/proxy_tools/proxy_tools-0.1.0.tar.gz#sha256=ccb3751f529c047e2d8a58440d86b205303cf0fe8146f784d1cbcd94f0a28010
+typing_extensions==4.16.0
+PyInstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8
+setuptools==84.0.0
+wheel==0.45.1
+packaging==25.0
+altgraph==0.17.4
+pefile==2023.2.7
+pywin32-ctypes==0.2.3
+winrt-runtime==3.2.1
+winrt-Windows.Foundation==3.2.1
+winrt-Windows.Foundation.Collections==3.2.1
+winrt-Windows.Storage==3.2.1
+winrt-Windows.Storage.Streams==3.2.1
+winrt-Windows.Graphics.Imaging==3.2.1
+winrt-Windows.Media.Ocr==3.2.1
+winrt-Windows.Globalization==3.2.1
+tzdata==2026.5
+striprtf==0.0.33
+# Same PDF parser versions as document-vendor-lock.json; Windows wheels required.
+pdfplumber==0.11.9
+pdfminer.six==20251230
+pypdfium2==5.13.0
+Pillow==12.3.0
+cryptography==50.0.1
+cffi==2.1.1
+charset-normalizer==3.5.1
+pycparser==3.0

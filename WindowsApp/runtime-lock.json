@@ -1,0 +1,364 @@
+{
+  "format": 1,
+  "python": "3.12.15",
+  "target": "x86_64-pc-windows-msvc",
+  "resolvedEnvironment": {
+    "implementation_name": "cpython",
+    "implementation_version": "3.12.15",
+    "os_name": "nt",
+    "platform_machine": "AMD64",
+    "platform_python_implementation": "CPython",
+    "platform_release": "10",
+    "platform_system": "Windows",
+    "platform_version": "10.0.19041",
+    "python_full_version": "3.12.15",
+    "python_version": "3.12",
+    "sys_platform": "win32",
+    "extra": ""
+  },
+  "runtime": {
+    "filename": "cpython-3.12.15+20261001-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261001/cpython-3.12.15+20261001-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+    "sha256": "52124cee54126f3f360eaa378288f6f64c402c983a3c14c95eff67f4af986aaa",
+    "metadataUrl": "https://github.com/astral-sh/python-build-standalone/releases/expanded_assets/20261001"
+  },
+  "wheels": [
+    {
+      "name": "bottle",
+      "version": "0.13.4",
+      "filename": "bottle-0.13.4-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/83/f6/b55ec74cfe68c6584163faa311503c20b0da4c09883a41e8e00d6726c954/bottle-0.13.4-py2.py3-none-any.whl",
+      "sha256": "045684fbd2764eac9cdeb824861d1551d113e8b683d8d26e296898d3dd99a12e",
+      "size": 103807,
+      "metadataUrl": "https://pypi.org/pypi/bottle/0.13.4/json"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "filename": "cffi-2.1.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/d9/79/615cc094e2fb508cade7de88d3b4f6c4ec2bab695c97bce9153dc65aadf5/cffi-2.1.1-cp312-cp312-win_amd64.whl",
+      "sha256": "f53e442b08449d42821fa4a4fba000095af9f62742a500f978a9f557ec44339a",
+      "size": 185919,
+      "metadataUrl": "https://pypi.org/pypi/cffi/2.1.1/json"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.1",
+      "filename": "charset_normalizer-3.5.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/9d/7a/4c6c298171e6b3e745633180ff59350fc0ca0db1ffd28df1e369e0579f71/charset_normalizer-3.5.1-cp312-cp312-win_amd64.whl",
+      "sha256": "3617ac3cfd8b9888f145ad89dd6e692285834b0201c6074a5eeaad3fd4d668c2",
+      "size": 200551,
+      "metadataUrl": "https://pypi.org/pypi/charset-normalizer/3.5.1/json"
+    },
+    {
+      "name": "clr-loader",
+      "version": "0.3.1",
+      "filename": "clr_loader-0.3.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/5e/da/ec1a6e36624000b6df0dd61183c42342ee5814c073315e802cadaad04d2f/clr_loader-0.3.1-py3-none-any.whl",
+      "sha256": "cbad189de20d202a7d621956b0fc38049e13c9bf7ca2923441eff725cd121aa1",
+      "size": 55730,
+      "metadataUrl": "https://pypi.org/pypi/clr-loader/0.3.1/json"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.1",
+      "filename": "cryptography-50.0.1-cp311-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/42/8b/cb12b1b60c91b074ca6bf0fdd59aa8f10d8bc5f73af8faece86ef0421b37/cryptography-50.0.1-cp311-abi3-win_amd64.whl",
+      "sha256": "aed8db4f6d71c51efb89530e12d9464e7bf2923d46c3205dc794a2a93f8c0648",
+      "size": 3842826,
+      "metadataUrl": "https://pypi.org/pypi/cryptography/50.0.1/json"
+    },
+    {
+      "name": "pdfminer-six",
+      "version": "20251230",
+      "filename": "pdfminer_six-20251230-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/65/d7/b288ea32deb752a09aab73c75e1e7572ab2a2b56c3124a5d1eb24c62ceb3/pdfminer_six-20251230-py3-none-any.whl",
+      "sha256": "9ff2e3466a7dfc6de6fd779478850b6b7c2d9e9405aa2a5869376a822771f485",
+      "size": 6591909,
+      "metadataUrl": "https://pypi.org/pypi/pdfminer-six/20251230/json"
+    },
+    {
+      "name": "pdfplumber",
+      "version": "0.11.9",
+      "filename": "pdfplumber-0.11.9-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/8b/c8/cdbc975f5b634e249cfa6597e37c50f3078412474f21c015e508bfbfe3c3/pdfplumber-0.11.9-py3-none-any.whl",
+      "sha256": "33ec5580959ba524e9100138746e090879504c42955df1b8a997604dd326c443",
+      "size": 60045,
+      "metadataUrl": "https://pypi.org/pypi/pdfplumber/0.11.9/json"
+    },
+    {
+      "name": "pillow",
+      "version": "12.3.0",
+      "filename": "pillow-12.3.0-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/45/89/da2f7971a317f83d807fdd4065c0af40208e59e692cc43d315a71a0e96d1/pillow-12.3.0-cp312-cp312-win_amd64.whl",
+      "sha256": "a2b55dd6b2a4c4b7d87ffa56bdb33fdc5fdb9a462173861a7bc097f17d91cb09",
+      "size": 7227137,
+      "metadataUrl": "https://pypi.org/pypi/pillow/12.3.0/json"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.0",
+      "filename": "pycparser-3.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl",
+      "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992",
+      "size": 48172,
+      "metadataUrl": "https://pypi.org/pypi/pycparser/3.0/json"
+    },
+    {
+      "name": "pypdfium2",
+      "version": "5.13.0",
+      "filename": "pypdfium2-5.13.0-py3-none-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/5d/99/a37b6b902457569468ed5908c94e56cb6c4032541f02cf89f723d42a9148/pypdfium2-5.13.0-py3-none-win_amd64.whl",
+      "sha256": "47dcca2a8d507b5fd24f94c3c9d48fb379430f097bc20f01beff6c963ffbcedb",
+      "size": 3885553,
+      "metadataUrl": "https://pypi.org/pypi/pypdfium2/5.13.0/json"
+    },
+    {
+      "name": "pythonnet",
+      "version": "3.2.0",
+      "filename": "pythonnet-3.2.0-cp311.cp312.cp313.cp314.cp315-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/e3/42/75f9429ae418f92e0366a334fd07d8313a13c8e8c0ce6ba650f6ebfb0cf6/pythonnet-3.2.0-cp311.cp312.cp313.cp314.cp315-none-any.whl",
+      "sha256": "c8c7946d291156ffc1d5f22c001a63c6776947ce3c64da800ccea8181ddb1abe",
+      "size": 222406,
+      "metadataUrl": "https://pypi.org/pypi/pythonnet/3.2.0/json"
+    },
+    {
+      "name": "pywebview",
+      "version": "6.2.1",
+      "filename": "pywebview-6.2.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/3d/25/9491695c22c4842c5b3903b4dc172e0eecf67a27c0af34a71512c9b76a0a/pywebview-6.2.1-py3-none-any.whl",
+      "sha256": "9d07275f53894ab4d5e2e0e996227193e7187dec276d9b624dccbce029216b46",
+      "size": 525463,
+      "metadataUrl": "https://pypi.org/pypi/pywebview/6.2.1/json"
+    },
+    {
+      "name": "striprtf",
+      "version": "0.0.33",
+      "filename": "striprtf-0.0.33-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/f5/85/bee751fd2096accfc8b76186d49fbb2871163723e45f1e721e03c3f044ae/striprtf-0.0.33-py3-none-any.whl",
+      "sha256": "f9637632a4414de05b1c399ee34d324dc336133ae45769992143a024e0f919ef",
+      "size": 8446,
+      "metadataUrl": "https://pypi.org/pypi/striprtf/0.0.33/json"
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "filename": "typing_extensions-4.16.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl",
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "size": 45571,
+      "metadataUrl": "https://pypi.org/pypi/typing-extensions/4.16.0/json"
+    },
+    {
+      "name": "tzdata",
+      "version": "2026.5",
+      "filename": "tzdata-2026.5-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/94/21/1e5995a1c920cce14e4bffae20c665ec10e7ed03ab25e006cd741092b718/tzdata-2026.5-py2.py3-none-any.whl",
+      "sha256": "b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac",
+      "size": 347996,
+      "metadataUrl": "https://pypi.org/pypi/tzdata/2026.5/json"
+    },
+    {
+      "name": "winrt-runtime",
+      "version": "3.2.1",
+      "filename": "winrt_runtime-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/ca/a1/1d7248d5c62ccbea5f3e0da64ca4529ce99c639c3be2485b6ed709f5c740/winrt_runtime-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "06510db215d4f0dc45c00fbb1251c6544e91742a0ad928011db33b30677e1576",
+      "size": 241391,
+      "metadataUrl": "https://pypi.org/pypi/winrt-runtime/3.2.1/json"
+    },
+    {
+      "name": "winrt-windows-foundation",
+      "version": "3.2.1",
+      "filename": "winrt_windows_foundation-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/9b/5e/b5059e4ece095351c496c9499783130c302d25e353c18031d5231b1b3b3c/winrt_windows_foundation-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "45550c5b6c2125cde495c409633e6b1ea5aa1677724e3b95eb8140bfccbe30c9",
+      "size": 118668,
+      "metadataUrl": "https://pypi.org/pypi/winrt-windows-foundation/3.2.1/json"
+    },
+    {
+      "name": "winrt-windows-foundation-collections",
+      "version": "3.2.1",
+      "filename": "winrt_windows_foundation_collections-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/37/94/5b888713e472746635a382e523513ab1b8200af55c5b56bc70e1e4369115/winrt_windows_foundation_collections-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "550dfb8c82fe74d9e0728a2a16a9175cc9e34ca2b8ef758d69b2a398894b698b",
+      "size": 69058,
+      "metadataUrl": "https://pypi.org/pypi/winrt-windows-foundation-collections/3.2.1/json"
+    },
+    {
+      "name": "winrt-windows-globalization",
+      "version": "3.2.1",
+      "filename": "winrt_windows_globalization-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/69/da/8da1e5dc502e08e3a6d9de08712714310ef1780d25c762198e8e3b49a3fd/winrt_windows_globalization-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "fa4dbf6b18586e435bdd5d40b8536fe1dfd95810a264a135d121b34e33d39aa5",
+      "size": 137623,
+      "metadataUrl": "https://pypi.org/pypi/winrt-windows-globalization/3.2.1/json"
+    },
+    {
+      "name": "winrt-windows-graphics-imaging",
+      "version": "3.2.1",
+      "filename": "winrt_windows_graphics_imaging-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/3a/10/8cce4bffff8cad606623ea27adf711a0662881f2bca6207f12fd391d5eb8/winrt_windows_graphics_imaging-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "066038a96df12c23d6da6a591472436ada50103f575d8a1f802778a044f668c8",
+      "size": 142457,
+      "metadataUrl": "https://pypi.org/pypi/winrt-windows-graphics-imaging/3.2.1/json"
+    },
+    {
+      "name": "winrt-windows-media-ocr",
+      "version": "3.2.1",
+      "filename": "winrt_windows_media_ocr-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/28/34/33d90b4856517801c23c932940a9e307e5ceab14ca2747d4e5da846b142b/winrt_windows_media_ocr-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "9984824864b49eb65765f60ea9d910928888efe3cdf5f71f037d6fe9133134f6",
+      "size": 42066,
+      "metadataUrl": "https://pypi.org/pypi/winrt-windows-media-ocr/3.2.1/json"
+    },
+    {
+      "name": "winrt-windows-storage",
+      "version": "3.2.1",
+      "filename": "winrt_windows_storage-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/d6/cc/7a6e801843f4eced507c3194aa8ad95b65b16aa03dfe8a228a74d34fb0eb/winrt_windows_storage-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "5bafa8c44238c3080c54fe44486c400a7a7a3f5ca9005e8fd97e6dd3e49920a2",
+      "size": 264669,
+      "metadataUrl": "https://pypi.org/pypi/winrt-windows-storage/3.2.1/json"
+    },
+    {
+      "name": "winrt-windows-storage-streams",
+      "version": "3.2.1",
+      "filename": "winrt_windows_storage_streams-3.2.1-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/c6/2f/cc36f475f8af293f40e2c2a5d6c2e75a189c2c2d4d01ecb3551578518c79/winrt_windows_storage_streams-3.2.1-cp312-cp312-win_amd64.whl",
+      "sha256": "e4508ee135af53e4fc142876abbf4bc7c2a95edfc7d19f52b291a8499cacd6dc",
+      "size": 131849,
+      "metadataUrl": "https://pypi.org/pypi/winrt-windows-storage-streams/3.2.1/json"
+    }
+  ],
+  "sdists": [
+    {
+      "name": "proxy-tools",
+      "version": "0.1.0",
+      "filename": "proxy_tools-0.1.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/f2/cf/77d3e19b7fabd03895caca7857ef51e4c409e0ca6b37ee6e9f7daa50b642/proxy_tools-0.1.0.tar.gz",
+      "sha256": "ccb3751f529c047e2d8a58440d86b205303cf0fe8146f784d1cbcd94f0a28010",
+      "size": 2978
+    }
+  ],
+  "windowsDependencyClosure": {
+    "bottle": [],
+    "cffi": [
+      "pycparser; implementation_name != \"PyPy\""
+    ],
+    "charset-normalizer": [],
+    "clr-loader": [
+      "cffi>=1.17"
+    ],
+    "cryptography": [
+      "cffi>=2.0.0; platform_python_implementation != \"PyPy\""
+    ],
+    "pdfminer-six": [
+      "charset-normalizer>=2.0.0",
+      "cryptography>=36.0.0"
+    ],
+    "pdfplumber": [
+      "pdfminer.six==20251230",
+      "Pillow>=9.1",
+      "pypdfium2>=4.18.0"
+    ],
+    "pillow": [],
+    "proxy-tools": [],
+    "pycparser": [],
+    "pypdfium2": [],
+    "pythonnet": [
+      "clr_loader<0.4.0,>=0.3.1"
+    ],
+    "pywebview": [
+      "pythonnet; sys_platform == \"win32\"",
+      "proxy_tools",
+      "bottle",
+      "typing_extensions"
+    ],
+    "striprtf": [],
+    "typing-extensions": [],
+    "tzdata": [],
+    "winrt-runtime": [
+      "typing_extensions>=4.12.2"
+    ],
+    "winrt-windows-foundation": [
+      "winrt-runtime~=3.2.1.0"
+    ],
+    "winrt-windows-foundation-collections": [
+      "winrt-runtime~=3.2.1.0"
+    ],
+    "winrt-windows-globalization": [
+      "winrt-runtime~=3.2.1.0"
+    ],
+    "winrt-windows-graphics-imaging": [
+      "winrt-runtime~=3.2.1.0"
+    ],
+    "winrt-windows-media-ocr": [
+      "winrt-runtime~=3.2.1.0"
+    ],
+    "winrt-windows-storage": [
+      "winrt-runtime~=3.2.1.0"
+    ],
+    "winrt-windows-storage-streams": [
+      "winrt-runtime~=3.2.1.0"
+    ]
+  },
+  "buildOnlyExcluded": [
+    "altgraph",
+    "packaging",
+    "pefile",
+    "pyinstaller",
+    "pyinstaller-hooks-contrib",
+    "pywin32-ctypes",
+    "setuptools",
+    "wheel"
+  ],
+  "runtimeLicenseArchive": {
+    "filename": "cpython-3.12.15+20261001-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261001/cpython-3.12.15+20261001-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+    "sha256": "aaf7786ecc3fa0bf13259359de6545148e37038a378232609ca14fb9c875170d",
+    "purpose": "Upstream runtime build metadata and original third-party license texts only"
+  },
+  "licenseSources": [
+    {
+      "filename": "winrt_runtime-3.2.1.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/16/dd/acdd527c1d890c8f852cc2af644aa6c160974e66631289420aa871b05e65/winrt_runtime-3.2.1.tar.gz",
+      "sha256": "c8dca19e12b234ae6c3dadf1a4d0761b51e708457492c13beb666556958801ea",
+      "size": 21721,
+      "purpose": "Original WinRT license texts"
+    },
+    {
+      "filename": "proxy_tools-upstream-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/jtushman/proxy_tools/master/LICENSE.txt",
+      "purpose": "Original upstream license omitted by the sdist",
+      "sha256": "a428fb8a2e762af3eb0a6edbbb88e9b42ccfee80fd9b423958bcacf9b9abbfe4",
+      "size": 1436
+    },
+    {
+      "filename": "pywinrt-LICENSE",
+      "url": "https://raw.githubusercontent.com/pywinrt/pywinrt/v3.2.1/LICENSE",
+      "sha256": "6e898069e8b3c6d8d23dc70ac7067cc2b7c9db14c36df873026758db82c0891d",
+      "size": 1225,
+      "purpose": "Original project license shared by all winrt namespace wheels"
+    },
+    {
+      "filename": "microsoft.web.webview2.1.0.3856.49.nupkg",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3856.49/microsoft.web.webview2.1.0.3856.49.nupkg",
+      "sha256": "bc0f76eb911b569838dc4aa8f8d325269b966bedb592863d26211aef3a099f1a",
+      "sha512": "3b8jtjfw2idN3BCur90m8FV1y5hWl8Va3K0IfArcCzQAD35d8LFTtM33wTeAinW/DZB/JGnoLg4vbX22oRfU+w==",
+      "size": 9025251,
+      "purpose": "Original Microsoft SDK license and exact hash comparison against bundled WebView2 DLLs; not a system runtime installer"
+    }
+  ],
+  "builtWheels": [
+    {
+      "name": "proxy-tools",
+      "version": "0.1.0",
+      "filename": "proxy_tools-0.1.0-py3-none-any.whl",
+      "sha256": "7140cdd5f5b77c04b3f041fc7b6b72ba44d9a97e8994e4814208959b63568af4",
+      "size": 4465,
+      "sourceSha256": "ccb3751f529c047e2d8a58440d86b205303cf0fe8146f784d1cbcd94f0a28010",
+      "build": "Deterministic pure-Python repack of the two upstream package/metadata files; no native compilation or source execution"
+    }
+  ]
+}

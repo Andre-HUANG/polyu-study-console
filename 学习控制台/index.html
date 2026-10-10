@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#8d1738">
+  <meta name="csrf-token" content="__CSRF_TOKEN__">
+  <meta name="description" content="香港理工大学个人学习控制台：考试、作业、课程文档与成绩。">
+  <title>PolyU study控制台</title>
+  <link rel="icon" type="image/x-icon" href="/assets/polyu-favicon.ico">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <a class="brand" href="#top" aria-label="PolyU 学习控制台首页">
+        <img src="/assets/polyu-logo.png" alt="香港理工大学 The Hong Kong Polytechnic University" class="official-logo">
+      </a>
+      <div class="brand-caption">study 控制台</div>
+      <div class="side-label">工作区</div>
+      <nav class="side-nav">
+        <a class="active" href="#top"><span class="nav-icon" aria-hidden="true">▦</span> 学习总览</a>
+        <a href="#schedule"><span class="nav-icon" aria-hidden="true">◷</span> 考试与作业</a>
+        <a href="#grades"><span class="nav-icon" aria-hidden="true">◫</span> 成绩与评分</a>
+        <a href="#courses" id="coursesNav" aria-haspopup="dialog" aria-controls="settingsDialog"><span class="nav-icon" aria-hidden="true">▥</span> 课程概况</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="connection"><span class="connection-light"></span><span>PolyU Canvas<br><small id="canvasConnectionCaption">本机学习档案</small></span></div>
+        <p>个人学习控制台<br><span id="storageCaption">资料保存在本机</span></p>
+      </div>
+    </aside>
+
+    <main id="top" class="main">
+      <header class="topbar">
+        <div class="breadcrumb">MY POLYU <span>/</span> 学习总览</div>
+        <div class="topbar-tools"><div id="todayLabel" class="topbar-date">正在读取日期…</div><button id="settingsButton" class="button button-outline" type="button" aria-haspopup="dialog" aria-controls="settingsDialog" aria-expanded="false">设置</button></div>
+      </header>
+
+      <div class="content">
+        <section class="page-heading" aria-labelledby="pageTitle">
+          <div>
+            <p class="eyebrow"><span class="eyebrow-line"></span> YOUR ACADEMIC WORKSPACE</p>
+            <h1 id="pageTitle">学习总览<span class="title-period">.</span></h1>
+            <p id="syncCaption" class="heading-sub">正在读取 Canvas 学习档案…</p>
+          </div>
+          <div class="heading-actions">
+            <button id="refreshButton" class="button button-primary" type="button"><span class="refresh-mark" aria-hidden="true">↻</span> 更新 Canvas</button>
+          </div>
+        </section>
+
+        <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+
+        <section class="metrics" aria-label="学习数据概览">
+          <div class="metric metric-week"><span class="metric-kicker">NEXT 7 DAYS</span><strong id="metricWeek">—</strong><span class="metric-foot" id="metricWeekRange">未来 7 天待处理安排</span></div>
+          <div class="metric"><span class="metric-kicker">NEXT EXAM</span><strong id="metricExam">—</strong><span class="metric-foot" id="metricExamFoot">最近考试</span></div>
+          <div class="metric"><span class="metric-kicker">UPCOMING</span><strong id="metricUpcoming">—</strong><span class="metric-foot">未来 30 天有日期的安排</span></div>
+          <div class="metric"><span class="metric-kicker">COURSES</span><strong id="metricCourses">—</strong><span class="metric-foot">Canvas 已同步课程</span></div>
+        </section>
+
+        <section class="canvas-update panel" aria-labelledby="canvasUpdateTitle">
+          <div class="canvas-update-head">
+            <div><p class="section-kicker">CANVAS PULSE</p><h2 id="canvasUpdateTitle">Canvas 更新</h2></div>
+            <span class="canvas-update-live"><i aria-hidden="true"></i> 本机连接</span>
+          </div>
+          <div class="canvas-update-grid">
+            <div class="canvas-update-cell">
+              <span class="canvas-update-label">最近同步尝试</span>
+              <strong id="lastSyncTime">尚未同步</strong>
+              <span id="syncAge" class="canvas-update-detail">点击上方按钮同步最新资料</span>
+            </div>
+            <div class="canvas-update-cell">
+              <span class="canvas-update-label">最近可识别的课程 / 文件变动</span>
+              <strong id="latestContentTime">暂无记录</strong>
+              <span id="latestContentDetail" class="canvas-update-detail">根据 Canvas 提供的更新时间显示</span>
+            </div>
+          </div>
+          <p id="freshnessWarnings" class="canvas-update-note" role="status"></p>
+          <div id="confirmedChanges" aria-live="polite"></div>
+          <p class="canvas-update-note">统计 Canvas 提供更新时间的作业、公告、课程页面和课件文件。识别进度可在设置中查看。</p>
+        </section>
+
+        <div class="overview-grid">
+          <section class="focus-card" aria-labelledby="focusTitle">
+            <div class="focus-top"><span class="focus-tag">最近安排</span><span id="focusCourse" class="focus-course">—</span></div>
+            <h2 id="focusTitle">正在载入近期安排</h2>
+            <p id="focusReason" class="focus-reason">Canvas 更新后，这里显示最近一项安排。</p>
+            <div class="focus-step"><span>时间</span><p id="focusStep">—</p></div>
+            <a id="focusLink" class="focus-link" target="_blank" rel="noopener" hidden>查看课程来源 <span aria-hidden="true">↗</span></a>
+            <div class="focus-pattern" aria-hidden="true"></div>
+          </section>
+
+          <section class="up-next panel" aria-labelledby="upNextTitle">
+            <div class="panel-heading"><div><p class="section-kicker">ON THE HORIZON</p><h2 id="upNextTitle">即将到来</h2></div><a href="#schedule" class="text-link">查看全部</a></div>
+            <div id="upNextList" class="up-next-list"><p class="loading-text">正在读取近期安排…</p></div>
+          </section>
+        </div>
+
+        <section id="schedule" class="schedule-section panel" aria-labelledby="scheduleTitle">
+          <div class="panel-heading schedule-heading">
+            <div><p class="section-kicker">EXAMS & DEADLINES</p><h2 id="scheduleTitle">考试与作业安排</h2><p class="section-note">查看考试时间和作业截止日期。</p></div>
+            <button id="addEventButton" class="button button-outline" type="button"><span aria-hidden="true">＋</span> 添加安排</button>
+          </div>
+          <div class="schedule-toolbar">
+            <div class="segmented" role="tablist" aria-label="安排类型">
+              <button class="selected" type="button" data-filter="all" role="tab" aria-selected="true">全部</button>
+              <button type="button" data-filter="midterm" role="tab" aria-selected="false">期中考试</button>
+              <button type="button" data-filter="final" role="tab" aria-selected="false">期末考试</button>
+              <button type="button" data-filter="test" role="tab" aria-selected="false">其他测试</button>
+              <button type="button" data-filter="assignment" role="tab" aria-selected="false">作业</button>
+            </div>
+            <label class="select-wrap"><span class="sr-only">按课程筛选</span><select id="courseFilter"><option value="all">全部课程</option></select></label>
+          </div>
+          <div id="eventList" class="event-list"><p class="loading-text">正在读取安排…</p></div>
+          <details class="undated-details" data-preserve="undated"><summary><span>日期待核对的事项 <b id="undatedCount">0</b></span><span class="summary-hint">含文件中的考试提及与日期冲突</span></summary><div id="undatedList" class="undated-list"></div></details>
+        </section>
+
+        <section id="grades" class="grades-section" aria-labelledby="gradesTitle">
+          <div class="section-heading">
+            <div><p class="section-kicker">GRADES & WEIGHTS</p><h2 id="gradesTitle">成绩与评分</h2><p class="section-note">按课程公布的评分权重折算；未评分和无法确认权重的部分留空。</p></div>
+            <span id="gradeSyncNote" class="grades-sync">正在读取成绩…</span>
+          </div>
+          <div class="grades-lead">
+            <div class="panel grade-recent-panel"><div class="panel-heading"><div><p class="section-kicker">LATEST RELEASES</p><h3>最近更新的评分</h3></div><span id="gradeRecentCount" class="count-pill">0 项</span></div><div id="gradeRecentList" class="grade-recent-list"><p class="loading-text">正在读取成绩…</p></div></div>
+            <div class="panel grade-method-panel"><p class="section-kicker">HOW TO READ</p><h3>分数怎样折算</h3><p><strong>折算得分</strong>只计算已有明确评分和权重的项目。例如作业占 10%，得分 18/20，折算为课程总评的 9 分。</p><div class="grade-rule"><span>—</span><p>尚未考试、未出分，或权重及评分项对应关系待核对。</p></div><p class="grade-method-foot">评分标准从 Canvas 课程文件和课程设置核对，明细附文件名、页码与原文。Canvas 显示的当前成绩单独列出。</p></div>
+          </div>
+          <div id="gradeCourseGrid" class="grade-course-grid"><p class="loading-text">正在读取各课程的评分标准…</p></div>
+        </section>
+
+
+
+        <footer class="footer"><span>PolyU Study Console · 个人学习工作区</span><span>来源：Canvas</span></footer>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+    <div class="settings-header"><div><p class="section-kicker">YOUR WORKSPACE</p><h2 id="settingsTitle">设置</h2></div><button id="closeSettingsButton" class="button button-light" type="button">关闭设置 <span aria-hidden="true">×</span></button></div>
+    <div id="settingsNotice" class="notice" role="status" aria-live="polite" hidden></div>
+    <div class="settings-tabs" role="tablist" aria-label="设置栏目">
+      <button id="settings-account-tab" type="button" data-settings-tab="account" role="tab" aria-controls="accountSection" aria-selected="true">Canvas 账号</button>
+      <button id="settings-documents-tab" type="button" data-settings-tab="documents" role="tab" aria-controls="documents" aria-selected="false" tabindex="-1">自动识别</button>
+      <button id="settings-courses-tab" type="button" data-settings-tab="courses" role="tab" aria-controls="courses" aria-selected="false" tabindex="-1">课程概况</button>
+      <button id="settings-logs-tab" type="button" data-settings-tab="logs" role="tab" aria-controls="diagnosticsSection" aria-selected="false" tabindex="-1">运行日志</button>
+    </div>
+    <div class="settings-body">
+        <section id="accountSection" class="account-panel panel" data-settings-panel="account" role="tabpanel" aria-labelledby="settings-account-tab" hidden>
+          <div class="account-copy">
+            <p class="section-kicker">YOUR CANVAS CONNECTION</p>
+            <h2 id="accountTitle">连接你的 PolyU Canvas</h2>
+            <p id="accountDescription">在学校窗口登录，授权后逐门读取课程页面、公告、课件文件和已公布成绩。</p>
+            <div class="account-options"><label class="auto-sync-option"><input id="autoSyncToggle" type="checkbox" checked> <span id="autoSyncLabel">应用打开时自动同步（每 1 小时）</span></label><span id="accountStatus">首次连接后读取课程信息</span></div>
+            <p class="account-privacy">账号密码在学校页面输入；退出登录会删除这台电脑应用中该账号的学习资料和登录会话。</p>
+          </div>
+          <div class="account-actions">
+            <button id="loginButton" class="button button-primary" type="button">登录并授权 Canvas</button>
+            <button id="logoutButton" class="account-text-button" type="button" hidden>退出登录</button>
+            <button id="dataFolderButton" class="account-text-button" type="button">打开资料文件夹 ↗</button>
+          </div>
+        </section>
+        <section id="documents" class="document-section panel" data-settings-panel="documents" role="tabpanel" aria-labelledby="settings-documents-tab" hidden>
+          <div class="panel-heading"><div><p class="section-kicker">INSIGHTS FROM YOUR DOCUMENTS</p><h2 id="documentsTitle">课程文档自动识别</h2><p class="section-note">从每门课的课件、提纲、日程和公告中提取考试、作业及评分细则。自动关联分散的日期、时间和地点，结果附原文与页码。</p></div><span id="documentStatus" class="document-status">等待登录</span></div>
+          <div class="document-metrics"><div><strong id="documentDownloadCount">—</strong><span>已下载附件 / 模块所列</span></div><div><strong id="documentFileCount">—</strong><span>已识别文件 / 已发现</span></div><div><strong id="documentPageCount">—</strong><span>已处理页 / 位置</span></div><div><strong id="documentFindingCount">—</strong><span>已提取考核信息</span></div><div><strong id="documentReviewCount">—</strong><span>来源冲突 / 识别歧义</span></div></div>
+          <p id="documentDownloadReport" class="document-progress" role="status" aria-live="polite">登录后先下载课程模块中的附件，再开始识别。</p>
+          <button id="documentFolderButton" class="account-text-button" type="button">打开下载文件夹 ↗</button>
+          <p id="documentProgress" class="document-progress" role="status" aria-live="polite">登录后自动扫描你的课程资料。</p>
+          <div id="syncPhases" class="sync-phases"></div>
+          <details class="document-ledger" data-preserve="download-tree"><summary>查看已下载的课程文件夹 <span>按 Canvas 模块名称归档</span></summary><div id="documentDownloadTree" class="document-list"></div></details>
+          <div id="documentCourseSummary" class="document-course-summary"></div>
+          <div id="documentInsights" class="document-insights"></div>
+          <details class="document-ledger" data-preserve="document-ledger"><summary>查看全部文档及搜索正文 <span>原文、页码与读取进度</span></summary><div class="document-toolbar"><input id="documentSearch" type="search" maxlength="100" aria-label="搜索课程文件和本机正文" placeholder="搜索课程、文件名、正文或 OCR 文本…"><select id="documentFilter" aria-label="文件读取状态"><option value="all">全部资料</option><option value="insights">含考核信息</option><option value="review">读取未完成</option><option value="read">已识别</option></select></div><div id="documentMatches" role="status" aria-live="polite"></div><div id="documentList" class="document-list"></div></details>
+          <p class="document-footnote">先提取全部文件的正文与表格，再继续识别扫描页和嵌入图片；发现的安排立即显示。未公布的日期等待后续同步，读取失败自动重试，真正的来源冲突单独显示。正式个人考试时间请以 eStudent 为准，Canvas 资料不代表完整考试表。文件仅保存在当前账号的本机目录，退出登录即删除。</p>
+        </section>
+        <section id="courses" class="courses-section" data-settings-panel="courses" role="tabpanel" aria-labelledby="settings-courses-tab" hidden>
+          <div class="section-heading"><div><p class="section-kicker">YOUR SUBJECTS</p><h2 id="coursesTitle">课程概况</h2></div></div>
+          <div id="courseGrid" class="course-grid"></div>
+        </section>
+        <section id="diagnosticsSection" class="panel diagnostics-section" data-settings-panel="logs" role="tabpanel" aria-labelledby="settings-logs-tab" hidden>
+          <div class="panel-heading"><div><p class="section-kicker">DIAGNOSTICS</p><h2>运行日志</h2><p class="section-note">记录操作时间、结果和错误，便于排查问题。</p></div></div>
+          <div class="diagnostics-toolbar"><label class="select-wrap"><select id="logFilter" aria-label="日志筛选"><option value="all">全部记录</option><option value="problems">失败与未完成</option></select></label><button id="refreshLogsButton" class="button button-light" type="button">刷新</button><button id="clearLogsButton" class="button button-light" type="button">清空日志</button></div>
+          <p id="logStatus" class="section-note" role="status" aria-live="polite">打开后读取日志。</p>
+          <div id="logList" class="log-list" aria-live="polite"></div>
+          <p class="section-note">只保留最近 200 条操作记录。退出登录会删除账号日志；登录前及本次退出结果仅在本次运行中显示。</p>
+        </section>
+    </div>
+    <div class="settings-footer"><span>PolyU study控制台</span><span id="appVersion">v1.8.0</span></div>
+  </dialog>
+
+  <dialog id="eventDialog" class="event-dialog" aria-labelledby="dialogTitle">
+    <form id="eventForm" novalidate>
+      <div class="dialog-head"><div><p class="section-kicker">PERSONAL SCHEDULE</p><h2 id="dialogTitle">添加安排</h2></div><button id="closeDialog" type="button" class="icon-button" aria-label="关闭">×</button></div>
+      <p class="dialog-note">请根据 Canvas 原文登记，并附来源链接。安排保存到当前账号，并显示在考试与作业列表。</p>
+      <div class="form-grid">
+        <label class="field"><span>课程</span><select name="course" required></select></label>
+        <label class="field"><span>日期</span><input name="date" type="date" required></label>
+        <label class="field field-full"><span>安排分类</span><select name="kind"><option value="">自动按名称识别</option><option value="midterm">期中考试</option><option value="final">期末考试</option><option value="test">其他测试</option><option value="assignment">作业</option></select></label>
+        <label class="field field-full"><span>事项名称</span><input name="title" type="text" maxlength="120" placeholder="例如：期末考试、Group Project 截止" required><small>可选择分类，也可由名称自动识别。</small></label>
+        <label class="field"><span>时间 <em>可选</em></span><input name="time" type="time"></label>
+        <label class="field"><span>成绩权重 <em>可选</em></span><input name="weight" type="text" inputmode="decimal" placeholder="例如 30%"></label>
+        <label class="field field-full"><span>Canvas 来源链接</span><input name="url" type="url" placeholder="https://canvas.polyu.edu.hk/..."></label>
+        <label class="field field-full"><span>备注 <em>可选</em></span><textarea name="note" rows="3" maxlength="500" placeholder="例如：具体考试时间待老师确认"></textarea></label>
+      </div>
+      <div class="dialog-actions"><button type="button" id="cancelDialog" class="button button-light">取消</button><button type="submit" class="button button-primary">保存并更新</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

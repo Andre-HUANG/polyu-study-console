@@ -1,0 +1,4 @@
+0c4e61a7a63ca105c796c52f56388e73b2b5100b478bb44cd3202a0516d7ec2e  PolyU study控制台-1.8.0-arm64.dmg
+6a1817f3d9e255e4897f0404418fbf1920e716605fcf87e008d0461a6fbd2ee4  PolyU study控制台-1.8.0-arm64.zip
+770a392500104764bf8273dd7a8df860d07ae4eb42b3abe0f6b0a8b7bf487a8b  PolyU study控制台-1.8.0-windows-x64-setup.exe
+1699a638b92dbbf91ade458986c75c63af4c6d29e6e41c906de2826d048a0c2f  PolyU study控制台-1.8.0-windows-x64.zip

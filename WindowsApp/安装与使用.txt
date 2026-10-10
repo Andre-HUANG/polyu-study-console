@@ -1,0 +1,46 @@
+PolyU study控制台 · 1.8.0 · Windows x64 候选版本
+
+安装
+1. 适用于 AMD / Intel x64、Windows 10 2004（build 19041）或更新版本。
+2. 双击“PolyU study控制台-1.8.0-windows-x64-setup.exe”。安装到当前用户的 %LOCALAPPDATA%\Programs\PolyUStudyConsole，不要求管理员权限。
+3. 从开始菜单打开“PolyU study控制台”。已包含独立 Python 3.12.15 运行时，无需另装 Python、Codex 或自行构建。
+4. 便携版可完整解压“PolyU study控制台-1.8.0-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
+
+本候选包由 Mac 上的离线二进制组装生成，已校验官方 Windows 二进制文件哈希、PE 架构及静态 DLL 依赖/加载目录；尚未在 Windows 运行。安装程序和启动器采用官方 NSIS 32 位 Unicode 引导程序，Python、PYD 和原生 DLL 为 x64，托管库为 AnyCPU。静态检查不能替代 Windows 原生验证。
+包未进行 Authenticode 签名。可对照 Win发布/SHA256.txt 核对来源和文件完整性；遇 Windows 安全提示时保留系统安全设置。
+
+系统运行条件
+需要系统已有 .NET Framework 4.8 或更新版本、Microsoft Edge WebView2 Runtime 和 OCR 可用语种。仅安装 Edge 浏览器不足以替代 WebView2 Runtime。应用只读检测运行条件，缺少时提示，不自动下载安装系统组件，不更改系统安全设置。
+微软官方来源：
+https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48
+VC 运行库 DLL 来自随包的官方 Python/WinRT 发行。如 Windows 报 DLL 丢失，先重新完整解压/安装并核对 SHA256，不从不明站点下载单个 DLL。
+
+Windows 本机自检
+双击应用目录的“Windows原生自检.cmd”。它只使用临时合成 PDF、空白图片和临时空账号，检查 x64、私有 Python 路径、.NET/WebView2、DPAPI、PDF/表格、OCR 和后台启停/删除；不打开学校登录、不读取正式账号。窗口显示成功 JSON 或具体错误，供本机验收。
+此自检不验证真实 SSO 或登录窗口生命周期；当前构建证据明确记录 nativeSmoke 未运行。
+
+使用
+首次打开为空框架。点击右上角“设置 → Canvas 账号 → 登录并授权 Canvas”，在学校页面完成新鲜登录；确认当前用户后只读同步。无需 Canvas Token、默认课程、手工评分权重或 Codex。
+课程名单、作业、公告和成绩沿用共享后端；先下载可见附件，再识别正文、PDF 表格和本机 OCR。来源冲突、未公布日期、失败及未开放文件保持可见。正式个人考试时间以 eStudent 为准。
+本机全文/OCR 搜索结果保留原始 Canvas 链接和页码/位置。首次采集建立基线；仅确认的内容变化显示提示。部分采集显示失败项并保留最近完整采集时间。
+
+账号资料和退出
+账号资料位于 %LOCALAPPDATA%\PolyU study控制台\account\，与安装目录分开。Canvas cookie 用当前 Windows 用户的 DPAPI 保护；保护失败停止连接，不写明文。
+“退出登录”先停止全部后台进程，再关闭窗口并删除本应用全部账号/缓存和登录会话。清理失败保留退出标记，下次先完成清理；没有账号备份。
+正常关闭应用保留本账号缓存。Mac 与 Windows 各自保有账号资料，不复制 Mac cookie。卸载只删除安装包所属文件、当前用户快捷方式及安装记录，保留独立账号资料；如需清除账号，先在应用内退出登录。
+
+已知差异和待验收
+Windows OCR 不提供逐行数值置信度，标记“置信度未提供”；图片日期待确认。旧式二进制 .doc 暂不自动读取，原件归档并显示不支持；.docx/RTF 可读取。HEIC 等能力取决于现有系统，失败如实显示。
+真实 SSO、WebView2 登录缓存清理、中文长路径、账号切换拒绝、锁文件和后台崩溃仍需 Windows 原生验收。本包为候选版本。
+
+来源与许可证
+官方下载与 SHA256 见 Licenses/Runtime-dependency-lock.json。CPython 为 Astral python-build-standalone 的 3.12.15+20261001 Windows 构建，没有将旧 PSF 3.12.10 发行改名。
+许可证保留在 Licenses/ 和 runtime/Lib/site-packages 的 .dist-info 中。官方理大素材保持原比例和颜色，来源见 console/assets/SOURCES.txt。此应用是学生制作的个人学习工具，非学校官方应用。
+
+1.7：默认自动更新周期为 3600 秒（每 1 小时）；保留关闭自动更新和明确的自定义周期。下载最多三路同时进行，逐文件校验；同账号未变内容使用缓存，失败与读取不完整仍会显示并重试。升级前退出旧版，再运行新版安装器；账号目录继续使用，退出登录仍删除整个账号缓存。
+
+1.8 界面与日志
+日常导航为总览、考试与作业、成绩与评分、课程概况。右上角“设置”随页面滚动保留入口，打开后可选择 Canvas 账号、自动识别、课程概况和运行日志；点击“关闭设置”或按 Escape 返回。课程概况导航会打开设置中的对应栏目。版本号在设置底部显示。
+考试与作业新增期末考试筛选；添加安排时也可明确选择期末考试。未公布日期和真实冲突仍列为待核对，来源链接、原文、页码和权重收在“查看详情”中。
+运行日志可刷新、筛选失败或清空，只保留最近 200 条固定操作与结果，包含登录/退出的开始、结果和错误；不记录密码、Cookie、Token、学校登录响应、账号姓名或文档正文。登录后的日志只保存在 account/diagnostics 下，随退出账号一起删除。登录前与刚完成退出的结果只在本次运行内显示。清空日志不影响课程、成绩或个人安排。
