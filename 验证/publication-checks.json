@@ -92,7 +92,8 @@
     {
       "file": "PolyU study控制台-1.8.0-arm64.dmg",
       "bytes": 58755114,
-      "sha256": "0c4e61a7a63ca105c796c52f56388e73b2b5100b478bb44cd3202a0516d7ec2e"
+      "sha256": "0c4e61a7a63ca105c796c52f56388e73b2b5100b478bb44cd3202a0516d7ec2e",
+      "releaseAssetName": "PolyUStudyConsole-1.8.0-arm64.dmg"
     },
     {
       "file": "PolyU study控制台-1.8.0-arm64.zip",
@@ -101,12 +102,14 @@
       "zipCRCVerified": true,
       "members": 4640,
       "forbiddenPaths": [],
-      "credentialAndLocalPathScanPassed": true
+      "credentialAndLocalPathScanPassed": true,
+      "releaseAssetName": "PolyUStudyConsole-1.8.0-arm64.zip"
     },
     {
       "file": "PolyU study控制台-1.8.0-windows-x64-setup.exe",
       "bytes": 23915527,
-      "sha256": "770a392500104764bf8273dd7a8df860d07ae4eb42b3abe0f6b0a8b7bf487a8b"
+      "sha256": "770a392500104764bf8273dd7a8df860d07ae4eb42b3abe0f6b0a8b7bf487a8b",
+      "releaseAssetName": "PolyUStudyConsole-1.8.0-windows-x64-setup.exe"
     },
     {
       "file": "PolyU study控制台-1.8.0-windows-x64.zip",
@@ -115,7 +118,8 @@
       "zipCRCVerified": true,
       "members": 2132,
       "forbiddenPaths": [],
-      "credentialAndLocalPathScanPassed": true
+      "credentialAndLocalPathScanPassed": true,
+      "releaseAssetName": "PolyUStudyConsole-1.8.0-windows-x64.zip"
     }
   ],
   "realCanvasValidated": false,

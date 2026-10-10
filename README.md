@@ -10,8 +10,8 @@
 
 | 平台 | 文件 | 条件与验证范围 |
 | --- | --- | --- |
-| Apple Silicon Mac | `PolyU study控制台-1.8.0-arm64.dmg` 或 `.zip` | macOS 13 或更新版本；已完成隔离原生界面与生命周期检查。使用 ad-hoc 签名，未进行 Apple 公证。 |
-| Windows x64 | `PolyU study控制台-1.8.0-windows-x64-setup.exe` 或 `.zip` | Windows 10 2004 或更新版本，需要 .NET Framework 4.8、WebView2 Runtime。已完成二进制组装和静态检查，尚未进行 Windows 原生运行验收；未签名。 |
+| Apple Silicon Mac | `PolyUStudyConsole-1.8.0-arm64.dmg` 或 `.zip` | macOS 13 或更新版本；已完成隔离原生界面与生命周期检查。使用 ad-hoc 签名，未进行 Apple 公证。 |
+| Windows x64 | `PolyUStudyConsole-1.8.0-windows-x64-setup.exe` 或 `.zip` | Windows 10 2004 或更新版本，需要 .NET Framework 4.8、WebView2 Runtime。已完成二进制组装和静态检查，尚未进行 Windows 原生运行验收；未签名。 |
 
 安装后打开「设置 → Canvas 账号 → 登录并授权 Canvas」，在学校登录页面完成验证。应用打开期间默认每小时同步，也可手动更新。详情见 [使用说明](学习控制台/使用说明.md)、[Mac 安装说明](MacApp/安装与使用.txt) 和 [Windows 安装说明](WindowsApp/安装与使用.txt)。
 
