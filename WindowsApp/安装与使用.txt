@@ -1,4 +1,4 @@
-PolyU study控制台 · 1.8.0 · Windows x64 候选版本
+PolyU study控制台 · 1.8.0 · Windows x64
 
 安装
 1. 适用于 AMD / Intel x64、Windows 10 2004（build 19041）或更新版本。
@@ -6,7 +6,7 @@ PolyU study控制台 · 1.8.0 · Windows x64 候选版本
 3. 从开始菜单打开“PolyU study控制台”。已包含独立 Python 3.12.15 运行时，无需另装 Python、Codex 或自行构建。
 4. 便携版可完整解压“PolyU study控制台-1.8.0-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
 
-本候选包由 Mac 上的离线二进制组装生成，已校验官方 Windows 二进制文件哈希、PE 架构及静态 DLL 依赖/加载目录；尚未在 Windows 运行。安装程序和启动器采用官方 NSIS 32 位 Unicode 引导程序，Python、PYD 和原生 DLL 为 x64，托管库为 AnyCPU。静态检查不能替代 Windows 原生验证。
+本安装包由 Mac 上的离线二进制组装生成，已校验官方 Windows 二进制文件哈希、PE 架构及静态 DLL 依赖/加载目录；尚未在 Windows 运行。安装程序和启动器采用官方 NSIS 32 位 Unicode 引导程序，Python、PYD 和原生 DLL 为 x64，托管库为 AnyCPU。静态检查不能替代 Windows 原生验证。
 包未进行 Authenticode 签名。可对照 Win发布/SHA256.txt 核对来源和文件完整性；遇 Windows 安全提示时保留系统安全设置。
 
 系统运行条件
@@ -32,7 +32,7 @@ Windows 本机自检
 
 已知差异和待验收
 Windows OCR 不提供逐行数值置信度，标记“置信度未提供”；图片日期待确认。旧式二进制 .doc 暂不自动读取，原件归档并显示不支持；.docx/RTF 可读取。HEIC 等能力取决于现有系统，失败如实显示。
-真实 SSO、WebView2 登录缓存清理、中文长路径、账号切换拒绝、锁文件和后台崩溃仍需 Windows 原生验收。本包为候选版本。
+真实 SSO、WebView2 登录缓存清理、中文长路径、账号切换拒绝、锁文件和后台崩溃仍需 Windows 原生验收。
 
 来源与许可证
 官方下载与 SHA256 见 Licenses/Runtime-dependency-lock.json。CPython 为 Astral python-build-standalone 的 3.12.15+20261001 Windows 构建，没有将旧 PSF 3.12.10 发行改名。

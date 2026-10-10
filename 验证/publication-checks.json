@@ -72,7 +72,7 @@
     "WindowsApp/build-tools-lock.json": "cb19660ab449837c7aae08b1e6cb4c9e7b64d24053b473a2abf1a3f988367d27",
     "WindowsApp/launcher.nsi": "a10c71b95cea3242888e273ca882ad771714b822e897204a61c9ef3a489c88e8",
     "WindowsApp/installer.nsi": "55114fd2803c481c79a50f946e1769efc0bc43e4115e27ff8015d68066dbdc43",
-    "WindowsApp/安装与使用.txt": "3ec0770b2f5ae294d97bd46f57ca91d9781d9f3d08ba5365cd0202a5bde416bc",
+    "WindowsApp/安装与使用.txt": "b7bcbd081201587a6023657cbb34c171e2fa3367624de1c51683c71ef9f04896",
     "WindowsApp/原生构建与验收.md": "c2ca049904c73831e153cbceeb26838a8e5ec0d7f0a76c9d07230e6220ec0e14",
     "验证/run_offline.py": "c17c783cfe7eaed1eaedda2a0b96bcb99c7a80f0fa90b268e876e658f324ec5f",
     "验证/IsolationTests.swift": "44c736c8aa399e3f1ab196f17307c74bfb30675b0358bcb12f61fbe7306d7a47",
@@ -124,5 +124,10 @@
   ],
   "realCanvasValidated": false,
   "windowsNativeValidated": false,
-  "releaseStatus": "candidate"
+  "releaseStatus": "released",
+  "releaseMetadataUpdate": {
+    "scope": "release channel and repository documentation only",
+    "applicationSourceChanged": false,
+    "installationAssetsChanged": false
+  }
 }
