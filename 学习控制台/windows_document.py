@@ -18,7 +18,7 @@ async def _ocr(path):
     bitmap = None
     try:
         decoder = await BitmapDecoder.create_async(stream)
-        bitmap = await decoder.get_software_bitmap_async(BitmapPixelFormat.BGRA8, BitmapAlphaMode.PREMULTIPLIED)
+        bitmap = await decoder.get_software_bitmap_converted_async(BitmapPixelFormat.BGRA8, BitmapAlphaMode.PREMULTIPLIED)
         languages = [language for language in OcrEngine.available_recognizer_languages
                      if language.language_tag.lower().startswith(("en", "zh"))][:3]
         engines = [OcrEngine.try_create_from_language(language) for language in languages]
