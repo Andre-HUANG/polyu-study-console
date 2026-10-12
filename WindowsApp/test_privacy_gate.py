@@ -49,3 +49,13 @@ class PrivacyGateChecks(unittest.TestCase):
                 archive.writestr("runtime/Lib/site-packages/webview/__init__.py",b"changed-library")
             findings,_,_=gate.artifact(path)
             self.assertTrue(any(r["rule"]=="private-generated-path" for r in findings))
+
+    def test_identity_number_format_is_detected_and_redacted(self):
+        # Deliberately assembled synthetic format examples, never real identities.
+        for prefix in (b"X", b"ZX"):
+            for check in (b"3", b"A"):
+                value = prefix + b"987654" + b"(" + check + b")"
+                rows = gate.scan_bytes("synthetic-fixture", b"id: " + value)
+                self.assertEqual([r["rule"] for r in rows], ["identity-number"])
+                self.assertNotIn(value.decode(), str(rows))
+        self.assertFalse(gate.scan_bytes("ordinary", b"release987654(v3)"))

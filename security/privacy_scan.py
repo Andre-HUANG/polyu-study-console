@@ -17,7 +17,7 @@ EMAIL = re.compile(rb"[A-Za-z0-9_.+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 USER_PATH = re.compile(rb"(?<![A-Za-z0-9_/:.])(?:/(?:Users|home)/[A-Za-z0-9_.\-]+/|[A-Za-z]:[\\/]Users[\\/][A-Za-z0-9_.\-]+[\\/])")
 CREDENTIALS = {
     "credential": re.compile(rb"(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|sk-(?:proj-)?[A-Za-z0-9_\-]{30,}|AKIA[A-Z0-9]{16})"),
-    "identity-number": re.compile(rb"(?<![A-Za-z0-9])[A-Z]{1,2}[0-9]{6}\\([0-9A]\\)(?![A-Za-z0-9])"),
+    "identity-number": re.compile(rb"(?<![A-Za-z0-9])[A-Z]{1,2}[0-9]{6}\([0-9A]\)(?![A-Za-z0-9])"),
     "private-key": re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[\r\n]+[A-Za-z0-9+/=\r\n]{32,}"),
     "session-value": re.compile(rb"(?i)[\"']?(?:_?canvas_session|access_token|refresh_token|session_token)[\"']?\s*[:=]\s*[\"'][A-Za-z0-9_./+\-=]{20,}[\"']"),
 }

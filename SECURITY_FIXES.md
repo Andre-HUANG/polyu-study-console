@@ -30,3 +30,5 @@ Windows pywebview 官方库目录与私密 WebView 缓存分开识别，只允�
 参考：[锁定版本 pythonnet Runtime.cs](https://github.com/pythonnet/pythonnet/blob/v3.2.0/src/runtime/Runtime.cs)；[GitHub 官方 Python 构建清单](https://github.com/actions/python-versions/blob/main/versions-manifest.json)。
 
 Windows 原生 OCR 验收发现旧代码把两参数传给 PyWinRT 的零参数方法，实际抛出 Invalid parameter count。改用锁定 3.2.1 projection 的 get_software_bitmap_converted_async，增加真实接口形状与失败资源清理回归；没有跳过 OCR 原生发布检查。
+
+防泄露检查的证件号格式规则修正括号转义；合成单/双字母前缀、数字/A 校验位及输出脱敏回归通过。

@@ -1,5 +1,4 @@
 """The locked PyWinRT projection has distinct converted-bitmap methods."""
-import asyncio
 import sys
 import unittest
 from pathlib import Path
@@ -7,6 +6,18 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock,Mock,patch
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent/"学习控制台"))
 import windows_document
+
+def immediate(coroutine):
+    # AsyncMock results complete immediately. Avoid creating an event loop: on
+    # Windows that creates a loopback socket, forbidden by the offline harness.
+    try:
+        coroutine.send(None)
+        raise AssertionError("Mock coroutine unexpectedly suspended")
+    except StopIteration as completed:
+        return completed.value
+    finally:
+        coroutine.close()
+
 
 class WindowsOCRProjectionChecks(unittest.TestCase):
     def exercise(self,fail=False):
@@ -24,8 +35,8 @@ class WindowsOCRProjectionChecks(unittest.TestCase):
             try_create_from_language=Mock(return_value=engine)))
         with patch.dict(sys.modules,{"winrt.windows.storage":storage,"winrt.windows.graphics.imaging":imaging,"winrt.windows.media.ocr":ocr}):
             if fail:
-                with self.assertRaises(RuntimeError):asyncio.run(windows_document._ocr("synthetic.png"))
-            else:self.assertEqual(asyncio.run(windows_document._ocr("synthetic.png")),["synthetic OCR text"])
+                with self.assertRaises(RuntimeError):immediate(windows_document._ocr("synthetic.png"))
+            else:self.assertEqual(immediate(windows_document._ocr("synthetic.png")),["synthetic OCR text"])
         decoder.get_software_bitmap_converted_async.assert_awaited_once_with(87,1)
         bitmap.close.assert_called_once();stream.close.assert_called_once()
     def test_projected_converted_bitmap_method_is_used(self):self.exercise()
