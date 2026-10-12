@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | Mac ARM64 DMG | 0c4e61a7a63ca105c796c52f56388e73b2b5100b478bb44cd3202a0516d7ec2e | PASS：只读挂载、完整目录无账号路径，3 个主要二进制 arm64，深度严格签名通过 |
 | Mac ARM64 ZIP | 6a1817f3d9e255e4897f0404418fbf1920e716605fcf87e008d0461a6fbd2ee4 | 4,640 项；CRC 通过；无账号/凭据缓存路径；拥有者邮箱/本机用户名命中 0 |
-| Windows Setup | 770a392500104764bf8273dd7a8df860d07ae4eb42b3abe0f6b0a8b7bf487a8b | 官方哈希锁定 7-Zip 解出 2,150 文件；2,131 个负载与 Portable 清单逐一一致，无缺失/变更 |
+| Windows Setup | 770a392500104764bf8273dd7a8df860d07ae4eb42b3abe0f6b0a8b7bf487a8b | 官方哈希锁定 7-Zip 解出 2,152 文件；2,131 个负载与 Portable 清单逐一一致，无缺失/变更 |
 | Windows Portable ZIP | 1699a638b92dbbf91ade458986c75c63af4c6d29e6e41c906de2826d048a0c2f | 2,132 项；CRC 通过；无账号/凭据缓存路径；拥有者邮箱/用户名命中 0 |
 | document-vendor.zip | a02ac8b749df11924e0e054ab933f68c614261d6d29a749e673b2bc60a45b955 | 620 个锁定文件逐一验证；许可证保留；常量/内嵌字体误报已分类 |
 
@@ -63,3 +63,5 @@ Mac 仍 ad-hoc 签名且未公证。Keychain 指定代码要求可随 ad-hoc 版
 本次 PR #1 的 GitHub 自动合并预览 Commit 7bede98586f4 的 Author 仍含私人 Gmail（Committer 为 GitHub）。它不是本地 noreply 创建的正式源提交，未进入 main；本次不删除或重写它。后续预览对象也可能由相同账号设置产生，不能宣称这些公开对象已清除。
 
 已提醒用户在 GitHub 邮箱设置启用隐藏邮箱和阻止私人邮箱命令行推送；本地仓库配置无法替代账号设置。CI 明确检出并扫描实际 PR head、全部正式分支及 Tag，最终更新 main 使用通过 CI 的原始 noreply 提交和正常 fast-forward。预览元数据单独报告，不作为新正式源码提交；后续新的正式私人邮箱提交仍会被扫描拒绝。
+
+用户已于本次执行中确认启用 GitHub 的隐藏邮箱和阻止私人邮箱推送设置；此前已生成的预览对象仍按残留风险处理，后续对象需重新核查。

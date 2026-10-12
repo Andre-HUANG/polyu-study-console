@@ -156,14 +156,15 @@ def pure_proxy_wheel(lock):
     writer.writerow(["proxy_tools-0.1.0.dist-info/RECORD", "", ""])
     files["proxy_tools-0.1.0.dist-info/RECORD"] = records.getvalue().encode()
     target = DOWNLOADS / "proxy_tools-0.1.0-py3-none-any.whl"
-    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_STORED) as archive:
         for name, data in sorted(files.items()):
             info = zipfile.ZipInfo(name, (2026, 10, 6, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = 3
+            info.compress_type = zipfile.ZIP_STORED
             info.external_attr = 0o100644 << 16
             archive.writestr(info, data)
     entry = {"name": "proxy-tools", "version": "0.1.0", "filename": target.name, "sha256": sha256(target), "size": target.stat().st_size,
-             "sourceSha256": source["sha256"], "build": "Deterministic pure-Python repack of the two upstream package/metadata files; no native compilation or source execution"}
+             "sourceSha256": source["sha256"], "build": "Deterministic pure-Python repack of the two upstream package/metadata files; stored ZIP with fixed POSIX metadata; no native compilation or source execution"}
     if lock.get("builtWheels") and lock["builtWheels"] != [entry]:
         raise RuntimeError("Locally built wheel no longer matches its lock")
     if not lock.get("builtWheels"):
@@ -369,6 +370,7 @@ def deterministic_zip(bundle, output):
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in sorted(path for path in bundle.rglob("*") if path.is_file()):
             info = zipfile.ZipInfo(str(path.relative_to(bundle.parent)).replace("\\", "/"), (2026, 10, 6, 0, 0, 0))
+            info.create_system = 3
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
             archive.writestr(info, path.read_bytes())

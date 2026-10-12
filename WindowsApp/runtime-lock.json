@@ -355,10 +355,10 @@
       "name": "proxy-tools",
       "version": "0.1.0",
       "filename": "proxy_tools-0.1.0-py3-none-any.whl",
-      "sha256": "7140cdd5f5b77c04b3f041fc7b6b72ba44d9a97e8994e4814208959b63568af4",
-      "size": 4465,
+      "sha256": "ef64e418f831cd31e530aa9c43354ee0d9b69b0eb229f715250f4cacf3d5e409",
+      "size": 11004,
       "sourceSha256": "ccb3751f529c047e2d8a58440d86b205303cf0fe8146f784d1cbcd94f0a28010",
-      "build": "Deterministic pure-Python repack of the two upstream package/metadata files; no native compilation or source execution"
+      "build": "Deterministic pure-Python repack of the two upstream package/metadata files; stored ZIP with fixed POSIX metadata; no native compilation or source execution"
     }
   ]
 }
