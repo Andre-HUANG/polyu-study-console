@@ -117,7 +117,9 @@ jobs:
         if: ${{ !cancelled() && steps.assemble.outcome == 'success' }}
         timeout-minutes: 5
         run: |
-          $bundle = Get-ChildItem .build/windows-assembly -Directory -Filter PolyUStudyConsole-*-windows-x64 | Select-Object -First 1
+          $portable = Get-ChildItem Win发布 -Filter PolyUStudyConsole-*-windows-x64.zip | Select-Object -First 1
+          Expand-Archive -LiteralPath $portable.FullName -DestinationPath .build/windows-portable-check
+          $bundle = Get-ChildItem .build/windows-portable-check -Directory -Filter PolyUStudyConsole-*-windows-x64 | Select-Object -First 1
           $env:POLYU_GUI_EVIDENCE = "$pwd/验证/windows-gui-evidence.json"
           & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 "$($bundle.FullName)/WindowsApp/main.py" --gui-smoke
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

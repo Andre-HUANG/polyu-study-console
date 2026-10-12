@@ -60,3 +60,38 @@ class RuntimePathChecks(unittest.TestCase):
             root=Path(temporary);bundle=root/"bundle";dotnet=root/"system-clr"
             for extra in ("",str(root/"untrusted"),str(dotnet/"nested")):
                 self.assertFalse(validated_paths([str(bundle/"runtime"),extra],bundle,dotnet))
+
+class WindowsPayloadStructureChecks(unittest.TestCase):
+    def test_portable_preserves_empty_loader_directories_and_unicode_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);bundle=root/"bundle";bundle.mkdir()
+            for arch in ("win-arm64","win-x64","win-x86"):
+                (bundle/"runtime/Lib/site-packages/webview/lib/runtimes"/arch/"native").mkdir(parents=True)
+            (bundle/"Windows原生自检.cmd").write_bytes(b"synthetic")
+            archive_path=root/"portable.zip"
+            assembly.deterministic_zip(bundle,archive_path)
+            with zipfile.ZipFile(archive_path) as archive:archive.extractall(root/"extracted")
+            extracted=root/"extracted/bundle"
+            for arch in ("win-arm64","win-x64","win-x86"):
+                self.assertTrue((extracted/"runtime/Lib/site-packages/webview/lib/runtimes"/arch/"native").is_dir())
+            self.assertEqual((extracted/"Windows原生自检.cmd").read_bytes(),b"synthetic")
+
+    def test_installer_keeps_empty_directory_and_explicit_utf8_include(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);bundle=root/"bundle";(bundle/"empty/native").mkdir(parents=True)
+            (bundle/"Windows原生自检.cmd").write_bytes(b"synthetic")
+            with patch.object(assembly,"CACHE",root):
+                install,uninstall=assembly.installer_payload(bundle)
+            for path in (install,uninstall):
+                self.assertTrue(path.read_bytes().startswith(b"\xef\xbb\xbf"))
+                self.assertIn("Windows原生自检.cmd",path.read_text(encoding="utf-8-sig"))
+            self.assertIn('CreateDirectory "$INSTDIR'+chr(92)+'empty'+chr(92)+'native"',install.read_text(encoding="utf-8-sig"))
+            self.assertIn('RMDir "$INSTDIR'+chr(92)+'empty'+chr(92)+'native"',uninstall.read_text(encoding="utf-8-sig"))
+
+    def test_compiler_uses_explicit_utf8_on_both_hosts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for platform,prefix in (("win32","/"),("darwin","-")):
+                with patch.object(assembly,"CACHE",Path(temporary)),patch.object(assembly.sys,"platform",platform),patch.object(assembly.subprocess,"run") as run:
+                    assembly.compile_nsis(Path("synthetic-makensis"),Path("synthetic.nsi"),{},"synthetic-build.txt")
+                command=run.call_args.args[0]
+                self.assertEqual(command[command.index(prefix+"INPUTCHARSET")+1],"UTF8")

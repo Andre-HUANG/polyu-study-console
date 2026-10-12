@@ -25,9 +25,12 @@ def main():
     try:
         subprocess.run([str(setup),"/S"],check=True,timeout=180)
         for name,digest in manifest.items():
+            if not (install/name).is_file():
+                raise AssertionError({"missingPackageFile":name, "installedRootNames":sorted(p.name for p in install.iterdir())})
             assert hashlib.sha256((install/name).read_bytes()).hexdigest()==digest,name
         worker=[str(install/"runtime/python.exe"),"-I","-B","-X","utf8",str(install/"WindowsApp/main.py")]
         subprocess.run([*worker,"--platform-check"],check=True,timeout=180,capture_output=True)
+        subprocess.run([*worker,"--gui-smoke"],check=True,timeout=180)
         subprocess.run([str(install/"Uninstall.exe"),"/S"],check=True,timeout=180)
         deadline=time.monotonic()+30
         while install.exists() and time.monotonic()<deadline:time.sleep(.2)
@@ -37,7 +40,7 @@ def main():
         # This path was absent before the test and contains only the CI-created sentinel.
         if profile.exists():shutil.rmtree(profile)
     manifest_file=ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")/"payload-sha256.json"
-    report={"ok":True,"payloadManifestSHA256":hashlib.sha256(manifest_file.read_bytes()).hexdigest(),"setupSHA256":hashlib.sha256(setup.read_bytes()).hexdigest(),"installedPayloadHashesVerified":len(manifest),"installedRuntimeExecuted":True,
+    report={"ok":True,"payloadManifestSHA256":hashlib.sha256(manifest_file.read_bytes()).hexdigest(),"setupSHA256":hashlib.sha256(setup.read_bytes()).hexdigest(),"installedPayloadHashesVerified":len(manifest),"installedRuntimeExecuted":True,"installedGUIExecuted":True,
             "nativeInstallUninstall":True,"uninstallPreservesProfile":True,"realAccountAccessed":False}
     (ROOT/"验证/windows-installer-evidence.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report))

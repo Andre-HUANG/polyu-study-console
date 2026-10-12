@@ -219,6 +219,10 @@ def install_wheels(lock, bundle):
                 if destination.exists() and destination.read_bytes() != data:
                     raise RuntimeError("Conflicting wheel file: " + name)
                 destination.write_bytes(data)
+    # Upstream pywebview enumerates all three search directories even on x64.
+    # Retain empty directory structure while excluding every unused native DLL.
+    for architecture in ("win-arm64", "win-x64", "win-x86"):
+        (site / "webview/lib/runtimes" / architecture / "native").mkdir(parents=True, exist_ok=True)
     return {"actualWindowsMetadataClosure": closure, "excludedNonX64Files": excluded}
 
 
@@ -334,7 +338,7 @@ def compile_nsis(compiler, script, defines, log_name):
     environment = os.environ.copy()
     environment.update(NSISDIR=str(TOOLS / "nsis-3.13"), SOURCE_DATE_EPOCH=str(EPOCH))
     prefix = "/" if sys.platform == "win32" else "-"
-    command = [str(compiler), prefix + "NOCD", prefix + "V3", *[f"{prefix}D{name}={value}" for name, value in defines.items()], str(script)]
+    command = [str(compiler), prefix + "NOCD", prefix + "V3", prefix + "INPUTCHARSET", "UTF8", *[f"{prefix}D{name}={value}" for name, value in defines.items()], str(script)]
     with (CACHE / log_name).open("w") as log:
         subprocess.run(command, cwd=ROOT, env=environment, stdout=log, stderr=subprocess.STDOUT, check=True)
 
@@ -344,7 +348,11 @@ def nsis_quote(value):
 
 
 def installer_payload(bundle):
-    install, uninstall, directories = [], [], set()
+    directories = {p.relative_to(bundle) for p in bundle.rglob("*") if p.is_dir()}
+    install, uninstall = [], []
+    for folder in sorted(directories):
+        if not any((bundle / folder).iterdir()):
+            install.append('CreateDirectory "$INSTDIR\\' + nsis_quote(folder.as_posix().replace("/", "\\")) + '"')
     files = sorted(path for path in bundle.rglob("*") if path.is_file())
     previous = None
     for path in files:
@@ -361,19 +369,22 @@ def installer_payload(bundle):
     for folder in sorted(directories, key=lambda value: (-len(value.parts), str(value))):
         uninstall.append('RMDir "$INSTDIR\\' + nsis_quote(str(folder).replace("/", "\\")) + '"')
     install_path, uninstall_path = CACHE / "payload-install.nsh", CACHE / "payload-uninstall.nsh"
-    install_path.write_text("\n".join(install) + "\n", encoding="utf-8")
-    uninstall_path.write_text("\n".join(uninstall) + "\n", encoding="utf-8")
+    install_path.write_text("\n".join(install) + "\n", encoding="utf-8-sig")
+    uninstall_path.write_text("\n".join(uninstall) + "\n", encoding="utf-8-sig")
     return install_path, uninstall_path
 
 
 def deterministic_zip(bundle, output):
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for path in sorted(path for path in bundle.rglob("*") if path.is_file()):
-            info = zipfile.ZipInfo(str(path.relative_to(bundle.parent)).replace("\\", "/"), (2026, 10, 6, 0, 0, 0))
+        for path in sorted(bundle.rglob("*")):
+            directory = path.is_dir()
+            if not directory and not path.is_file(): continue
+            name = path.relative_to(bundle.parent).as_posix() + ("/" if directory else "")
+            info = zipfile.ZipInfo(name, (2026, 10, 6, 0, 0, 0))
             info.create_system = 3
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = 0o100644 << 16
-            archive.writestr(info, path.read_bytes())
+            info.compress_type = zipfile.ZIP_STORED if directory else zipfile.ZIP_DEFLATED
+            info.external_attr = ((0o40755 << 16) | 0x10) if directory else (0o100644 << 16)
+            archive.writestr(info, b"" if directory else path.read_bytes())
 
 
 def main():

@@ -4,7 +4,7 @@ PASS=本项实际执行通过（注明合成/静态/原生范围）；FAIL=执�
 
 ## 已执行
 
-- PASS：157 项隔离回归，0 外部 socket/DNS 尝试。覆盖空框架、课程/作业/Quiz、考试分类、日期歧义、评分比例/冲突、文档/检索、下载/重试/重定向、日志、手动记录、迁移及退出清理。
+- PASS：160 项隔离回归，0 外部 socket/DNS 尝试。覆盖空框架、课程/作业/Quiz、考试分类、日期歧义、评分比例/冲突、文档/检索、下载/重试/重定向、日志、手动记录、迁移及退出清理。
 - PASS：20 个实际 loopback HTTP 检查，无授权读取/修改拒绝、正确读写、错误 Host/Origin/Cookie、票据单次、退出失效、模拟重启失效、合成账号 A→B 隔离。
 - PASS：独立临时 Keychain 实际写入、读取、旧 Cookie 迁移、相同签名 helper 重装、锁定失败保护、清理及既有搜索列表恢复；未访问真实应用账号。
 - PASS：当前源码、全部可达历史及锁定依赖扫描。私人邮箱保留为 ACKNOWLEDGED_HISTORY，并未清除；Gitleaks 上游规则加精确哈希误报规则。
@@ -23,9 +23,9 @@ PASS=本项实际执行通过（注明合成/静态/原生范围）；FAIL=执�
 | 课程变化、固定日志 | PASS，回归；真实课程变化 NOT TESTED |
 | Mac 启动/关闭/重开/后台故障恢复/退出清理 | PASS：本次 3 阶段真实原生 GUI 验收，含关闭重开、后台故障恢复和退出取消/确认；使用隔离合成账号 |
 | Mac 包内容/架构/签名 | PASS，构建与结构；未 Apple 公证 |
-| Windows DPAPI 真正系统往返 | 本地 Mac BLOCKED；Windows CI --platform-check 后决定 |
-| Windows WebView2 启动/关闭/本地授权/设置 | 本地 Mac BLOCKED；Windows CI --gui-smoke 后决定 |
-| Windows 原生安装/卸载/保留账号目录 | 本地 Mac BLOCKED；一次性 Windows CI 后决定 |
+| Windows DPAPI 真正系统往返 | PASS：Windows Runner 实际 DPAPI 往返、PDF/表格、OCR 空图及后端启停 |
+| Windows WebView2 启动/关闭/本地授权/设置 | FAIL：发现精简包缺少上游查询的空目录；修复后等待原生重验 |
+| Windows 原生安装/卸载/保留账号目录 | FAIL：中文文件名安装不一致；修复后等待原生重验 |
 | 新 Windows x64 PE/DLL/锁定负载 | PASS：Mac 组装 1.8.1 x64 候选包并完成 PE/DLL/哈希检查；不代替 Windows 运行 |
 | 不同 ad-hoc 签名身份跨版本 Keychain 访问 | NOT TESTED，可能要求系统授权；失败保留数据 |
 | 真实既有用户升级/异常退出/实际卸载 | 合成迁移/故障回归 PASS；真实用户环境 NOT TESTED |
