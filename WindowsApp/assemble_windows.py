@@ -429,7 +429,7 @@ def main():
                 "externalSystemPrerequisites": ["Windows 10 build 19041 or newer, native AMD/Intel x64", ".NET Framework 4.8 or newer", "Microsoft Edge WebView2 Runtime", "Windows OCR language support"],
                 "installerScope": "Current user; private Programs/PolyUStudyConsole directory; uninstall deletes exact package file allowlist and HKCU registration, preserves separate account profile."}
     (bundle / "build-evidence.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    manifest = {str(path.relative_to(bundle)): sha256(path) for path in sorted(bundle.rglob("*")) if path.is_file()}
+    manifest = {path.relative_to(bundle).as_posix(): sha256(path) for path in sorted(bundle.rglob("*")) if path.is_file()}
     (bundle / "payload-sha256.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     # NSIS stores each File's mtime even with SOURCE_DATE_EPOCH. Normalize only
     # the newly assembled payload, leaving original source/cache files untouched.

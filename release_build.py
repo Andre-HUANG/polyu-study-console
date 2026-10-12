@@ -39,4 +39,4 @@ def source_hashes():
     paths += [ROOT / "security/dependency-exceptions.json", ROOT / "security/tools-lock.json", ROOT / ".gitleaks.toml"]
     paths += sorted((ROOT / "security").glob("*.py")) + sorted((ROOT / ".github/workflows").glob("*.yml"))
     paths += [ROOT / "验证/verify_local_api.py", ROOT / "验证/verify_keychain.py"]
-    return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
+    return {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
