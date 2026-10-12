@@ -46,3 +46,17 @@ class ArchiveRepackChecks(unittest.TestCase):
         assembly.pure_proxy_wheel(self.lock)
         self.lock["builtWheels"][0]["sha256"]="0"*64
         with self.assertRaises(RuntimeError):assembly.pure_proxy_wheel(self.lock)
+
+class RuntimePathChecks(unittest.TestCase):
+    def test_only_fixed_system_clr_path_can_extend_private_paths(self):
+        from native_verify import validated_paths
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);bundle=root/"bundle";dotnet=root/"system-clr"
+            self.assertTrue(validated_paths([str(bundle/"runtime"),str(dotnet)],bundle,dotnet))
+            self.assertFalse(validated_paths([str(dotnet)],bundle))
+    def test_other_external_and_empty_paths_are_rejected(self):
+        from native_verify import validated_paths
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);bundle=root/"bundle";dotnet=root/"system-clr"
+            for extra in ("",str(root/"untrusted"),str(dotnet/"nested")):
+                self.assertFalse(validated_paths([str(bundle/"runtime"),extra],bundle,dotnet))

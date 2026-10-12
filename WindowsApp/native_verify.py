@@ -30,6 +30,11 @@ def sample_pdf(path):
     path.write_bytes(data)
 
 
+def validated_paths(paths,bundle,dotnet=None):
+    return all(path and (Path(path).resolve().is_relative_to(bundle.resolve()) or
+                         (dotnet is not None and Path(path).resolve()==dotnet.resolve())) for path in paths)
+
+
 def main():
     if sys.platform != 'win32': raise SystemExit('Native checks require Windows')
     from platform_support import dpapi, helper_command
@@ -40,13 +45,23 @@ def main():
     assert struct.calcsize('P') == 8 and platform.machine().lower() in {'amd64', 'x86_64'}
     assert sys.stdout is not None, 'Native checks require the console worker interpreter'
     prerequisites = windows_prerequisites()
-    import clr  # Load the required .NET Framework without opening any GUI.
     private_runtime = Path(sys.executable).parent / 'python312._pth'
     if private_runtime.is_file():
         bundle = Path(sys.executable).resolve().parent.parent
         assert sys.flags.isolated and sys.flags.utf8_mode and sys.dont_write_bytecode
-        assert all(path and Path(path).resolve().is_relative_to(bundle) for path in sys.path), 'Python path escaped the private bundle'
+        assert validated_paths(sys.path,bundle), 'Python startup path escaped the private bundle'
     bundle=Path(sys.executable).resolve().parent.parent
+    import clr  # pythonnet appends the OS .NET assembly directory, verified below.
+    import ctypes
+    from System.Runtime.InteropServices import RuntimeEnvironment
+    windows_directory=ctypes.create_unicode_buffer(32768)
+    length=ctypes.windll.kernel32.GetWindowsDirectoryW(windows_directory,len(windows_directory))
+    assert 0<length<len(windows_directory)
+    dotnet=Path(str(RuntimeEnvironment.GetRuntimeDirectory())).resolve()
+    expected_dotnet=(Path(windows_directory.value)/"Microsoft.NET/Framework64/v4.0.30319").resolve()
+    assert dotnet==expected_dotnet, 'Unexpected system CLR runtime directory'
+    if private_runtime.is_file():
+        assert validated_paths(sys.path,bundle,dotnet), 'Python path includes an unapproved external directory'
     manifest_digest=hashlib.sha256((bundle/'payload-sha256.json').read_bytes()).hexdigest()
     synthetic = b'PolyU synthetic session verification'
     assert dpapi(dpapi(synthetic), decrypt=True) == synthetic
@@ -89,7 +104,7 @@ def main():
         'pdfTextAndFrozenTables':True, 'blankImageProcessed':True,
         'ocrLanguages':len(OcrEngine.available_recognizer_languages), 'ownedBackendStopped':True,
         'syntheticProfileDeleted':True, 'systemPrerequisites':prerequisites,
-        'privateRuntimeIsolation':bool(private_runtime.is_file()),
+        'privateRuntimeIsolation':bool(private_runtime.is_file()), 'systemDotnetPathVerified':True,
         'webviewLoginValidated':False, 'realCanvasValidated':False}))
 
 

@@ -24,3 +24,7 @@
 Windows pywebview 官方库目录与私密 WebView 缓存分开识别，只允许锁定 wheel 的精确文件哈希；Pillow 字体误报同样限制为已核对字节和指纹。打包排除可选上游 PDB 调试符号，不改变认证检测。
 
 原生 Windows CI 发现纯 Python 重打包 ZIP 默认平台属性导致锁值不一致；改为固定 POSIX 元数据和 stored ZIP，保留同一已验证上游字节/许可证，更新生成 wheel 锁值并加入两项不同主机默认值/篡改拒绝回归。
+
+原生运行验收复核 pythonnet 3.2.0 源码：它会将系统 CLR 目录加入 sys.path。验收先严格检查私有 Python 启动路径，再仅允许与 Windows 系统目录和实际 CLR API 都匹配的 Framework64/v4.0.30319 单一目录；其他外部/空路径仍拒绝。
+
+参考：[锁定版本 pythonnet Runtime.cs](https://github.com/pythonnet/pythonnet/blob/v3.2.0/src/runtime/Runtime.cs)；[GitHub 官方 Python 构建清单](https://github.com/actions/python-versions/blob/main/versions-manifest.json)。
