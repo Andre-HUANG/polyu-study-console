@@ -32,3 +32,5 @@ Windows pywebview 官方库目录与私密 WebView 缓存分开识别，只允�
 Windows 原生 OCR 验收发现旧代码把两参数传给 PyWinRT 的零参数方法，实际抛出 Invalid parameter count。改用锁定 3.2.1 projection 的 get_software_bitmap_converted_async，增加真实接口形状与失败资源清理回归；没有跳过 OCR 原生发布检查。
 
 防泄露检查的证件号格式规则修正括号转义；合成单/双字母前缀、数字/A 校验位及输出脱敏回归通过。
+
+Windows 原生验收拆为独立步骤，在已验证构建成功后分别执行回归、HTTP、DPAPI/PDF/OCR、WebView2 和安装卸载。单项失败仍使整个 job 失败并阻止发布，同时保留其他独立项目的诊断，减少串行失败遮蔽。

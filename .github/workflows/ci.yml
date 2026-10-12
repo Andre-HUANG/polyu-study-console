@@ -89,19 +89,42 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with: {python-version: '3.12.10', architecture: x64}
-      - run: python -B WindowsApp/assemble_windows.py --download
-      - run: |
+      - name: Build locked Windows payload
+        id: assemble
+        run: python -B WindowsApp/assemble_windows.py --download
+      - name: Offline Python regression
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
           $bundle = Get-ChildItem .build/windows-assembly -Directory -Filter PolyUStudyConsole-*-windows-x64 | Select-Object -First 1
           & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 验证/run_offline.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Loopback API authorization
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          $bundle = Get-ChildItem .build/windows-assembly -Directory -Filter PolyUStudyConsole-*-windows-x64 | Select-Object -First 1
           & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 验证/verify_local_api.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Native DPAPI PDF OCR and backend
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          $bundle = Get-ChildItem .build/windows-assembly -Directory -Filter PolyUStudyConsole-*-windows-x64 | Select-Object -First 1
           & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 "$($bundle.FullName)/WindowsApp/main.py" --platform-check > 验证/windows-native-evidence.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Native WebView2 lifecycle
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          $bundle = Get-ChildItem .build/windows-assembly -Directory -Filter PolyUStudyConsole-*-windows-x64 | Select-Object -First 1
           $env:POLYU_GUI_EVIDENCE = "$pwd/验证/windows-gui-evidence.json"
           & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 "$($bundle.FullName)/WindowsApp/main.py" --gui-smoke
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - run: python -B WindowsApp/installer_verify.py
+      - name: Native install and uninstall
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' }}
+        timeout-minutes: 5
+        run: python -B WindowsApp/installer_verify.py
       - run: python -B security/validate_platform.py windows
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
