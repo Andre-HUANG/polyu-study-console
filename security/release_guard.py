@@ -11,7 +11,7 @@ def source_sha():
     if not re.fullmatch(r"[0-9a-f]{40}",head):raise RuntimeError("Invalid source commit")
     if subprocess.check_output([git,"status","--porcelain","--untracked-files=normal"],cwd=ROOT):
         raise RuntimeError("Commit source changes before final binary validation")
-    advertised=os.environ.get("GITHUB_SHA")
+    advertised=os.environ.get("POLYU_SOURCE_SHA") or os.environ.get("GITHUB_SHA")
     if advertised and advertised!=head:raise RuntimeError("CI checkout differs from the declared source")
     return head
 

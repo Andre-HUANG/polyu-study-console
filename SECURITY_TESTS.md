@@ -35,3 +35,5 @@ PASS=本项实际执行通过（注明合成/静态/原生范围）；FAIL=执�
 python3 security/release.py --check 执行扫描、Gitleaks、回归、HTTP 和可用的 Keychain 检查。--build mac/windows 在原生平台构建验收。证据只在忽略目录，公开仅脱敏摘要和 CI 明确白名单。
 
 [远程 Actions](https://github.com/Andre-HUANG/polyu-study-console/actions)：Security Scan、Python Tests、macOS Build and Test、Windows Build and Test、Release Validation 均需成功。发布只接受同一 main SHA 的成功运行，失败停止；未执行项保持未验证。
+
+CI 的 Mac/Windows 开发解释器固定为 GitHub 官方清单提供的 Python 3.12.10；随应用的哈希锁定运行时仍为 3.12.15，另有实际包运行验收。PR 检出并验证其 head Commit，发布只接受成功 main 运行。GitHub 自动 PR 预览的私人邮箱元数据见审计剩余风险。
