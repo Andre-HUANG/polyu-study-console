@@ -420,12 +420,12 @@ def main():
     if {path.name for path in (console / "assets").iterdir()} != set(ASSETS):
         raise RuntimeError("Official asset allowlist mismatch")
     pe_audit, dll_layout = audit_pe(bundle)
-    evidence = {"version": VERSION, "releaseStatus": "candidate", "buildMethod": "Official Windows CPython/PyPI binary assembly with native POSIX NSIS compiler and matching official Windows stubs", "builderPlatform": platform.platform(), "builderPython": sys.version,
+    evidence = {"version": VERSION, "releaseStatus": "candidate", "buildMethod": "Hash-verified Windows CPython/PyPI binary assembly with NSIS 3.13 and matching official stubs", "builderPlatform": platform.platform(), "builderPython": sys.version,
                 "runtime": lock["runtime"], "runtimeVersion": "3.12.15+20261001", "runtimeTarget": lock["target"], "sourceHashes": source_hashes(), "packages": {entry["name"]: entry["version"] for entry in lock["wheels"] + lock["builtWheels"]},
                 "downloadLocks": {"runtimeLockSha256": sha256(SOURCE / "runtime-lock.json"), "buildToolsLockSha256": sha256(SOURCE / "build-tools-lock.json")},
                 "consoleAllowlist": list(CONSOLE_FILES), "assetAllowlist": list(ASSETS), "shellAllowlist": list(SHELL_FILES), "dependencyAudit": dependency_audit, "staticPEAudit": pe_audit, "staticDllLayoutAudit": dll_layout, "staticPrivatePathAudit": private_paths, "staticWebViewSdkAudit": sdk_audit,
                 "pythonIsolation": {"configuration": "runtime/python312._pth", "arguments": ["-I", "-B", "-X", "utf8"], "guiExecutable": "runtime/pythonw.exe", "workerExecutable": "runtime/python.exe", "nativeValidated": False},
-                "nativeSmoke": {"status": "not_run", "ok": None, "reason": "The execution host is macOS; no native Windows execution environment is connected."}, "installerNativeValidated": False, "guiLoginValidated": False, "realCanvasValidated": False, "authenticodeSigned": False,
+                "nativeSmoke": {"status": "not_run", "ok": None, "reason": "Assembly performs static checks; subsequent native acceptance is recorded separately."}, "installerNativeValidated": False, "guiLoginValidated": False, "realCanvasValidated": False, "authenticodeSigned": False,
                 "externalSystemPrerequisites": ["Windows 10 build 19041 or newer, native AMD/Intel x64", ".NET Framework 4.8 or newer", "Microsoft Edge WebView2 Runtime", "Windows OCR language support"],
                 "installerScope": "Current user; private Programs/PolyUStudyConsole directory; uninstall deletes exact package file allowlist and HKCU registration, preserves separate account profile."}
     (bundle / "build-evidence.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

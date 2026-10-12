@@ -2,12 +2,12 @@ PolyU study控制台 · 1.8.1 · Windows x64
 
 安装
 1. 适用于 AMD / Intel x64、Windows 10 2004（build 19041）或更新版本。
-2. 双击“PolyU study控制台-1.8.1-windows-x64-setup.exe”。安装到当前用户的 %LOCALAPPDATA%\Programs\PolyUStudyConsole，不要求管理员权限。
+2. 双击“PolyUStudyConsole-1.8.1-windows-x64-setup.exe”。安装到当前用户的 %LOCALAPPDATA%\Programs\PolyUStudyConsole，不要求管理员权限。
 3. 从开始菜单打开“PolyU study控制台”。已包含独立 Python 3.12.15 运行时，无需另装 Python、Codex 或自行构建。
-4. 便携版可完整解压“PolyU study控制台-1.8.1-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
+4. 便携版可完整解压“PolyUStudyConsole-1.8.1-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
 
-本安装包由 Mac 上的离线二进制组装生成，已校验官方 Windows 二进制文件哈希、PE 架构及静态 DLL 依赖/加载目录；尚未在 Windows 运行。安装程序和启动器采用官方 NSIS 32 位 Unicode 引导程序，Python、PYD 和原生 DLL 为 x64，托管库为 AnyCPU。静态检查不能替代 Windows 原生验证。
-包未进行 Authenticode 签名。可对照 Win发布/SHA256.txt 核对来源和文件完整性；遇 Windows 安全提示时保留系统安全设置。
+安装包使用哈希锁定的官方 Windows 二进制输入，并检查 PE 架构及静态 DLL 依赖/加载目录。Mac 组装只提供静态结果；GitHub Actions 在 Windows 原生环境执行验收，实际结果见同版 Release 和 SECURITY_TESTS.md。安装程序和启动器采用官方 NSIS 32 位 Unicode 引导程序，Python、PYD 和原生 DLL 为 x64，托管库为 AnyCPU。静态检查不能替代 Windows 原生验证。
+包未进行 Authenticode 签名。可对照同版 Release 的 SHA256SUMS.txt 核对来源和文件完整性；遇 Windows 安全提示时保留系统安全设置。
 
 系统运行条件
 需要系统已有 .NET Framework 4.8 或更新版本、Microsoft Edge WebView2 Runtime 和 OCR 可用语种。仅安装 Edge 浏览器不足以替代 WebView2 Runtime。应用只读检测运行条件，缺少时提示，不自动下载安装系统组件，不更改系统安全设置。
@@ -18,7 +18,7 @@ VC 运行库 DLL 来自随包的官方 Python/WinRT 发行。如 Windows 报 DLL
 
 Windows 本机自检
 双击应用目录的“Windows原生自检.cmd”。它只使用临时合成 PDF、空白图片和临时空账号，检查 x64、私有 Python 路径、.NET/WebView2、DPAPI、PDF/表格、OCR 和后台启停/删除；不打开学校登录、不读取正式账号。窗口显示成功 JSON 或具体错误，供本机验收。
-此自检不验证真实 SSO 或登录窗口生命周期；当前构建证据明确记录 nativeSmoke 未运行。
+此自检不验证真实 SSO 或登录窗口生命周期；实际原生验收结果见同版 Release；包内 build-evidence 只记录组装阶段。
 
 使用
 首次打开为空框架。点击右上角“设置 → Canvas 账号 → 登录并授权 Canvas”，在学校页面完成新鲜登录；确认当前用户后只读同步。无需 Canvas Token、默认课程、手工评分权重或 Codex。

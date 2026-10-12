@@ -36,7 +36,8 @@ def main():
     finally:
         # This path was absent before the test and contains only the CI-created sentinel.
         if profile.exists():shutil.rmtree(profile)
-    report={"ok":True,"installedPayloadHashesVerified":len(manifest),"installedRuntimeExecuted":True,
+    manifest_file=ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")/"payload-sha256.json"
+    report={"ok":True,"payloadManifestSHA256":hashlib.sha256(manifest_file.read_bytes()).hexdigest(),"setupSHA256":hashlib.sha256(setup.read_bytes()).hexdigest(),"installedPayloadHashesVerified":len(manifest),"installedRuntimeExecuted":True,
             "nativeInstallUninstall":True,"uninstallPreservesProfile":True,"realAccountAccessed":False}
     (ROOT/"验证/windows-installer-evidence.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report))

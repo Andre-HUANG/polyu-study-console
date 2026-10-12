@@ -43,4 +43,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLISH_RELEASE: ${{ inputs.publish }}
+          VALIDATION_RUN: ${{ inputs.validation_run }}
         run: python -B security/release.py --publish .security-local/release

@@ -19,7 +19,7 @@ VIAddVersionKey "FileVersion" "1.8.1"
 VIAddVersionKey "FileDescription" "PolyU study控制台 Windows x64 安装程序"
 VIAddVersionKey "LegalCopyright" "Personal study tool; not an official university application"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TEXT "将为当前用户安装 PolyU study控制台 1.8.1。$\r$\n$\r$\n应用包含自己的 Python，无需 Codex、Python 或管理员权限。需要系统已有 .NET Framework 4.8 及 Microsoft Edge WebView2 Runtime。$\r$\n$\r$\n这是尚待 Windows 原生验收的候选版本。安装程序不安装系统组件；账号资料由应用管理。"
+!define MUI_WELCOMEPAGE_TEXT "将为当前用户安装 PolyU study控制台 1.8.1。$\r$\n$\r$\n应用包含自己的 Python，无需 Codex、Python 或管理员权限。需要系统已有 .NET Framework 4.8 及 Microsoft Edge WebView2 Runtime。$\r$\n$\r$\n请对照 GitHub Release 的 SHA256 校验文件和验证说明。安装程序不安装系统组件；账号资料由应用管理。"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\PolyUStudyConsole.exe"

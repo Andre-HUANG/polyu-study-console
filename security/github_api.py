@@ -31,7 +31,8 @@ def token():
 
 
 def request(path,method="GET",payload=None):
-    if not path.startswith(("/actions/","/releases","/git/refs")) or "://" in path:
+    if (not re.match(r"^/(?:actions/|releases(?:[/?]|$)|git/refs(?:[/?]|$))",path) or
+        any(part in path for part in ("://","..","\\","%","\r","\n","#"))):
         raise ValueError("Endpoint outside the authorized repository workflow")
     data=json.dumps(payload).encode() if payload is not None else None
     req=urllib.request.Request(BASE+path,data=data,method=method,

@@ -3,6 +3,7 @@ import http.cookiejar
 import urllib.error
 import urllib.request
 import json
+import hashlib
 import platform
 import subprocess
 import struct
@@ -45,6 +46,8 @@ def main():
         bundle = Path(sys.executable).resolve().parent.parent
         assert sys.flags.isolated and sys.flags.utf8_mode and sys.dont_write_bytecode
         assert all(path and Path(path).resolve().is_relative_to(bundle) for path in sys.path), 'Python path escaped the private bundle'
+    bundle=Path(sys.executable).resolve().parent.parent
+    manifest_digest=hashlib.sha256((bundle/'payload-sha256.json').read_bytes()).hexdigest()
     synthetic = b'PolyU synthetic session verification'
     assert dpapi(dpapi(synthetic), decrypt=True) == synthetic
     with tempfile.TemporaryDirectory(prefix='polyu-native-check-') as temporary:
@@ -82,7 +85,7 @@ def main():
         finally: backend.stop()
         delete_account(root / 'synthetic-app', backend)
         assert not (root / 'synthetic-app').exists()
-    print(json.dumps({'ok':True, 'platform':platform.platform(), 'dpapiRoundTrip':True,
+    print(json.dumps({'ok':True, 'platform':platform.platform(), 'dpapiRoundTrip':True, 'payloadManifestSHA256':manifest_digest,
         'pdfTextAndFrozenTables':True, 'blankImageProcessed':True,
         'ocrLanguages':len(OcrEngine.available_recognizer_languages), 'ownedBackendStopped':True,
         'syntheticProfileDeleted':True, 'systemPrerequisites':prerequisites,

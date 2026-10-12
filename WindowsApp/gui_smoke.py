@@ -1,5 +1,6 @@
 """Production Windows shell in a synthetic profile, no Canvas login."""
 import json
+import hashlib
 import os
 import sys
 import tempfile
@@ -47,7 +48,8 @@ def main():
         assert results and app.backend.process is None and app.backend.job is None
         delete_account(root, app.backend)
         assert not root.exists()
-    report = {"ok":True, "checks":results, "productionWindowsShell":True,
+    manifest_digest=hashlib.sha256((Path(sys.executable).resolve().parent.parent/"payload-sha256.json").read_bytes()).hexdigest()
+    report = {"ok":True, "payloadManifestSHA256":manifest_digest, "checks":results, "productionWindowsShell":True,
         "webview2NativeGUI":True, "backendClosed":True, "syntheticProfileDeleted":True,
         "realCanvasValidated":False, "realAccountAccessed":False}
     target = os.environ.get("POLYU_GUI_EVIDENCE")

@@ -13,6 +13,8 @@ ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT));sys.path.insert(0,str(ROOT/"security"))
 from release_build import VERSION, NAME, CONSOLE_FILES, ASSETS, CONSOLE, verify_bundle
 from privacy_scan import artifact
+from release_guard import source_sha
+from release_build import source_hashes
 
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -24,6 +26,8 @@ def evidence(name):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument("platform",choices=["mac","windows"]);args=parser.parse_args()
+    head=source_sha()
+    hashes=source_hashes()
     folder=ROOT/("Mac发布" if args.platform=="mac" else "Win发布")
     suffixes=["-arm64.dmg","-arm64.zip"] if args.platform=="mac" else ["-windows-x64-setup.exe","-windows-x64.zip"]
     files=[folder/("PolyUStudyConsole-"+VERSION+suffix) for suffix in suffixes]
@@ -47,11 +51,16 @@ def main():
         else:
             bundle=prefix.removesuffix("console/")
             manifest=json.loads(archive.read(bundle+"payload-sha256.json"))
+            assert json.loads(archive.read(bundle+"build-evidence.json"))["sourceHashes"]==hashes
+            packaged_files={n[len(bundle):] for n in archive.namelist() if n.startswith(bundle) and not n.endswith("/")}
+            if packaged_files!=set(manifest)|{"payload-sha256.json"}:raise RuntimeError("Windows payload inventory differs")
+            manifest_digest=hashlib.sha256(archive.read(bundle+"payload-sha256.json")).hexdigest()
             for name,digest in manifest.items():
                 if hashlib.sha256(archive.read(bundle+name)).hexdigest()!=digest:raise RuntimeError("Payload digest mismatch")
     if args.platform=="mac":
         if sys.platform!="darwin":raise RuntimeError("Mac content/native validation needs macOS")
         smoke=evidence("mac-smoke-evidence.json");gui=evidence("native-gui-evidence.json")
+        assert smoke["sourceHashes"]==hashes and gui["sourceHashes"]==hashes,"Native evidence is stale"
         assert smoke["loopbackEmptyFramework"] and smoke["appAndReaderArchitecture"]=="arm64"
         assert gui["productionNativeLifecycleValidated"] and gui["productionNativeAppLaunched"]
         with tempfile.TemporaryDirectory(prefix="polyu-dmg-audit-") as temporary:
@@ -71,10 +80,12 @@ def main():
     else:
         if sys.platform!="win32":raise RuntimeError("Windows release validation requires Windows")
         native=evidence("windows-native-evidence.json");gui=evidence("windows-gui-evidence.json");installer=evidence("windows-installer-evidence.json")
+        assert native["payloadManifestSHA256"]==manifest_digest and gui["payloadManifestSHA256"]==manifest_digest
+        assert installer["payloadManifestSHA256"]==manifest_digest and installer["setupSHA256"]==sha(files[0])
         assert native["dpapiRoundTrip"] and native["ownedBackendStopped"] and gui["webview2NativeGUI"]
         assert installer["nativeInstallUninstall"] and installer["uninstallPreservesProfile"]
         platform_checks={"nativeGUI":True,"backendRuntime":True,"dpapi":True,"installUninstall":True,"authenticodeSigned":False}
-    report={"ok":True,"platform":args.platform,"version":VERSION,"sourceSHA":os.environ.get("GITHUB_SHA") or subprocess.check_output([os.environ.get("POLYU_GIT","git"),"rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
+    report={"ok":True,"platform":args.platform,"version":VERSION,"sourceSHA":head,"sourceTreeClean":True,
             "artifacts":{f.name:{"sha256":sha(f),"bytes":f.stat().st_size} for f in files},
             "fileCount":count,"archivePrivacyScan":True,"platformChecks":platform_checks,"realCanvasValidated":False}
     output=ROOT/".security-local"/(args.platform+"-validation.json");output.parent.mkdir(exist_ok=True)

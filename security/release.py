@@ -12,6 +12,8 @@ ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT))
 from release_build import VERSION
 from github_api import request as github_request, upload as github_upload
+from release_guard import source_sha, accepted, trusted_run
+GIT=os.environ.get("POLYU_GIT","git")
 REPO="Andre-HUANG/polyu-study-console"
 
 
@@ -22,18 +24,21 @@ def run(*args, capture=False):
 def collect(source, destination):
     expected={"PolyUStudyConsole-"+VERSION+s for s in ["-arm64.dmg","-arm64.zip","-windows-x64-setup.exe","-windows-x64.zip"]}
     reports=[]
+    head=source_sha()
     for platform in ["mac","windows"]:
         candidates=list(source.rglob(platform+"-validation.json"))
         if len(candidates)!=1:raise RuntimeError("Missing/duplicate platform acceptance evidence")
         report=json.loads(candidates[0].read_text())
-        if not report.get("ok") or report.get("version")!=VERSION or not report.get("archivePrivacyScan"):raise RuntimeError("Invalid platform acceptance evidence")
-        if not report["platformChecks"]["nativeGUI"] or not report["platformChecks"]["backendRuntime"]:raise RuntimeError("Native runtime/GUI acceptance required")
+        if report.get("version")!=VERSION:raise RuntimeError("Wrong candidate version")
+        accepted(report,platform,head)
         reports.append(report)
     if len({r["sourceSHA"] for r in reports})!=1:raise RuntimeError("Platforms were built from different commits")
     actual={}
     for report in reports:
         for name,details in report["artifacts"].items():
-            if name not in expected:raise RuntimeError("Unexpected release asset")
+            if name not in expected or name in actual:raise RuntimeError("Unexpected or duplicate release asset")
+            platform_suffixes={"mac":("-arm64.dmg","-arm64.zip"),"windows":("-windows-x64-setup.exe","-windows-x64.zip")}
+            if not name.endswith(platform_suffixes[report["platform"]]):raise RuntimeError("Asset assigned to the wrong platform")
             matches=list(source.rglob(name))
             if len(matches)!=1:raise RuntimeError("Missing/duplicate release asset")
             path=matches[0]
@@ -87,21 +92,27 @@ def main():
     elif args.check_run:
         if not re.fullmatch(r"[0-9]+",args.check_run):raise RuntimeError("Invalid run ID")
         data=github_request("/actions/runs/"+args.check_run)
-        head=run("git","rev-parse","HEAD",capture=True)
-        if (data["conclusion"]!="success" or data["head_branch"]!="main" or data["head_sha"]!=head or
-            data["event"] not in {"push","workflow_dispatch"} or data["path"]!=".github/workflows/ci.yml"):
-            raise RuntimeError("Require a successful trusted main run at the current main commit")
+        trusted_run(data,source_sha())
     else:
         source=args.publish
         report=json.loads((source/"validation.json").read_text())
-        head=run("git","rev-parse","HEAD",capture=True)
+        head=source_sha()
+        validation_run=os.environ.get("VALIDATION_RUN","")
+        if not re.fullmatch(r"[0-9]+",validation_run):raise RuntimeError("Publication requires the trusted validation run ID")
+        trusted_run(github_request("/actions/runs/"+validation_run),head)
         if report["sourceSHA"]!=head or report["version"]!=VERSION:raise RuntimeError("Source changed since validation")
         expected={"PolyUStudyConsole-"+VERSION+s for s in ["-arm64.dmg","-arm64.zip","-windows-x64-setup.exe","-windows-x64.zip"]}
         if set(report["artifacts"])!=expected:raise RuntimeError("Incomplete release payload")
+        for platform in ("mac","windows"):
+            matches=[r for r in report.get("platforms",[]) if r.get("platform")==platform]
+            if len(matches)!=1:raise RuntimeError("Missing platform acceptance")
+            accepted(matches[0],platform,head)
+        sums="".join(report["artifacts"][n]+"  "+n+"\n" for n in sorted(expected))
+        if (source/"SHA256SUMS.txt").read_text(encoding="utf-8")!=sums:raise RuntimeError("Checksum manifest differs")
         for name,digest in report["artifacts"].items():
             if hashlib.sha256((source/name).read_bytes()).hexdigest()!=digest:raise RuntimeError("Changed release payload")
         tag="v"+VERSION
-        if run("git","ls-remote","--tags","https://github.com/"+REPO+".git","refs/tags/"+tag,capture=True):
+        if run(GIT,"ls-remote","--tags","https://github.com/"+REPO+".git","refs/tags/"+tag,capture=True):
             raise RuntimeError("Version tag already exists; never replace an existing version")
         releases=github_request("/releases?per_page=100")
         if any(r["tag_name"]==tag for r in releases):raise RuntimeError("Version Release already exists")
