@@ -30,6 +30,7 @@ ALLOWED_EMAIL_SUFFIX = (b"@users.noreply.github.com", b"@example.com", b"@exampl
 PUBLIC_EMAILS = {b"noreply@github.com"}
 OWNER_EMAILS = None
 PUBLIC_CA_SHA256 = "bbc7e9c01d7551bb8a159b5dedd989b8ee3ce105aff522b68eb1b01bf854cab0"
+WINDOWS_LIBRARY_FILES = json.loads((ROOT / "security/dependency-exceptions.json").read_text())["windowsLibraryFiles"]
 VENDOR_SHA256 = "a02ac8b749df11924e0e054ab933f68c614261d6d29a749e673b2bc60a45b955"
 # Reviewed old objects remain public until separately authorized history rewriting.
 LEGACY_COMMITS = {
@@ -63,7 +64,7 @@ def scan_bytes(path, data, third_party=False):
         for match in pattern.finditer(data):
             # A accidental token prefix inside Pillow's pinned embedded font base64.
             if (third_party and path.endswith("PIL/ImageFont.py") and rule == "credential" and
-                hashlib.sha256(data).hexdigest() == json.loads((ROOT / "MacApp/document-vendor-lock.json").read_text())["files"]["PIL/ImageFont.py"] and
+                hashlib.sha256(data).hexdigest() in {json.loads((ROOT / "MacApp/document-vendor-lock.json").read_text())["files"]["PIL/ImageFont.py"], WINDOWS_LIBRARY_FILES["PIL/ImageFont.py"]} and
                 hashlib.sha256(match.group()).hexdigest().startswith("57a26f03da1274be")):
                 continue
             rows.append(finding(path, rule, data, match))
@@ -157,8 +158,13 @@ def artifact(path):
         if PurePosixPath(name).is_absolute() or ".." in parts: rows.append(finding(name, "archive-path-traversal"))
         public_ca = (name.endswith("/pip/_vendor/certifi/cacert.pem") and
                      hashlib.sha256(contents).hexdigest() == PUBLIC_CA_SHA256)
-        if risky_path(name) and not public_ca: rows.append(finding(name, "private-generated-path"))
         third_party = any(p in {"runtime", "Licenses"} for p in parts)
+        library_suffix = "/Lib/site-packages/"
+        windows_library = (name.split(library_suffix,1)[1] if library_suffix in name else None)
+        known_webview = (third_party and windows_library is not None and windows_library.startswith("webview/") and
+                         WINDOWS_LIBRARY_FILES.get(windows_library)==hashlib.sha256(contents).hexdigest())
+        if risky_path(name) and not public_ca and not known_webview:
+            rows.append(finding(name, "private-generated-path"))
         rows += scan_bytes(name, contents, third_party=third_party)
         inventory.append({"path": name, "sha256": hashlib.sha256(contents).hexdigest(), "bytes": len(contents)})
     if path.is_file(): archive.close()

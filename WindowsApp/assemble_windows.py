@@ -198,7 +198,7 @@ def install_wheels(lock, bundle):
                 relative = safe_relative(name)
                 if member.is_dir():
                     continue
-                if name.startswith(EXCLUDE_WHEEL_PATHS) or name == "webview/lib/WebBrowserInterop.x86.dll":
+                if name.startswith(EXCLUDE_WHEEL_PATHS) or name == "webview/lib/WebBrowserInterop.x86.dll" or name.lower().endswith(".pdb"):
                     excluded.append(name)
                     continue
                 parts = relative.parts

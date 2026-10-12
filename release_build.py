@@ -36,6 +36,7 @@ def source_hashes():
               ROOT / "WindowsApp/launcher.nsi", ROOT / "WindowsApp/installer.nsi",
               ROOT / "WindowsApp/安装与使用.txt", ROOT / "WindowsApp/原生构建与验收.md"]
     paths += [ROOT / "验证" / n for n in ("run_offline.py", "IsolationTests.swift", "run_native_gui.py", "verify_mac_bundle.py", "verify_release_artifacts.py", "benchmark.py", "run_gui_component.py", "NativeDashboardSmoke.swift")]
+    paths += [ROOT / "security/dependency-exceptions.json", ROOT / "security/tools-lock.json", ROOT / ".gitleaks.toml"]
     paths += sorted((ROOT / "security").glob("*.py")) + sorted((ROOT / ".github/workflows").glob("*.yml"))
     paths += [ROOT / "验证/verify_local_api.py", ROOT / "验证/verify_keychain.py"]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}

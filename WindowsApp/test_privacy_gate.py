@@ -40,3 +40,12 @@ class PrivacyGateChecks(unittest.TestCase):
             results, count = gate.files(staged=True)
             self.assertEqual(count, 1); self.assertEqual(results[0]["rule"], "email")
             self.assertEqual(git.call_args.args, ("show", ":README.md"))
+
+    def test_webview_library_name_is_not_a_blanket_exception(self):
+        import tempfile,zipfile
+        with tempfile.TemporaryDirectory() as temporary:
+            path=Path(temporary)/"changed.zip"
+            with zipfile.ZipFile(path,"w") as archive:
+                archive.writestr("runtime/Lib/site-packages/webview/__init__.py",b"changed-library")
+            findings,_,_=gate.artifact(path)
+            self.assertTrue(any(r["rule"]=="private-generated-path" for r in findings))

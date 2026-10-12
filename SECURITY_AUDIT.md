@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | Mac ARM64 DMG | 0c4e61a7a63ca105c796c52f56388e73b2b5100b478bb44cd3202a0516d7ec2e | PASS：只读挂载、完整目录无账号路径，3 个主要二进制 arm64，深度严格签名通过 |
 | Mac ARM64 ZIP | 6a1817f3d9e255e4897f0404418fbf1920e716605fcf87e008d0461a6fbd2ee4 | 4,640 项；CRC 通过；无账号/凭据缓存路径；拥有者邮箱/本机用户名命中 0 |
-| Windows Setup | 770a392500104764bf8273dd7a8df860d07ae4eb42b3abe0f6b0a8b7bf487a8b | 官方哈希锁定 7-Zip 解出 2,149 文件；2,131 个负载与 Portable 清单逐一一致，无缺失/变更 |
+| Windows Setup | 770a392500104764bf8273dd7a8df860d07ae4eb42b3abe0f6b0a8b7bf487a8b | 官方哈希锁定 7-Zip 解出 2,150 文件；2,131 个负载与 Portable 清单逐一一致，无缺失/变更 |
 | Windows Portable ZIP | 1699a638b92dbbf91ade458986c75c63af4c6d29e6e41c906de2826d048a0c2f | 2,132 项；CRC 通过；无账号/凭据缓存路径；拥有者邮箱/用户名命中 0 |
 | document-vendor.zip | a02ac8b749df11924e0e054ab933f68c614261d6d29a749e673b2bc60a45b955 | 620 个锁定文件逐一验证；许可证保留；常量/内嵌字体误报已分类 |
 
