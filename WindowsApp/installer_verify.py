@@ -19,9 +19,9 @@ def main():
     install=Path(os.environ["LOCALAPPDATA"])/"Programs/PolyUStudyConsole"
     profile=Path(os.environ["LOCALAPPDATA"])/NAME
     if install.exists() or profile.exists(): raise RuntimeError("Refuse to overwrite an existing installation/profile")
-    manifest=json.loads((ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")/"payload-sha256.json").read_text())
+    manifest=json.loads((ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")/"payload-sha256.json").read_text(encoding="utf-8"))
     sentinel=profile/"account/documents/synthetic-sentinel.txt"
-    sentinel.parent.mkdir(parents=True);sentinel.write_text("synthetic-owned-by-CI")
+    sentinel.parent.mkdir(parents=True);sentinel.write_text("synthetic-owned-by-CI",encoding="utf-8")
     try:
         subprocess.run([str(setup),"/S"],check=True,timeout=180)
         for name,digest in manifest.items():
@@ -35,7 +35,7 @@ def main():
         deadline=time.monotonic()+30
         while install.exists() and time.monotonic()<deadline:time.sleep(.2)
         assert not install.exists(),"Package files remain after uninstall"
-        assert sentinel.read_text()=="synthetic-owned-by-CI","Uninstaller removed personal profile"
+        assert sentinel.read_text(encoding="utf-8")=="synthetic-owned-by-CI","Uninstaller removed personal profile"
     finally:
         # This path was absent before the test and contains only the CI-created sentinel.
         if profile.exists():shutil.rmtree(profile)
