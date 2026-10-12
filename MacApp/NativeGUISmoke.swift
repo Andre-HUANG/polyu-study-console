@@ -261,10 +261,11 @@ final class NativeGUISmoke {
             (()=>{selectSettingsTab('documents');document.querySelector('[data-preserve="document-ledger"]').open=true;
             document.getElementById('documents').scrollIntoView();
             const input=document.getElementById('documentSearch');input.value='synthetic deadline';
-            input.dispatchEvent(new Event('input',{bubbles:true}));return true})()
-            """) { _ in
-            self.later {
-                self.js("({query:document.getElementById('documentSearch').value,list:document.getElementById('documentList').textContent})") { result in
+            input.dispatchEvent(new Event('input',{bubbles:true}));
+            return {query:input.value,list:document.getElementById('documentList').textContent}})()
+            """) { result in
+                    // Filtering is synchronous. Inspect the same JS turn so the
+                    // anonymous-account refresh cannot clear the synthetic input.
                     guard let result = result as? [String: Any], result["query"] as? String == "synthetic deadline",
                           (result["list"] as? String ?? "").contains("暂无符合筛选条件的资料") else { self.fail("Empty native search failed"); return }
                     self.report["emptySearch"] = result
@@ -293,8 +294,6 @@ final class NativeGUISmoke {
                             }
                         }
                     }
-                }
-            }
         }
     }
 

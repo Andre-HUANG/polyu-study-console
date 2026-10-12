@@ -28,6 +28,10 @@ def main():
             if not (install/name).is_file():
                 raise AssertionError({"missingPackageFile":name, "installedRootNames":sorted(p.name for p in install.iterdir())})
             assert hashlib.sha256((install/name).read_bytes()).hexdigest()==digest,name
+        installed_files={p.relative_to(install).as_posix() for p in install.rglob("*") if p.is_file()}
+        assert installed_files==set(manifest)|{"payload-sha256.json","Uninstall.exe"},"Installed package inventory differs"
+        source_manifest=ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")/"payload-sha256.json"
+        assert (install/"payload-sha256.json").read_bytes()==source_manifest.read_bytes(),"Installed manifest differs"
         worker=[str(install/"runtime/python.exe"),"-I","-B","-X","utf8",str(install/"WindowsApp/main.py")]
         subprocess.run([*worker,"--platform-check"],check=True,timeout=180,capture_output=True)
         subprocess.run([*worker,"--gui-smoke"],check=True,timeout=180)
@@ -40,7 +44,7 @@ def main():
         # This path was absent before the test and contains only the CI-created sentinel.
         if profile.exists():shutil.rmtree(profile)
     manifest_file=ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")/"payload-sha256.json"
-    report={"ok":True,"payloadManifestSHA256":hashlib.sha256(manifest_file.read_bytes()).hexdigest(),"setupSHA256":hashlib.sha256(setup.read_bytes()).hexdigest(),"installedPayloadHashesVerified":len(manifest),"installedRuntimeExecuted":True,"installedGUIExecuted":True,
+    report={"ok":True,"payloadManifestSHA256":hashlib.sha256(manifest_file.read_bytes()).hexdigest(),"setupSHA256":hashlib.sha256(setup.read_bytes()).hexdigest(),"installedPayloadHashesVerified":len(manifest),"installedInventoryVerified":True,"installedRuntimeExecuted":True,"installedGUIExecuted":True,
             "nativeInstallUninstall":True,"uninstallPreservesProfile":True,"realAccountAccessed":False}
     (ROOT/"验证/windows-installer-evidence.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report))
