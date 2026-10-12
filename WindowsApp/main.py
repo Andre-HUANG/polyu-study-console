@@ -33,6 +33,9 @@ def main():
     elif sys.argv[1:] == ["--platform-check"]:
         from native_verify import main as verify
         verify()
+    elif sys.argv[1:] == ["--gui-smoke"]:
+        from gui_smoke import main as smoke
+        smoke()
     elif sys.argv[1:]:
         raise SystemExit("Unsupported application mode")
     else:
@@ -50,7 +53,7 @@ if __name__ == "__main__":
             import ctypes
             message = (str(error) + "\n\n需要 Windows x64、.NET Framework 4.8 或更新版本，以及 Microsoft Edge WebView2 Runtime。"
                        "\n如缺少运行环境，请使用安装与使用说明中的微软官方链接。本应用不会自动安装系统组件。")
-            ctypes.windll.user32.MessageBoxW(None, message, "PolyU study控制台 · 1.8.0", 0x10)
+            ctypes.windll.user32.MessageBoxW(None, message, "PolyU study控制台 · 1.8.1", 0x10)
             raise SystemExit(1)
         else:
             raise

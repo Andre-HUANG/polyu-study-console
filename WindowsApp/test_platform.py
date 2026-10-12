@@ -36,7 +36,7 @@ class PlatformChecks(unittest.TestCase):
             root = Path(directory)
             http = Mock(server_port=8766)
             http.serve_forever.side_effect = KeyboardInterrupt
-            with patch.multiple(server, PROJECT=root, PROFILE=root / "account", NATIVE=True), \
+            with patch.multiple(server, PROJECT=root, PROFILE=root / "account", NATIVE=True, NATIVE_SECRET="synthetic-" + "x"*48), \
                  patch.object(platform_support, "IS_WINDOWS", True), \
                  patch.object(platform_support.os, "setsid", create=True) as group, \
                  patch.object(server, "ThreadingHTTPServer", return_value=http), \
@@ -76,8 +76,10 @@ class PlatformChecks(unittest.TestCase):
                 self.assertEqual(native_canvas.load_cookies(path), cookies)
             self.assertEqual(protect.call_args_list[1].kwargs, {"decrypt": True})
 
+    @unittest.skipUnless(sys.platform == "darwin", "Mac Keychain storage boundary")
     def test_mac_cookie_format_remains_compatible(self):
-        with tempfile.TemporaryDirectory() as directory, patch.object(native_canvas, "IS_WINDOWS", False):
+        with tempfile.TemporaryDirectory() as directory, patch.object(native_canvas, "IS_WINDOWS", False), \
+             patch("session_store.vault", side_effect=[None, [{"name": "session", "value": "synthetic"}], [{"name": "session", "value": "synthetic"}]]):
             path = Path(directory) / "canvas-cookies.json"
             native_canvas.save_private(path, [{"name": "session", "value": "synthetic"}])
             self.assertEqual(native_canvas.load_cookies(path), [{"name": "session", "value": "synthetic"}])

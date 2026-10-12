@@ -106,16 +106,16 @@ class ApplicationChecks(unittest.TestCase):
         self.assertEqual(fetch.call_count, 2)
 
     def test_canvas_web_finds_visible_course_and_module_folder(self):
-        dashboard = '''<script>window.ENV={"current_user_id":"55247"}</script>
-          <a class="ic-DashboardCard__link" href="/courses/5125"><h2 class="ic-DashboardCard__header-title" title="Ecological Approaches"></h2>
-          <div class="ic-DashboardCard__header-subtitle" title="ABCT5031_26271_A"></div></a>'''
-        self.assertEqual(identity(dashboard)["id"], "55247")
-        self.assertEqual(dashboard_courses(dashboard)[0]["code"], "ABCT5031_26271_A")
-        modules = '''<script>window.ENV={"current_user_id":"55247"}</script>
+        dashboard = '''<script>window.ENV={"current_user_id":"900000001"}</script>
+          <a class="ic-DashboardCard__link" href="/courses/5125"><h2 class="ic-DashboardCard__header-title" title="Synthetic Course"></h2>
+          <div class="ic-DashboardCard__header-subtitle" title="TEST5031_26271_A"></div></a>'''
+        self.assertEqual(identity(dashboard)["id"], "900000001")
+        self.assertEqual(dashboard_courses(dashboard)[0]["code"], "TEST5031_26271_A")
+        modules = '''<script>window.ENV={"current_user_id":"900000001"}</script>
           <div class="context_module" aria-label="Class Materials" data-module-id="14948"><ul>
-          <li class="context_module_item Attachment_146703"><a class="item_link" title="ABCT5031_Course Outline.pdf" href="/courses/5125/modules/items/76244">outline</a></li>
-          <li class="context_module_item Attachment_146704"><a class="item_link" title="Teaching schedule for ABCT5031_2026-27.pdf" href="/courses/5125/modules/items/77776">schedule</a></li>
-          <li class="context_module_item Attachment_146705"><a class="item_link" title="Group Assignment for ABCT5031_2026-27_v2.pdf" href="/courses/5125/modules/items/98883">assignment</a></li>
+          <li class="context_module_item Attachment_146703"><a class="item_link" title="TEST5031_Course Outline.pdf" href="/courses/5125/modules/items/76244">outline</a></li>
+          <li class="context_module_item Attachment_146704"><a class="item_link" title="Teaching schedule for TEST5031_2026-27.pdf" href="/courses/5125/modules/items/77776">schedule</a></li>
+          <li class="context_module_item Attachment_146705"><a class="item_link" title="Group Assignment for TEST5031_2026-27_v2.pdf" href="/courses/5125/modules/items/98883">assignment</a></li>
           </ul></div>'''
         rows = module_files(modules, "5125")
         self.assertEqual([r["id"] for r in rows], ["146703", "146704", "146705"])
@@ -127,14 +127,14 @@ class ApplicationChecks(unittest.TestCase):
         self.assertFalse(material_host("https://canvas-user-content.com.evil.example/file"))
 
     def test_all_courses_includes_non_favorite_and_page_attachments(self):
-        dashboard = '''<a class="ic-DashboardCard__link" href="/courses/5125"><h2 class="ic-DashboardCard__header-title" title="Course One"></h2><div class="ic-DashboardCard__header-subtitle" title="ABCT5031"></div></a>'''
+        dashboard = '''<a class="ic-DashboardCard__link" href="/courses/5125"><h2 class="ic-DashboardCard__header-title" title="Course One"></h2><div class="ic-DashboardCard__header-subtitle" title="TEST5031"></div></a>'''
         listing = '''<table id="my_courses_table"><tr class="course-list-table-row"><th class="course-list-course-title-column"><a href="/courses/5125" title="Course One">Course One</a></th><td class="course-list-term-column">2026/27</td></tr><tr class="course-list-table-row"><th class="course-list-course-title-column"><a href="/courses/6000" title="Other Course">Other Course</a></th></tr></table>'''
         rows = all_courses(listing, dashboard)
-        self.assertEqual([(r["id"], r["code"]) for r in rows], [("5125", "ABCT5031"), ("6000", "6000")])
+        self.assertEqual([(r["id"], r["code"]) for r in rows], [("5125", "TEST5031"), ("6000", "6000")])
         files, pages = linked_files_and_pages('''<main><a href="/courses/5125/files/99/download?download_frd=1" title="Download Notice.pdf">Download Notice.pdf</a><img src="/courses/5125/files/100/preview" alt="Figure.png"><a href="/courses/5125/announcements/32">Announcement</a></main>''', "5125")
         self.assertEqual({row["id"] for row in files}, {"99", "100"})
         self.assertEqual(pages, ["/courses/5125/announcements/32"])
-        self.assertEqual(course_code_from_home('<li id="crumb_course_5125"><a href="/courses/5125"><span>ABCT5031_26271_A</span></a></li>', "5125"), "ABCT5031_26271_A")
+        self.assertEqual(course_code_from_home('<li id="crumb_course_5125"><a href="/courses/5125"><span>TEST5031_26271_A</span></a></li>', "5125"), "TEST5031_26271_A")
 
     def test_archive_failure_is_visible_and_never_reports_complete(self):
         html = '''<script>{"current_user_id":"1"}</script><div class="context_module" aria-label="Class Materials"><li class="context_module_item Attachment_99"><a class="item_link" title="Exam.pdf" href="/courses/5/modules/items/1">Exam.pdf</a></li></div>'''
@@ -164,7 +164,7 @@ class ApplicationChecks(unittest.TestCase):
             return 9
         api.download_file.side_effect = download
         api.get.side_effect = RuntimeError("API unavailable")
-        cfg = {"user": {"id": 1}, "courses": [{"id": 5125, "code": "ABCT5031", "name": "Course"}]}
+        cfg = {"user": {"id": 1}, "courses": [{"id": 5125, "code": "TEST5031", "name": "Course"}]}
         archive = archive_courses(api, self.profile, cfg, lambda: None, lambda _: None)
         self.assertTrue(archive["complete"])
         self.assertEqual(archive["courses"][0]["downloaded"], 1)
@@ -183,7 +183,8 @@ class ApplicationChecks(unittest.TestCase):
 
     def test_rejects_session_from_a_different_account(self):
         save_private(self.profile / "config.json", {"user": {"id": 1}})
-        save_private(self.profile / "browser/canvas-cookies.json", [{"original": True}])
+        from native_canvas import write_private
+        write_private(self.profile / "browser/canvas-cookies.json", [{"original": True}])
         fake = Mock()
         fake.get.return_value = {"id": 2, "name": "Other"}
         with patch.object(server, "native_api", return_value=fake):

@@ -67,7 +67,7 @@ final class NativeGUISmoke {
                 """) { value, _ in
                 guard !self.done else { return }
                 if let value = value as? [String: Any], value["ready"] as? Bool == true,
-                   value["version"] as? String == "v1.8.0", value["panel"] as? Bool == true,
+                   value["version"] as? String == "v1.8.1", value["panel"] as? Bool == true,
                    value["logoutHidden"] as? Bool == true, value["courseCards"] as? Int == 0,
                    value["settingsClosed"] as? Bool == true, value["navigationCount"] as? Int == 4,
                    !self.app.resettingAccount, !self.app.console.isLoading {
@@ -118,7 +118,7 @@ final class NativeGUISmoke {
                     (view as? NSTextField).map { [$0.stringValue] } ?? view.subviews.flatMap { strings($0) }
                 }
                 let text = panels.flatMap { $0.contentView.map { strings($0) } ?? [] }.joined(separator: "\n")
-                guard text.contains("1.8.0") else { self.fail("Native About panel did not show 1.8.0: " + text); return }
+                guard text.contains("1.8.1") else { self.fail("Native About panel did not show 1.8.1: " + text); return }
                 self.report["nativeAboutVersion"] = text
                 panels.forEach { $0.close() }
                 self.settingsChecks {

@@ -1,4 +1,7 @@
 """Synthetic Windows-native checks; never opens a login or the real app profile."""
+import http.cookiejar
+import urllib.error
+import urllib.request
 import json
 import platform
 import subprocess
@@ -65,7 +68,16 @@ def main():
             backend.start()
             with backend.opener.open(backend.url + 'api/health', timeout=10) as response:
                 assert json.load(response)['ok']
-            with backend.opener.open(backend.url + 'api/data', timeout=10) as response:
+            try:
+                backend.opener.open(backend.url + 'api/data', timeout=10)
+                raise AssertionError('Public data read accepted')
+            except urllib.error.HTTPError as error: assert error.code == 401
+            client = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+            ticket = backend.request('bootstrap', {})['ticket']
+            request = urllib.request.Request(backend.url + 'api/client/session',
+                data=json.dumps({'ticket':ticket}).encode(), headers={'Content-Type':'application/json', 'Origin':backend.url.rstrip('/')})
+            with client.open(request, timeout=10) as response: assert json.load(response)['csrf']
+            with client.open(backend.url + 'api/data', timeout=10) as response:
                 assert json.load(response)['courseCount'] == 0
         finally: backend.stop()
         delete_account(root / 'synthetic-app', backend)

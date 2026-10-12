@@ -1,3 +1,7 @@
+# 后续审计
+
+2026-10-12 的 1.8.1 审计独立重新验证源码、可达历史及安装包。最新见 [SECURITY_AUDIT.md](SECURITY_AUDIT.md)、[SECURITY_FIXES.md](SECURITY_FIXES.md)、[SECURITY_TESTS.md](SECURITY_TESTS.md)。下文仅 1.8.0 发布历史记录。
+
 # 上传前审查
 
 审查对象：首次公开的 1.8.0 源码、构建脚本、合成测试与安装包。公开副本独立于原开发目录。

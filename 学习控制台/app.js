@@ -1,4 +1,4 @@
-const csrf = document.querySelector('meta[name="csrf-token"]').content;
+let csrf = document.querySelector('meta[name="csrf-token"]').content;
 const state = { data: null, filter: 'all', course: 'all', busy: false, editOriginal: null, documentFilter: 'all', documentSearch: '', searchResults: null, settingsTab: 'account', logs: null, logFilter: 'all' };
 let searchTimer, searchRequest;
 let settingsTrigger, logRequest;
@@ -257,7 +257,7 @@ function renderConnection(data) {
   $('#autoSyncLabel').textContent = `应用打开时自动同步（${period}）`;
   $('#loginButton').textContent = ready ? '重新连接 Canvas' : '登录并授权 Canvas';
   $('#loginButton').disabled = connection.busy;
-  $('#logoutButton').hidden = !connection.authorized;
+  $('#logoutButton').hidden = !connection.authorized && !connection.needsDataReview;
   $('#logoutButton').disabled = false;
   $('#autoSyncToggle').disabled = connection.busy;
   $('#syncCaption').textContent = ready ? `Canvas 已连接 · ${data.courseCount} 门课程` : '在设置中连接 Canvas，查看学习安排。';
@@ -693,6 +693,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch { /* Retry on the next poll while the local service starts. */ }
   }, 3000);
   try {
+    const bootstrap = new URLSearchParams(location.hash.slice(1)).get('bootstrap');
+    if (bootstrap) {
+      // Fragments never reach HTTP logs; remove the single-use ticket immediately.
+      history.replaceState(null, '', location.pathname);
+      const authorization = await fetch('/api/client/session', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket: bootstrap }), cache: 'no-store', credentials: 'same-origin'
+      });
+      if (!authorization.ok) throw new Error('客户端授权已失效，请重新打开控制台');
+      csrf = (await authorization.json()).csrf;
+    }
     const response = await fetch('/api/data', { cache: 'no-store' });
     if (!response.ok) throw new Error('读取学习档案失败');
     render(await response.json());

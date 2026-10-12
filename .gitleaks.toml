@@ -1,0 +1,10 @@
+title = "PolyU privacy gate"
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SHA256 values in two reviewed dependency/audit manifests are hashes, not credentials"
+condition = "AND"
+paths = ['^MacApp/document-vendor-lock\.json$', '^验证/publication-checks\.json$']
+regexTarget = "secret"
+regexes = ['^[a-f0-9]{64}$']

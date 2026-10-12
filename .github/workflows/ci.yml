@@ -1,0 +1,122 @@
+name: Security and cross-platform validation
+on:
+  pull_request:
+  push:
+    branches: [main, 'security/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.15'}
+      - run: python -B security/privacy_scan.py
+      - run: python -B security/privacy_scan.py --history
+      - run: python -B security/tool_runner.py gitleaks git --redact=100 --config .gitleaks.toml --log-opts=--all .
+      - run: python -B security/tool_runner.py actionlint -shellcheck= -pyflakes=
+      - run: python -B -m unittest discover -s WindowsApp -p test_privacy_gate.py
+  python-tests:
+    name: Python Tests
+    needs: security-scan
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.15'}
+      - run: python -B MacApp/prepare_document_dependencies.py
+      - run: python -B 验证/run_offline.py
+      - run: python -B 验证/verify_local_api.py
+      - run: python -B 验证/verify_keychain.py
+  mac-build:
+    name: macOS Build and Test
+    needs: [security-scan, python-tests]
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.15'}
+      - run: test "$(uname -m)" = arm64
+      - run: python -B MacApp/prepare_document_dependencies.py
+      - run: python -B MacApp/download_runtime.py
+      - run: python -B MacApp/build.py
+      - run: python -B 验证/verify_mac_bundle.py
+      - run: python -B 验证/run_native_gui.py
+      - run: python -B MacApp/build.py --verify-release
+      - run: python -B security/validate_platform.py mac
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: macOS-arm64-validated
+          path: |
+            Mac发布/PolyUStudyConsole-*.dmg
+            Mac发布/PolyUStudyConsole-*.zip
+            .security-local/mac-validation.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+  windows-build:
+    name: Windows Build and Test
+    needs: security-scan
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run: {shell: pwsh}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.15', architecture: x64}
+      - run: python -B WindowsApp/assemble_windows.py --download
+      - run: |
+          $bundle = Get-ChildItem .build/windows-assembly -Directory -Filter PolyUStudyConsole-*-windows-x64 | Select-Object -First 1
+          & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 验证/run_offline.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 验证/verify_local_api.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 "$($bundle.FullName)/WindowsApp/main.py" --platform-check > 验证/windows-native-evidence.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:POLYU_GUI_EVIDENCE = "$pwd/验证/windows-gui-evidence.json"
+          & "$($bundle.FullName)/runtime/python.exe" -I -B -X utf8 "$($bundle.FullName)/WindowsApp/main.py" --gui-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: python -B WindowsApp/installer_verify.py
+      - run: python -B security/validate_platform.py windows
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Windows-x64-validated
+          path: |
+            Win发布/PolyUStudyConsole-*.exe
+            Win发布/PolyUStudyConsole-*.zip
+            .security-local/windows-validation.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+  release-validation:
+    name: Release Validation
+    needs: [security-scan, python-tests, mac-build, windows-build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with: {path: release-input}
+      - run: python -B security/release.py --validate release-input --output .security-local/release
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-validated
+          path: .security-local/release/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

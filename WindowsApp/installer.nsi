@@ -4,7 +4,7 @@ RequestExecutionLevel user
 !include "MUI2.nsh"
 !include "x64.nsh"
 !include "LogicLib.nsh"
-Name "PolyU study控制台 1.8.0"
+Name "PolyU study控制台 1.8.1"
 OutFile "${INSTALLER_OUT}"
 InstallDir "$LOCALAPPDATA\Programs\PolyUStudyConsole"
 Icon "${APP_ICON}"
@@ -12,14 +12,14 @@ UninstallIcon "${APP_ICON}"
 SetCompressor /SOLID lzma
 ManifestDPIAware true
 ManifestLongPathAware true
-VIProductVersion "1.8.0.0"
+VIProductVersion "1.8.1.0"
 VIAddVersionKey "ProductName" "PolyU study控制台"
-VIAddVersionKey "ProductVersion" "1.8.0"
-VIAddVersionKey "FileVersion" "1.8.0"
+VIAddVersionKey "ProductVersion" "1.8.1"
+VIAddVersionKey "FileVersion" "1.8.1"
 VIAddVersionKey "FileDescription" "PolyU study控制台 Windows x64 安装程序"
 VIAddVersionKey "LegalCopyright" "Personal study tool; not an official university application"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TEXT "将为当前用户安装 PolyU study控制台 1.8.0。$\r$\n$\r$\n应用包含自己的 Python，无需 Codex、Python 或管理员权限。需要系统已有 .NET Framework 4.8 及 Microsoft Edge WebView2 Runtime。$\r$\n$\r$\n这是尚待 Windows 原生验收的候选版本。安装程序不安装系统组件；账号资料由应用管理。"
+!define MUI_WELCOMEPAGE_TEXT "将为当前用户安装 PolyU study控制台 1.8.1。$\r$\n$\r$\n应用包含自己的 Python，无需 Codex、Python 或管理员权限。需要系统已有 .NET Framework 4.8 及 Microsoft Edge WebView2 Runtime。$\r$\n$\r$\n这是尚待 Windows 原生验收的候选版本。安装程序不安装系统组件；账号资料由应用管理。"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\PolyUStudyConsole.exe"
@@ -56,7 +56,7 @@ Section "应用"
   CreateShortcut "$SMPROGRAMS\PolyU study控制台\安装与使用.lnk" "$INSTDIR\安装与使用.txt"
   CreateShortcut "$SMPROGRAMS\PolyU study控制台\卸载.lnk" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PolyUStudyConsole" "DisplayName" "PolyU study控制台"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PolyUStudyConsole" "DisplayVersion" "1.8.0"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PolyUStudyConsole" "DisplayVersion" "1.8.1"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PolyUStudyConsole" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PolyUStudyConsole" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PolyUStudyConsole" "DisplayIcon" "$INSTDIR\console\assets\polyu-favicon.ico"

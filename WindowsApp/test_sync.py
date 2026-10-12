@@ -162,11 +162,11 @@ class SyncChecks(unittest.TestCase):
             api.download_file(native_canvas.HOST+f'/courses/5/files/{fid}/download', self.profile/(fid+'.txt'))
             time.sleep(.01)
             return fid, api.last_download
-        with patch('urllib.request.build_opener', return_value=Opener()), ThreadPoolExecutor(max_workers=3) as pool:
+        with patch('urllib.request.build_opener', return_value=Opener()), patch('session_store.protect_session', return_value={'protection': 'synthetic-protected'}), ThreadPoolExecutor(max_workers=3) as pool:
             for fid, result in pool.map(transfer, ['1','2','3','4','5','6']):
                 self.assertEqual(result['etag'], fid)
                 self.assertEqual(result['sha256'], hashlib.sha256(fid.encode()*50).hexdigest())
-        self.assertEqual(json.loads(api.cookie_path.read_text()), [])
+        self.assertEqual(json.loads(api.cookie_path.read_text()), {'protection': 'synthetic-protected'})
         self.assertFalse(list(self.profile.rglob('*.tmp')))
 
     def test_retry_after_is_honored_and_wait_is_cancellable(self):

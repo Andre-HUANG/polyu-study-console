@@ -1,12 +1,13 @@
 import AppKit
 import WebKit
 import Darwin
+import CryptoKit
 
 let applicationName = "PolyU study控制台"
-let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8.0"
+let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8.1"
 let canvasHost = "https://canvas.polyu.edu.hk"
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
     var window: NSWindow!
     var console: WKWebView!
     var loginWindow: NSWindow?
@@ -19,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var loginCompleted = false
     var readyTimer: Timer?
     var baseURL: URL?
-    let nativeSecret = UUID().uuidString + UUID().uuidString
+    var nativeSecret = UUID().uuidString + UUID().uuidString
     var connecting = false
     var stopping = false
     var launchTime = Date()
@@ -106,12 +107,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                 startBackend()
             } catch { alert("无法更新账号工作区", error.localizedDescription) }
         }
-        else { resetAccountStorage(message: "正在初始化空白控制台…") }
+        else {
+            // Unknown/corrupt profiles must never be erased as an initialization shortcut.
+            do {
+                if (try? dataDirectory.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true {
+                    throw NSError(domain: "PolyU", code: 1)
+                }
+                try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true,
+                                                        attributes: [.posixPermissions: 0o700])
+                try Data("3\n".utf8).write(to: dataDirectory.appendingPathComponent("framework-version"), options: .atomic)
+                startBackend()
+            } catch { alert("现有资料已保留", "无法初始化控制台，请先核对资料目录。") }
+        }
     }
 
     func schoolDataStore() -> WKWebsiteDataStore {
         if let existing = loginDataStore { return existing }
-        let store = WKWebsiteDataStore.default()
+        let store = WKWebsiteDataStore.nonPersistent()
         loginDataStore = store
         return store
     }
@@ -196,6 +208,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         showStartup("正在打开学习控制台…")
         stopping = false
         launchTime = Date()
+        nativeSecret = UUID().uuidString + UUID().uuidString
+        nativeSession.invalidateAndCancel()
+        let localConfiguration = URLSessionConfiguration.ephemeral
+        localConfiguration.connectionProxyDictionary = [:]
+        nativeSession = URLSession(configuration: localConfiguration, delegate: self, delegateQueue: nil)
         do {
             try testIsolation?.validate()
             try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true,
@@ -218,6 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             environment["POLYU_CONSOLE_DATA_DIR"] = dataDirectory.path
             environment["POLYU_DOCUMENT_READER"] = resources.appendingPathComponent("read-tools/DocumentReader").path
             environment["POLYU_READY_FILE"] = readyFile.path
+            environment["POLYU_SESSION_VAULT"] = resources.appendingPathComponent("read-tools/SessionVault").path
             environment["PYTHONNOUSERSITE"] = "1"
             environment["PYTHONDONTWRITEBYTECODE"] = "1"
             environment["PYTHONUNBUFFERED"] = "1"
@@ -270,11 +288,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func checkReady() {
         if let bytes = try? Data(contentsOf: readyFile),
            let json = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any],
-           let address = json["url"] as? String, let url = URL(string: address), url.host == "127.0.0.1" {
+           let address = json["url"] as? String, let url = URL(string: address), url.host == "127.0.0.1",
+           url.scheme == "http", url.user == nil, url.password == nil, url.path == "/",
+           url.query == nil, url.fragment == nil, let port = url.port, port > 0, port < 65536,
+           let pid = json["pid"] as? Int, pid == Int(backend?.processIdentifier ?? -1) {
             readyTimer?.invalidate()
             baseURL = url
             flushDiagnostics()
-            console.load(URLRequest(url: url))
+            loadConsole()
             try? FileManager.default.removeItem(at: readyFile)
         } else if Date().timeIntervalSince(launchTime) > 25 {
             readyTimer?.invalidate()
@@ -487,11 +508,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let folder = dataDirectory.appendingPathComponent("account/documents/files", isDirectory: true)
         NSWorkspace.shared.open(FileManager.default.fileExists(atPath: folder.path) ? folder : dataDirectory)
     }
+    func loadConsole() {
+        postNative("bootstrap", payload: [:]) { result in
+            guard case .success(let value) = result, let ticket = value["ticket"] as? String,
+                  let base = self.baseURL, var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else {
+                self.alert("控制台授权失败", "请重新打开应用。"); return
+            }
+            components.queryItems = [URLQueryItem(name: "view", value: UUID().uuidString)]
+            components.fragment = "bootstrap=" + ticket
+            if let url = components.url { self.console.load(URLRequest(url: url)) }
+        }
+    }
+
     @objc func reloadConsole() {
         guard !resettingAccount, !terminating else { return }
-        if baseURL != nil { console.reload() } else { stopBackend(); startBackend() }
+        if baseURL != nil { loadConsole() } else { stopBackend(); startBackend() }
     }
-    @objc func goHome() { if let url = baseURL { console.load(URLRequest(url: url)) } }
+    @objc func goHome() { if baseURL != nil { loadConsole() } }
     @objc func openSettings() { console.evaluateJavaScript("window.openSettings && window.openSettings()", completionHandler: nil) }
     func reloadData() { console.evaluateJavaScript("window.polyuReload && window.polyuReload()", completionHandler: nil) }
     func notice(_ message: String, type: String = "info") {
@@ -516,6 +549,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             guard response == .alertFirstButtonReturn else { self.recordDiagnostic("logout", "cancelled"); return }
             self.pendingNotice = "已退出登录，账号数据已删除。请登录以建立自己的学习控制台。"
             self.resetAccountStorage(message: "正在退出登录并删除账号数据…", logoutRequested: true)
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        // Native authorization must never leave the selected loopback endpoint.
+        completionHandler(nil)
+    }
+
+    func clearLoginStores(logoutRequested: Bool, completion: @escaping () -> Void) {
+        schoolDataStore().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) {
+            if logoutRequested && self.testIsolation == nil {
+                // Earlier releases used a persistent WebKit store; erase it only on explicit logout.
+                WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                                                        modifiedSince: .distantPast, completionHandler: completion)
+            } else { completion() }
+        }
+    }
+
+    func clearSavedSession() throws {
+        guard testIsolation == nil else { return }
+        let file = dataDirectory.appendingPathComponent("account/browser/canvas-cookies.json").standardizedFileURL
+        guard FileManager.default.fileExists(atPath: file.path) else { return }
+        guard let helper = Bundle.main.resourceURL?.appendingPathComponent("read-tools/SessionVault") else {
+            throw NSError(domain: "PolyU", code: 1)
+        }
+        let account = SHA256.hash(data: Data(file.path.utf8)).map { String(format: "%02x", $0) }.joined()
+        let process = Process()
+        process.executableURL = helper
+        process.arguments = ["delete", account]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: "PolyU", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                "Canvas 钥匙串会话未能清除，账号资料保留且清理标记仍有效。请检查钥匙串授权后重启以继续退出。"])
         }
     }
 
@@ -571,9 +641,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                 if child.isRunning { kill(-child.processIdentifier, SIGKILL); child.terminate() }
                 child.waitUntilExit()
             }
+            do { try self.clearSavedSession() }
+            catch {
+                DispatchQueue.main.async {
+                    self.resettingAccount = false
+                    self.showStartup("钥匙串清理未完成")
+                    self.alert("退出清理未完成", error.localizedDescription)
+                }
+                return
+            }
             DispatchQueue.main.async {
                 guard !self.terminating else { return }
-                self.schoolDataStore().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) {
+                self.clearLoginStores(logoutRequested: logoutRequested) {
                     do {
                         let manager = FileManager.default
                         let marker = self.dataDirectory.appendingPathComponent("logout-pending")
@@ -587,7 +666,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                         try Data("3\n".utf8).write(to: self.dataDirectory.appendingPathComponent("framework-version"), options: .atomic)
                         let configuration = URLSessionConfiguration.ephemeral
                         if self.testIsolation != nil { configuration.connectionProxyDictionary = [:] }
-                        self.nativeSession = URLSession(configuration: configuration)
+                        self.nativeSession = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
                         self.resettingAccount = false
                         if logoutRequested {
                             self.recordDiagnostic("logout.cleanup", "success")

@@ -33,7 +33,7 @@ EPOCH = 1791244800  # 2026-10-06 00:00:00 UTC
 sys.path.insert(0, str(ROOT))
 from release_build import ASSETS, CONSOLE, CONSOLE_FILES, NAME, VERSION, source_hashes, verify_bundle
 
-SHELL_FILES = ("main.py", "desktop.py", "windows_process.py", "native_verify.py")
+SHELL_FILES = ("main.py", "desktop.py", "windows_process.py", "native_verify.py", "gui_smoke.py")
 SYSTEM_DLLS = {"advapi32.dll", "bcrypt.dll", "bcryptprimitives.dll", "cabinet.dll", "combase.dll", "comctl32.dll", "crypt32.dll", "dwmapi.dll", "gdi32.dll", "imm32.dll", "iphlpapi.dll", "kernel32.dll", "mscoree.dll", "msi.dll", "msvcrt.dll", "netapi32.dll", "ntdll.dll", "ole32.dll", "oleaut32.dll", "pathcch.dll", "powrprof.dll", "psapi.dll", "rpcrt4.dll", "secur32.dll", "setupapi.dll", "shell32.dll", "shlwapi.dll", "user32.dll", "userenv.dll", "version.dll", "winmm.dll", "ws2_32.dll", "wtsapi32.dll"}
 SYSTEM_DLLS.add("propsys.dll")  # Windows Property System, used by upstream _wmi.
 EXCLUDE_WHEEL_PATHS = ("webview/lib/runtimes/win-arm64/", "webview/lib/runtimes/win-x86/", "clr_loader/ffi/dlls/x86/")
@@ -95,17 +95,17 @@ def prepare_tools(lock):
             with tarfile.open(path) as archive:
                 archive.extractall(TOOLS, filter="data")
     sys.path.insert(0, str(TOOLS / "python"))
-    compiler = TOOLS / "nsis-3.13/makensis"
+    compiler = TOOLS / ("nsis-3.13/makensis.exe" if sys.platform == "win32" else "nsis-3.13/makensis")
     compiler_environment = os.environ.copy()
     compiler_environment["NSISDIR"] = str(TOOLS / "nsis-3.13")
-    actual = subprocess.check_output([str(compiler), "-VERSION"], text=True, env=compiler_environment).strip() if compiler.is_file() else None
+    actual = subprocess.check_output([str(compiler), "/VERSION" if sys.platform == "win32" else "-VERSION"], text=True, env=compiler_environment).strip() if compiler.is_file() else None
     if actual != "v3.13":
         environment = os.environ.copy()
         environment.update(PYTHONPATH=str(TOOLS / "python"), SOURCE_DATE_EPOCH=str(EPOCH))
         command = [sys.executable, "-B", "-m", "SCons", "-j", "4", "VERSION=3.13", "SKIPSTUBS=all", "SKIPPLUGINS=all", "SKIPUTILS=all", "SKIPMISC=all", "NSIS_CONFIG_CONST_DATA_PATH=no", "PREFIX=" + str(TOOLS / "nsis-3.13"), "CC=clang", "CXX=clang++", "install-compiler"]
         with (CACHE / "makensis-build.log").open("w") as log:
             subprocess.run(command, cwd=TOOLS / "nsis-3.13-src", env=environment, stdout=log, stderr=subprocess.STDOUT, check=True)
-    actual = subprocess.check_output([str(compiler), "-VERSION"], text=True, env=compiler_environment).strip()
+    actual = subprocess.check_output([str(compiler), "/VERSION" if sys.platform == "win32" else "-VERSION"], text=True, env=compiler_environment).strip()
     if actual != "v3.13":
         raise RuntimeError("NSIS source/stub version mismatch: " + actual)
     return compiler
@@ -332,7 +332,8 @@ def audit_pe(bundle):
 def compile_nsis(compiler, script, defines, log_name):
     environment = os.environ.copy()
     environment.update(NSISDIR=str(TOOLS / "nsis-3.13"), SOURCE_DATE_EPOCH=str(EPOCH))
-    command = [str(compiler), "-NOCD", "-V3", *[f"-D{name}={value}" for name, value in defines.items()], str(script)]
+    prefix = "/" if sys.platform == "win32" else "-"
+    command = [str(compiler), prefix + "NOCD", prefix + "V3", *[f"{prefix}D{name}={value}" for name, value in defines.items()], str(script)]
     with (CACHE / log_name).open("w") as log:
         subprocess.run(command, cwd=ROOT, env=environment, stdout=log, stderr=subprocess.STDOUT, check=True)
 
@@ -377,11 +378,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--download", action="store_true", help="retrieve missing files from the official URLs in the SHA256 locks")
     arguments = parser.parse_args()
-    if VERSION != "1.8.0":
-        raise SystemExit("This assembly script is locked to 1.8.0")
+    if VERSION != "1.8.1":
+        raise SystemExit("This assembly script is locked to 1.8.1")
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     lock = json.loads((SOURCE / "runtime-lock.json").read_text(encoding="utf-8"))
     tools = json.loads((SOURCE / "build-tools-lock.json").read_text(encoding="utf-8"))
+    if sys.platform == "win32":
+        tools["tools"] = [entry for entry in tools["tools"] if "macosx" not in entry["filename"]] + tools["windowsTools"]
     entries = [lock["runtime"], lock["runtimeLicenseArchive"], *lock["wheels"], *lock["sdists"], *lock["licenseSources"], *tools["tools"]]
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
         list(pool.map(lambda entry: fetch(entry, arguments.download), entries))
@@ -436,13 +439,13 @@ def main():
     install, uninstall = installer_payload(bundle)
     output = ROOT / "Win发布"
     output.mkdir(exist_ok=True)
-    installer = output / (NAME + "-" + VERSION + "-windows-x64-setup.exe")
+    installer = output / ("PolyUStudyConsole-" + VERSION + "-windows-x64-setup.exe")
     compile_nsis(compiler, SOURCE / "installer.nsi", {"INSTALLER_OUT": installer, "APP_ICON": icon, "PAYLOAD_INSTALL": install, "PAYLOAD_UNINSTALL": uninstall}, "installer-build.log")
     import pefile
     setup = pefile.PE(str(installer))
     if setup.FILE_HEADER.Machine != 0x14c or setup.OPTIONAL_HEADER.Subsystem != 2:
         raise RuntimeError("Unexpected NSIS Windows GUI bootstrap architecture")
-    archive = output / (NAME + "-" + VERSION + "-windows-x64.zip")
+    archive = output / ("PolyUStudyConsole-" + VERSION + "-windows-x64.zip")
     deterministic_zip(bundle, archive)
     evidence["artifacts"] = {path.name: {"sha256": sha256(path), "bytes": path.stat().st_size} for path in (archive, installer)}
     evidence["payloadFileCount"] = len(manifest) + 1

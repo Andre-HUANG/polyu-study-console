@@ -43,5 +43,13 @@
       "sha256": "29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484",
       "size": 66469
     }
+  ],
+  "windowsTools": [
+    {
+      "filename": "zstandard-0.25.0-cp312-cp312-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/79/3b/fa54d9015f945330510cb5d0b0501e8253c127cca7ebe8ba46a965df18c5/zstandard-0.25.0-cp312-cp312-win_amd64.whl",
+      "sha256": "ffef5a74088f1e09947aecf91011136665152e0b4b359c42be3373897fb39b01",
+      "size": 506276
+    }
   ]
 }

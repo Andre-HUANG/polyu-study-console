@@ -119,6 +119,7 @@ class Backend:
                 self.diagnostic_pending.pop(0)
 
     def start(self):
+        self.secret = secrets.token_urlsafe(48)
         from windows_process import Job, resume_backend
         self.root.mkdir(parents=True, exist_ok=True)
         environment = os.environ.copy()
@@ -156,7 +157,7 @@ class Backend:
     def request(self, operation, payload):
         if not self.url or not self.process or self.process.poll() is not None:
             raise RuntimeError("本机服务已停止")
-        if operation not in {"session", "logout", "diagnostics"}: raise ValueError("Unknown native operation")
+        if operation not in {"session", "logout", "diagnostics", "bootstrap"}: raise ValueError("Unknown native operation")
         request = urllib.request.Request(self.url + "api/native/" + operation,
             data=json.dumps(payload).encode("utf-8"), method="POST",
             headers={"Content-Type":"application/json", "X-PolyU-Native":self.secret})
@@ -166,6 +167,10 @@ class Backend:
         except urllib.error.HTTPError as error:
             value = json.load(error)
             raise RuntimeError(value.get("error") or "Canvas 授权未完成") from None
+
+    def bootstrap_url(self):
+        ticket = self.request("bootstrap", {})["ticket"]
+        return self.url + "?view=" + secrets.token_hex(8) + "#bootstrap=" + ticket
 
     def stop(self):
         self.url = None
@@ -288,7 +293,7 @@ class Desktop:
                 self.backend.record('login.export', 'success')
                 self.notice(result.get("message") or "Canvas 已连接")
                 window.destroy()
-                self.console.load_url(self.backend.url)
+                self.console.load_url(self.backend.bootstrap_url())
         except Exception as error:
             if not self.stopping: self.backend.record('login.export', 'failure', error_code(error))
             if not self.stopping: self.notice(str(error))
@@ -322,7 +327,7 @@ class Desktop:
             self.backend.record('logout', 'attempt')
             self.backend.record('logout.cleanup', 'success')
             self.backend.record('logout', 'success')
-        self.console = self.webview.create_window(APP_NAME, self.backend.url,
+        self.console = self.webview.create_window(APP_NAME, self.backend.bootstrap_url(),
                     js_api=Bridge(self), width=1360, height=900, min_size=(850,620))
         self.console.events.closing += self._close_login
         try:

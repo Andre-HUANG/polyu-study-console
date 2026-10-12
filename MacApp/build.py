@@ -91,11 +91,12 @@ def main():
         "https://github.com/astral-sh/python-build-standalone/releases/tag/20261001\n"
         "Runtime license files are retained inside each runtime directory.\n", encoding="utf-8")
     for arch in RUNTIMES:
-        run("xcrun", "swiftc", "-parse-as-library", "-module-cache-path", WORK / "module-cache", "-O", "-target", f"{arch}-apple-macos13.0", SOURCE / "App.swift", SOURCE / "TestIsolation.swift", SOURCE / "NativeGUISmoke.swift", "-o", WORK / f"PolyUConsole-{arch}")
+        run("xcrun", "swiftc", "-parse-as-library", "-module-cache-path", WORK / "module-cache", "-O", "-file-prefix-map", str(ROOT) + "=/src/polyu-study-console", "-target", f"{arch}-apple-macos13.0", SOURCE / "App.swift", SOURCE / "TestIsolation.swift", SOURCE / "NativeGUISmoke.swift", "-o", WORK / f"PolyUConsole-{arch}")
     shutil.copy2(WORK / "PolyUConsole-arm64", CONTENTS / "MacOS/PolyUConsole")
     read_tools = RESOURCES / "read-tools"
     read_tools.mkdir()
-    run("xcrun", "swiftc", "-module-cache-path", WORK / "module-cache", "-O", "-target", "arm64-apple-macos13.0", SOURCE / "DocumentReader.swift", "-o", read_tools / "DocumentReader")
+    run("xcrun", "swiftc", "-module-cache-path", WORK / "module-cache", "-O", "-file-prefix-map", str(ROOT) + "=/src/polyu-study-console", "-target", "arm64-apple-macos13.0", SOURCE / "DocumentReader.swift", "-o", read_tools / "DocumentReader")
+    run("xcrun", "swiftc", "-module-cache-path", WORK / "module-cache", "-O", "-file-prefix-map", str(ROOT) + "=/src/polyu-study-console", "-target", "arm64-apple-macos13.0", SOURCE / "SessionVault.swift", "-o", read_tools / "SessionVault")
     run("xcrun", "swiftc", "-module-cache-path", WORK / "module-cache", SOURCE / "Icon.swift", "-o", WORK / "make-icon")
     run(WORK / "make-icon", WORK / "AppIcon.iconset", assets / "polyu-emblem.jpg")
     with Image.open(WORK / "AppIcon.iconset/icon_512x512@2x.png") as icon:
@@ -132,6 +133,7 @@ def main():
                 run("codesign", "--force", "--sign", "-", file)
     # Desktop file providers may reapply Finder flags during runtime signing.
     run("codesign", "--force", "--sign", "-", read_tools / "DocumentReader")
+    run("codesign", "--force", "--sign", "-", read_tools / "SessionVault")
     subprocess.run(["xattr", "-d", "com.apple.FinderInfo", str(APP)], stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL, check=False)
     run("codesign", "--force", "--sign", "-", APP)
@@ -142,8 +144,8 @@ def main():
 def package(create_archives=True):
     run("codesign", "--verify", "--deep", "--strict", APP)
     verify_bundle(RESOURCES)
-    image = RELEASE / (NAME + "-" + VERSION + "-arm64.dmg")
-    zipfile = RELEASE / (NAME + "-" + VERSION + "-arm64.zip")
+    image = RELEASE / ("PolyUStudyConsole-" + VERSION + "-arm64.dmg")
+    zipfile = RELEASE / ("PolyUStudyConsole-" + VERSION + "-arm64.zip")
     if create_archives:
         stage = WORK / "dmg-stage"
         if stage.exists(): shutil.rmtree(stage)
@@ -154,7 +156,7 @@ def package(create_archives=True):
         shutil.copy2(SOURCE / "安装与使用.txt", RELEASE / "安装与使用.txt")
         # ZIP needs no disk-image service and remains available if DMG creation fails.
         if zipfile.exists(): zipfile.unlink()
-        run("ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", APP, zipfile)
+        run("ditto", "--norsrc", "--noextattr", "--noqtn", "-c", "-k", "--keepParent", APP, zipfile)
         if image.exists(): image.unlink()
         run("hdiutil", "create", "-volname", NAME, "-srcfolder", stage, "-ov", "-format", "UDZO", image)
     run("hdiutil", "verify", image)

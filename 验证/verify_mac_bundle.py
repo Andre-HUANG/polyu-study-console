@@ -1,4 +1,5 @@
 """Verify built Mac components using synthetic files and a guarded loopback server."""
+import http.cookiejar
 import hashlib
 import json
 import os
@@ -63,7 +64,7 @@ def main():
         ready = root / 'ready.json'
         app_root = root / 'synthetic-app'
         environment.update(POLYU_NATIVE_APP='1', POLYU_APP_VERSION=VERSION,
-            POLYU_NATIVE_SECRET='synthetic-local-verification', POLYU_CONSOLE_DATA_DIR=str(app_root),
+            POLYU_NATIVE_SECRET='synthetic-local-verification-' + 'x'*48, POLYU_CONSOLE_DATA_DIR=str(app_root),
             POLYU_DOCUMENT_READER=str(reader), POLYU_CONSOLE_PORT='0', POLYU_READY_FILE=str(ready))
         # Enforce the network boundary inside the backend interpreter too.
         launch = '''import os, runpy, sys
@@ -81,7 +82,7 @@ runpy.run_path(script,run_name='__main__')
         log = (root / 'backend.log').open('w', encoding='utf-8')
         process = subprocess.Popen([str(python), '-B', '-c', launch, str(console / 'server.py')],
             env=environment, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-        local = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        local = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
         try:
             deadline = time.monotonic() + 30
             while not ready.exists():
@@ -95,6 +96,16 @@ runpy.run_path(script,run_name='__main__')
             with local.open(url + 'api/health', timeout=10) as response:
                 assert json.load(response)['ok']
                 assert response.headers['Server'].startswith('PolyUStudyConsole/' + VERSION)
+            try:
+                local.open(url + 'api/data', timeout=10)
+                raise AssertionError('Unauthenticated data read allowed')
+            except urllib.error.HTTPError as error: assert error.code == 401
+            request = urllib.request.Request(url + 'api/native/bootstrap', data=b'{}',
+                headers={'Content-Type':'application/json', 'X-PolyU-Native':environment['POLYU_NATIVE_SECRET']})
+            with local.open(request, timeout=10) as response: ticket = json.load(response)['ticket']
+            request = urllib.request.Request(url + 'api/client/session', data=json.dumps({'ticket':ticket}).encode(),
+                headers={'Content-Type':'application/json', 'Origin':url.rstrip('/')})
+            with local.open(request, timeout=10) as response: assert json.load(response)['csrf']
             with local.open(url + 'api/data', timeout=10) as response:
                 data = json.load(response)
             assert data['version'] == VERSION and data['courseCount'] == 0

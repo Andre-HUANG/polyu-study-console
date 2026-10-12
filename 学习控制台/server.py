@@ -34,6 +34,7 @@ from freshness import summary as freshness_summary
 from course_evidence import VERSION as EVIDENCE_VERSION
 from assessment_types import KINDS, EXAM_RE, classify
 from diagnostic_log import DiagnosticLog, error_code, validate_event
+from local_access import LocalAccess
 
 
 HERE = Path(__file__).resolve().parent
@@ -43,7 +44,8 @@ NATIVE = os.environ.get("POLYU_NATIVE_APP") == "1"
 NATIVE_SECRET = os.environ.get("POLYU_NATIVE_SECRET") or ""
 APP_VERSION = os.environ.get("POLYU_APP_VERSION") or RELEASE_VERSION
 HK = ZoneInfo("Asia/Hong_Kong")
-CSRF = secrets.token_urlsafe(32)
+ACCESS = LocalAccess()
+CSRF = ACCESS.csrf
 MUTATION_LOCK = threading.Lock()
 JOB = {"busy": False, "stage": "", "lastError": "", "needsLogin": False, "lastAttempt": 0.0}
 SUBMITTED = {"graded", "submitted", "pending_review"}
@@ -224,7 +226,21 @@ def connect_native(payload):
     return message
 
 
+def account_needs_review():
+    config = load_json(PROFILE / "config.json", {})
+    owner = (config.get("user") or {}).get("id")
+    login_owner = load_json(PROFILE / "login.json", {}).get("user_id")
+    if owner:
+        return bool(login_owner) and str(login_owner) != str(owner)
+    if not PROFILE.exists(): return False
+    # Only anonymous UI preferences may precede first authorization.
+    return any(p.is_symlink() or (p.is_file() and p.name != "app-settings.json")
+               for p in PROFILE.rglob("*"))
+
+
 def _connect_native(payload):
+    if account_needs_review():
+        raise ValueError("现有账号资料的所有者无法核对，已保留且未合并。请先核对原资料；换账号需明确退出并删除后再连接。")
     cookies = normalized_cookies(payload.get("cookies"))
     if not cookies:
         raise ValueError("尚未完成学校登录，请在登录窗口完成验证。")
@@ -243,14 +259,14 @@ def _connect_native(payload):
     if old_id and str(old_id) != str(me["id"]):
         # Do not combine grades or deadlines belonging to different accounts.
         raise ValueError("当前档案属于另一账号。请先退出登录并清除账号数据，再连接新的账号。")
+    api.persist = True
+    api.close()  # Protect and verify the session before changing account metadata.
     if not cfg:
         cfg = {"canvas_host": CANVAS_HOST, "user": {"id": me["id"], "name": me.get("name") or "PolyU 学生"},
                "courses": [], "term": {}}
         save_private(PROFILE / "config.json", cfg)
     if not (PROFILE / "state.json").exists():
         save_private(PROFILE / "state.json", {"manual_deadlines": []})
-    api.persist = True
-    api.close()
     save_private(PROFILE / "login.json", {"host": CANVAS_HOST, "lms": "canvas", "transport": "webkit",
                  "name": me.get("name") or "PolyU 学生", "user_id": me["id"],
                  "at": datetime.now(HK).isoformat()})
@@ -262,6 +278,11 @@ def _connect_native(payload):
 
 
 def logout_native():
+    global CSRF
+    ACCESS.rotate()
+    CSRF = ACCESS.csrf
+    from session_store import delete_session
+    delete_session(PROFILE / "browser/canvas-cookies.json")
     # This endpoint runs under MUTATION_LOCK, so no sync worker can rewrite
     # an account after its data has been removed. The app also stops the whole
     # backend process group before clearing its data and WebKit stores.
@@ -285,7 +306,7 @@ def connection_data():
     config = load_json(PROFILE / "config.json", {})
     authorized = bool(login.get("user_id")) and str(login.get("user_id")) == str((config.get("user") or {}).get("id"))
     settings = read_sync_settings()
-    return {"native": NATIVE, "authorized": authorized, "name": (login.get("name") or "") if authorized else "",
+    return {"native": NATIVE, "authorized": authorized, "needsDataReview": account_needs_review(), "name": (login.get("name") or "") if authorized else "",
             "autoSync": bool(settings.get("autoSync", True)),
             "syncIntervalSeconds": settings['syncIntervalSeconds'],
             "syncStatus": load_json(PROFILE / "sync-status.json", {}) if authorized else {},
@@ -538,7 +559,7 @@ def dashboard_data():
         "today": today.isoformat(), "lastSync": sync_at.isoformat() if sync_at else None,
         "freshness": freshness_summary(snapshot),
         "recentChanges": changes[:100], "changeCount": len(changes),
-        "latestCanvasChange": latest_canvas_change(snapshot, courses, documents),
+        "latestCanvasChange": latest_canvas_change(snapshot, courses, documents) if signed_in else None,
         "version": APP_VERSION, "documents": documents,
         "grades": build_grades(courses, snapshot.get("assignments"), safe_url,
                                raw_assignment_meta(snapshot, courses), PROFILE / "grading_schemes.json",
@@ -553,8 +574,34 @@ def dashboard_data():
 class Handler(BaseHTTPRequestHandler):
     server_version = "PolyUStudyConsole/" + RELEASE_VERSION
 
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(15)
+
+    def native_authorized(self):
+        try:
+            return bool(NATIVE_SECRET) and secrets.compare_digest(
+                self.headers.get("X-PolyU-Native", "").encode("utf-8"), NATIVE_SECRET.encode("utf-8"))
+        except (TypeError, UnicodeError):
+            return False
+
+    def send_sensitive(self, value):
+        # Logout can revoke access while a document/data read is in flight.
+        if not self.client_authorized():
+            return self.send_json({"error": "客户端授权已失效"}, HTTPStatus.UNAUTHORIZED)
+        return self.send_json(value)
+
     def local_host(self):
-        return self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}"
+        return (len(self.headers.get_all("Host", [])) == 1 and
+                self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}")
+
+    def valid_origin(self):
+        origin = self.headers.get("Origin")
+        return (len(self.headers.get_all("Origin", [])) <= 1 and origin in (None, f"http://127.0.0.1:{self.server.server_port}") and
+                self.headers.get("Sec-Fetch-Site") not in {"cross-site", "same-site"})
+
+    def client_authorized(self):
+        return ACCESS.authorized(self.headers, self.server.server_port)
 
     def log_message(self, fmt, *args):
         # HTTP requests can contain private search text. Structured diagnostics
@@ -564,6 +611,11 @@ class Handler(BaseHTTPRequestHandler):
     def send_bytes(self, body: bytes, content_type: str, status=HTTPStatus.OK):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
+        self.send_header("Connection", "close")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        cookie = getattr(self, "session_cookie", None)
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Referrer-Policy", "no-referrer")
@@ -580,21 +632,25 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.local_host():
             return self.send_json({"error": "仅允许本机访问"}, HTTPStatus.FORBIDDEN)
+        if not self.valid_origin():
+            return self.send_json({"error": "请求来源无效"}, HTTPStatus.FORBIDDEN)
         path = urlsplit(self.path).path
         if path == "/api/health":
             return self.send_json({"app": "polyu-study-console", "ok": True, "native": NATIVE})
+        if path.startswith("/api/") and not self.client_authorized():
+            return self.send_json({"error": "需要原生客户端授权"}, HTTPStatus.UNAUTHORIZED)
         if path == "/api/data":
-            return self.send_json(dashboard_data())
+            return self.send_sensitive(dashboard_data())
         if path == '/api/diagnostics':
             if self.headers.get('X-PolyU-Console') != CSRF:
                 return self.send_json({'error': '请求来源无效'}, HTTPStatus.FORBIDDEN)
-            return self.send_json(diagnostics().summary())
+            return self.send_sensitive(diagnostics().summary())
         if path == "/api/documents/search":
             if NATIVE and not connection_data()["authorized"]:
                 return self.send_json({"error": "请先连接 Canvas 账号"}, HTTPStatus.UNAUTHORIZED)
             try:
                 query = parse_qs(urlsplit(self.path).query).get("q", [""])[0]
-                return self.send_json(search_documents(PROFILE, query))
+                return self.send_sensitive(search_documents(PROFILE, query))
             except ValueError as error:
                 return self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
         files = {
@@ -609,28 +665,48 @@ class Handler(BaseHTTPRequestHandler):
         file, content_type = files[path]
         data = file.read_bytes()
         if path == "/":
-            data = data.replace(b"__CSRF_TOKEN__", CSRF.encode("ascii"))
+            data = data.replace(b"__CSRF_TOKEN__", CSRF.encode("ascii") if self.client_authorized() else b"")
         return self.send_bytes(data, content_type)
 
     def do_POST(self):
         if not self.local_host():
             return self.send_json({"error": "仅允许本机访问"}, HTTPStatus.FORBIDDEN)
+        if not self.valid_origin():
+            return self.send_json({"error": "请求来源无效"}, HTTPStatus.FORBIDDEN)
         origin = self.headers.get("Origin", "")
         expected = f"http://127.0.0.1:{self.server.server_port}"
         path = urlsplit(self.path).path
         trusted_native = (NATIVE and bool(NATIVE_SECRET) and path.startswith("/api/native/") and
-                          secrets.compare_digest(self.headers.get("X-PolyU-Native", ""), NATIVE_SECRET))
-        if not trusted_native and (origin != expected or self.headers.get("X-PolyU-Console") != CSRF):
+                          self.native_authorized())
+        bootstrap = path == "/api/client/session" and origin == expected
+        if path.startswith("/api/native/") and not trusted_native:
+            return self.send_json({"error": "原生授权无效"}, HTTPStatus.FORBIDDEN)
+        if not trusted_native and not bootstrap and (not self.client_authorized() or origin != expected or self.headers.get("X-PolyU-Console") != CSRF):
             return self.send_json({"error": "请求来源无效"}, HTTPStatus.FORBIDDEN)
+        if self.headers.get("Transfer-Encoding") or len(self.headers.get_all("Content-Length", [])) != 1:
+            return self.send_json({"error": "请求长度无效"}, HTTPStatus.BAD_REQUEST)
         try:
             size = int(self.headers.get("Content-Length", "0"))
             if size < 0 or size > (65536 if trusted_native else 16384):
                 return self.send_json({"error": "请求过大"}, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
-            payload = json.loads(self.rfile.read(size) or b"{}")
+            raw = self.rfile.read(size)
+            if len(raw) != size: raise ValueError("请求正文不完整")
+            payload = json.loads(raw or b"{}")
             if not isinstance(payload, dict):
                 raise ValueError("请求内容无效")
-        except (ValueError, json.JSONDecodeError):
+        except (ValueError, json.JSONDecodeError, TimeoutError, OSError):
             return self.send_json({"error": "请求内容不是有效的 JSON"}, HTTPStatus.BAD_REQUEST)
+        if bootstrap:
+            token = ACCESS.redeem(payload.get("ticket")) if set(payload) == {"ticket"} else None
+            if not token:
+                return self.send_json({"error": "客户端授权已失效"}, HTTPStatus.FORBIDDEN)
+            self.session_cookie = (ACCESS.cookie_name(self.server.server_port) + "=" + token +
+                                   "; Path=/; HttpOnly; SameSite=Strict")
+            return self.send_json({"csrf": CSRF})
+        if trusted_native and path == "/api/native/bootstrap":
+            return self.send_json({"ticket": ACCESS.issue(), "expiresIn": 30})
+        if not trusted_native and not bootstrap and not self.client_authorized():
+            return self.send_json({'error': '客户端授权已失效'}, HTTPStatus.FORBIDDEN)
         if trusted_native and path == '/api/native/diagnostics':
             try:
                 if set(payload) != {'event', 'result', 'code'}: raise ValueError('日志事件无效')
@@ -651,6 +727,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"error": "已有更新正在进行，请稍后。"}, HTTPStatus.CONFLICT)
         try:
             sync_after = False
+            if not trusted_native and not self.client_authorized():
+                return self.send_json({"error": "客户端授权已失效"}, HTTPStatus.FORBIDDEN)
             if trusted_native and path == "/api/native/session":
                 message = connect_native(payload)
                 sync_after = True
@@ -771,7 +849,12 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     if not NATIVE:
         raise SystemExit("请从 PolyU study控制台桌面应用启动。")
+    if len(NATIVE_SECRET) < 32:
+        raise SystemExit("原生会话凭据缺失，拒绝启动。")
     backend_session()
+    if PROJECT.is_symlink() or PROFILE.is_symlink():
+        raise SystemExit("账号目录不能是链接。")
+    os.umask(0o077)
     PROJECT.mkdir(parents=True, exist_ok=True, mode=0o700)
     migrate_legacy_profile()
     PROFILE.mkdir(parents=True, exist_ok=True, mode=0o700)

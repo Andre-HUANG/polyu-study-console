@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+python3 -B security/privacy_scan.py --staged
+python3 -B security/privacy_scan.py --history

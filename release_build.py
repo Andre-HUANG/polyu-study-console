@@ -8,7 +8,7 @@ CONSOLE = ROOT / "学习控制台"
 RELEASE = json.loads((CONSOLE / "release.json").read_text(encoding="utf-8"))
 NAME, VERSION, BUILD = RELEASE["name"], RELEASE["version"], RELEASE["build"]
 CONSOLE_FILES = (
-    "release.json", "app_config.py", "platform_support.py", "server.py", "grades.py", "assessment_types.py", "diagnostic_log.py",
+    "release.json", "app_config.py", "platform_support.py", "server.py", "local_access.py", "session_store.py", "grades.py", "assessment_types.py", "diagnostic_log.py",
     "native_canvas.py", "canvas_api.py", "canvas_sync.py", "canvas_web.py",
     "canvas_archive.py", "canvas_grading.py", "canvas_documents.py", "document_text.py",
     "pdf_layout.py", "windows_document.py", "assessment_reader.py", "course_evidence.py",
@@ -28,7 +28,7 @@ def verify_bundle(root):
 def source_hashes():
     paths = [CONSOLE / n for n in CONSOLE_FILES] + [CONSOLE / "assets" / n for n in ASSETS]
     paths += [CONSOLE / "使用说明.md"]
-    paths += [ROOT / "MacApp" / n for n in ("App.swift", "TestIsolation.swift", "NativeGUISmoke.swift", "DocumentReader.swift", "Icon.swift", "build.py", "test_app.py", "document-vendor-lock.json", "安装与使用.txt")]
+    paths += [ROOT / "MacApp" / n for n in ("App.swift", "SessionVault.swift", "TestIsolation.swift", "NativeGUISmoke.swift", "DocumentReader.swift", "Icon.swift", "build.py", "test_app.py", "document-vendor-lock.json", "安装与使用.txt")]
     paths += sorted((ROOT / "WindowsApp").glob("*.py"))
     paths += [ROOT / "build.py", ROOT / "release_build.py", ROOT / "WindowsApp/requirements.txt",
               ROOT / "WindowsApp/build.cmd", ROOT / "WindowsApp/PolyU.spec", ROOT / "WindowsApp/app.manifest",
@@ -36,4 +36,6 @@ def source_hashes():
               ROOT / "WindowsApp/launcher.nsi", ROOT / "WindowsApp/installer.nsi",
               ROOT / "WindowsApp/安装与使用.txt", ROOT / "WindowsApp/原生构建与验收.md"]
     paths += [ROOT / "验证" / n for n in ("run_offline.py", "IsolationTests.swift", "run_native_gui.py", "verify_mac_bundle.py", "verify_release_artifacts.py", "benchmark.py", "run_gui_component.py", "NativeDashboardSmoke.swift")]
+    paths += sorted((ROOT / "security").glob("*.py")) + sorted((ROOT / ".github/workflows").glob("*.yml"))
+    paths += [ROOT / "验证/verify_local_api.py", ROOT / "验证/verify_keychain.py"]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}

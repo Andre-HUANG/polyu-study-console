@@ -31,9 +31,16 @@ def material_host(url):
 
 def save_private(path, value):
     path = Path(path)
-    if IS_WINDOWS and path.name == "canvas-cookies.json":
-        encoded = json.dumps(value, ensure_ascii=False).encode("utf-8")
-        value = {"protection": "windows-user-dpapi", "data": base64.b64encode(dpapi(encoded)).decode("ascii")}
+    if path.name == "canvas-cookies.json":
+        from session_store import protect_session
+        value = protect_session(path, value, windows=IS_WINDOWS, protector=dpapi)
+    write_private(path, value)
+
+
+def write_private(path, value):
+    path = Path(path)
+    if path.is_symlink() or path.parent.is_symlink():
+        raise RuntimeError("账号写入路径不能是链接。")
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     temporary = path.with_name(path.name + '.' + secrets.token_hex(16) + '.tmp')
     try:
@@ -74,15 +81,17 @@ def retry_delay(value, attempt):
 
 
 def load_cookies(path):
+    path = Path(path)
+    if path.is_symlink() or path.parent.is_symlink():
+        raise RuntimeError("会话路径不能是链接。")
     try:
-        value = json.loads(Path(path).read_text(encoding="utf-8"))
-        if IS_WINDOWS and not (isinstance(value, dict) and value.get("protection") == "windows-user-dpapi"):
-            raise RuntimeError("Windows 登录资料缺少系统保护，请退出登录后重新连接")
-        if isinstance(value, dict) and value.get("protection") == "windows-user-dpapi":
-            value = json.loads(dpapi(base64.b64decode(value["data"], validate=True), decrypt=True))
-        return value if isinstance(value, list) else []
-    except (OSError, ValueError):
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
         return []
+    except (OSError, ValueError):
+        raise RuntimeError("无法读取会话文件；原账号资料保持不变。") from None
+    from session_store import read_session
+    return read_session(path, value, windows=IS_WINDOWS, protector=dpapi)
 
 
 def normalized_cookies(rows):

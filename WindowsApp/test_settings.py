@@ -27,7 +27,7 @@ class SettingsChecks(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.profile = self.root / 'account'
         self.patch = patch.multiple(server, PROJECT=self.root, PROFILE=self.profile, DIAGNOSTICS=None,
-                                    NATIVE=True, NATIVE_SECRET='synthetic-native-key')
+                                    ACCESS=server.LocalAccess(), NATIVE=True, NATIVE_SECRET='synthetic-native-key')
         self.patch.start()
         self.job = server.JOB.copy()
         server.JOB.update(busy=False, stage='', lastError='', needsLogin=False)
@@ -48,7 +48,9 @@ class SettingsChecks(unittest.TestCase):
         handler.headers['Host'] = '127.0.0.1:8766'
         handler.headers['Origin'] = 'http://127.0.0.1:8766'
         if native: handler.headers['X-PolyU-Native'] = server.NATIVE_SECRET if trusted else 'forged'
-        else: handler.headers['X-PolyU-Console'] = server.CSRF if trusted else 'forged'
+        else:
+            handler.headers['X-PolyU-Console'] = server.CSRF if trusted else 'forged'
+            if trusted: handler.headers['Cookie'] = server.ACCESS.cookie_name(8766) + '=' + server.ACCESS.token
         body = json.dumps(payload or {}).encode()
         handler.headers['Content-Length'] = str(len(body))
         handler.rfile = io.BytesIO(body)
@@ -189,7 +191,7 @@ class SettingsChecks(unittest.TestCase):
     def test_account_log_reopens_without_account_identifiers_in_export(self):
         self.authorize('private-account-id')
         log = server.diagnostics(); log.record('login.verify', 'success')
-        reopened = DiagnosticLog(self.profile, '1.8.0').for_account('private-account-id')
+        reopened = DiagnosticLog(self.profile, '1.8.1').for_account('private-account-id')
         self.assertEqual(reopened.summary()['events'][0]['result'], 'success')
         exported = json.dumps(reopened.summary())
         self.assertNotIn('private-account-id', exported)
@@ -223,7 +225,7 @@ class SettingsChecks(unittest.TestCase):
         saved = json.loads(log.path.read_text())
         saved['events'] += [{**row, 'code': 'SENSITIVE cookie'}, {**row, 'at': 'SECRET'}, {**row, 'extra': 'PRIVATE BODY'}]
         log.path.write_text(json.dumps(saved))
-        fresh = DiagnosticLog(self.profile, '1.8.0').for_account('synthetic-account')
+        fresh = DiagnosticLog(self.profile, '1.8.1').for_account('synthetic-account')
         self.assertEqual(len(fresh.summary()['events']), 1)
         self.assertNotIn('SENSITIVE', json.dumps(fresh.summary()))
 
@@ -253,7 +255,7 @@ class SettingsChecks(unittest.TestCase):
 
     def test_another_account_does_not_read_previous_account_log(self):
         self.authorize('A'); first = server.diagnostics(); first.record('sync', 'failure', 'NETWORK_ERROR')
-        second = DiagnosticLog(self.profile, '1.8.0').for_account('B')
+        second = DiagnosticLog(self.profile, '1.8.1').for_account('B')
         self.assertFalse(second.summary()['events'])
 
     def test_logout_deletes_disk_history_and_new_login_discards_logout_memory(self):
@@ -296,7 +298,7 @@ class SettingsChecks(unittest.TestCase):
     def test_logs_read_and_clear_require_console_csrf_even_before_login(self):
         server.diagnostics().record('login.open', 'attempt')
         bad = self.handler('/api/diagnostics', trusted=False); bad.do_GET()
-        self.assertEqual(bad.send_json.call_args.args[1], 403)
+        self.assertEqual(bad.send_json.call_args.args[1], 401)
         good = self.handler('/api/diagnostics'); good.do_GET()
         self.assertEqual(len(good.send_json.call_args.args[0]['events']), 1)
         clear = self.handler('/api/diagnostics/clear'); clear.do_POST()
