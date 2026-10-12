@@ -19,14 +19,14 @@ PASS=本项实际执行通过（注明合成/静态/原生范围）；FAIL=执�
 | 退出/切换、手动/自动同步、部分失败继续扫描 | PASS，合成回归与真实 loopback |
 | 课程、作业、Quiz、公告、已公布成绩 | PASS，合成数据；真实当前账号 NOT TESTED |
 | 日期提取/冲突、评分比例/折算 | PASS，合成证据回归 |
-| PDF/表格、Word、OCR 空图、全文检索 | PASS，解析回归与 Mac PDFKit/Vision；Windows 原生见 CI |
+| PDF/表格、Word、OCR 空图、全文检索 | PASS，解析回归、Mac PDFKit/Vision、Windows 原生 PDF/表格及 OCR 空图 |
 | 课程变化、固定日志 | PASS，回归；真实课程变化 NOT TESTED |
 | Mac 启动/关闭/重开/后台故障恢复/退出清理 | PASS：本次 3 阶段真实原生 GUI 验收，含关闭重开、后台故障恢复和退出取消/确认；使用隔离合成账号 |
 | Mac 包内容/架构/签名 | PASS，构建与结构；未 Apple 公证 |
 | Windows DPAPI 真正系统往返 | PASS：Windows Runner 实际 DPAPI 往返、PDF/表格、OCR 空图及后端启停 |
 | Windows WebView2 启动/关闭/本地授权/设置 | PASS：Windows Runner 实际解压 Portable 后启动生产 WebView2、授权空框架、打开设置、关闭后台和清理合成目录 |
-| Windows 原生安装/卸载/保留账号目录 | FAIL：验收脚本按系统编码误读 UTF8 清单；文件实际存在，显式 UTF8 修复后等待重验 |
-| 新 Windows x64 PE/DLL/锁定负载 | PASS：Mac 组装 1.8.1 x64 候选包并完成 PE/DLL/哈希检查；不代替 Windows 运行 |
+| Windows 原生安装/卸载/保留账号目录 | PASS：一次性 Windows Runner 安装后 2,133 个负载 SHA256 一致，实际运行原生检查及 GUI，卸载保留合成账号哨兵 |
+| 新 Windows x64 PE/DLL/锁定负载 | PASS：Windows Runner 构建 x64 Setup/ZIP，原生加载通过，2,134 个 ZIP 文件完整清单/隐私扫描通过 |
 | 不同 ad-hoc 签名身份跨版本 Keychain 访问 | NOT TESTED，可能要求系统授权；失败保留数据 |
 | 真实既有用户升级/异常退出/实际卸载 | 合成迁移/故障回归 PASS；真实用户环境 NOT TESTED |
 
@@ -37,3 +37,8 @@ python3 security/release.py --check 执行扫描、Gitleaks、回归、HTTP 和�
 [远程 Actions](https://github.com/Andre-HUANG/polyu-study-console/actions)：Security Scan、Python Tests、macOS Build and Test、Windows Build and Test、Release Validation 均需成功。发布只接受同一 main SHA 的成功运行，失败停止；未执行项保持未验证。
 
 CI 的 Mac/Windows 开发解释器固定为 GitHub 官方清单提供的 Python 3.12.10；随应用的哈希锁定运行时仍为 3.12.15，另有实际包运行验收。PR 检出并验证其 head Commit，发布只接受成功 main 运行。GitHub 自动 PR 预览的私人邮箱元数据见审计剩余风险。
+
+
+Windows 原生验收证据：[运行 38245736245 的 Windows job](https://github.com/Andre-HUANG/polyu-study-console/actions/runs/38245736245/job/114799348900)，源码 f0c8fff1aa76。160 项测试中 153 PASS、7 项 Mac 专用检查 SKIP（不计作 Windows PASS）；20 项 HTTP、DPAPI、PDF/表格、OCR 空图、解压后的 WebView2、安装后 GUI、卸载保留合成资料均通过。该次 Mac 搜索断言遇到刷新竞态，因此该次整体运行没有通过发布门禁；修正断言时序后，本机重新构建的三阶段原生 GUI（首开、重开、退出）已 PASS；最终发布仍只接受同一正式 Commit 的完整成功 CI。
+
+旧失败定位与修复：开发 Python 平台可用性、确定性 ZIP 元数据、Windows 路径分隔符、CLR 系统路径例外、PyWinRT OCR 方法、离线测试 socket、WebView2 空目录、验收 JSON 编码。后续只以同一正式 Commit 的完整成功 CI 作为发布依据。

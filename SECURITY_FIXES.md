@@ -36,3 +36,5 @@ Windows 原生 OCR 验收发现旧代码把两参数传给 PyWinRT 的零参数�
 Windows 原生验收拆为独立步骤，在已验证构建成功后分别执行回归、HTTP、DPAPI/PDF/OCR、WebView2 和安装卸载。单项失败仍使整个 job 失败并阻止发布，同时保留其他独立项目的诊断，减少串行失败遮蔽。
 
 原生 WebView2 发现上游 pywebview 会枚举三种架构搜索目录，精简后目录缺失导致启动失败。保留所需空目录并纳入 ZIP/Setup，仍只保留 x64 native DLL，第三方代码字节不变。安装验收脚本误用 Windows 系统编码读取 UTF8 清单，造成中文文件名比较失败；文件实际已安装。改为显式 UTF8，并为 NSIS 输入及生成清单明确编码。原生 GUI 同时检查解压后的 Portable 和安装后的程序。参考 [NSIS 输入编码](https://nsis.sourceforge.io/Docs/Chapter3.html)。
+
+Mac GUI 空态搜索断言改为在触发同步过滤的同一个 JS 调用中读取结果，避免无账号自动刷新按设计清空输入导致测试竞态；没有修改账号清理行为或放宽检查。Windows 安装验收额外核对完整文件集合和安装后的清单字节。
