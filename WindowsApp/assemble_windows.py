@@ -131,7 +131,7 @@ def install_runtime(lock, bundle):
             path = destination.joinpath(*parts)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(archive.extractfile(member).read())
-            copied.append(str(path.relative_to(bundle)))
+            copied.append(path.relative_to(bundle).as_posix())
     for name in root_files:
         if not (destination / name).is_file():
             raise RuntimeError("Incomplete upstream Windows runtime: " + name)
@@ -266,11 +266,11 @@ def audit_private_paths(bundle):
         candidates = [candidate for root in paths for candidate in (root / relative.with_suffix(".py"), root / relative / "__init__.py") if candidate.is_file()]
         if not candidates:
             raise RuntimeError("Required module missing from private paths: " + name)
-        resolution[name] = str(candidates[0].relative_to(bundle))
+        resolution[name] = candidates[0].relative_to(bundle).as_posix()
     for root in (bundle / "WindowsApp", bundle / "console"):
         for path in root.glob("*.py"):
             compile(path.read_bytes(), str(path), "exec")
-    return {"status": "passed_static_only", "directories": [str(path.relative_to(bundle)) for path in paths], "requiredModules": resolution, "nativeImportsValidated": False}
+    return {"status": "passed_static_only", "directories": [path.relative_to(bundle).as_posix() for path in paths], "requiredModules": resolution, "nativeImportsValidated": False}
 
 
 def audit_webview_sdk(lock, bundle):
@@ -300,10 +300,10 @@ def audit_pe(bundle):
         any_cpu = bool(flags & 1 and not flags & 2 and not flags & 0x20000)
         bootstrap = path.name == "PolyUStudyConsole.exe"
         if pe.FILE_HEADER.Machine != 0x8664 and not (pe.FILE_HEADER.Machine == 0x14c and (any_cpu or bootstrap)):
-            raise RuntimeError("Non-x64 native payload: " + str(path.relative_to(bundle)))
+            raise RuntimeError("Non-x64 native payload: " + path.relative_to(bundle).as_posix())
         dependencies = sorted({entry.dll.decode("ascii").lower() for entry in getattr(pe, "DIRECTORY_ENTRY_IMPORT", []) + getattr(pe, "DIRECTORY_ENTRY_DELAY_IMPORT", [])})
         missing = [name for name in dependencies if name not in names and name not in SYSTEM_DLLS and not name.startswith(("api-ms-", "ext-ms-"))]
-        unresolved.extend({"file": str(path.relative_to(bundle)), "dll": name} for name in missing)
+        unresolved.extend({"file": path.relative_to(bundle).as_posix(), "dll": name} for name in missing)
         # CPython 3.12's extension loader searches DLL_LOAD_DIR and DEFAULT_DIRS:
         # the extension/DLL directory and the application executable directory.
         # Check these concrete locations rather than accepting a same-named file
@@ -316,10 +316,10 @@ def audit_pe(bundle):
             targets = [candidate for folder in local_dirs for candidate in folder.iterdir()
                        if candidate.is_file() and candidate.name.lower() == name]
             if not targets:
-                raise RuntimeError("Static DLL exists outside its actual loader directories: " + str(path.relative_to(bundle)) + ": " + name)
-            scoped[name] = str(targets[0].relative_to(bundle))
-        layout.append({"file": str(path.relative_to(bundle)), "searchedBundledDirectories": [str(folder.relative_to(bundle)) for folder in local_dirs], "resolvedBundledImports": scoped})
-        records.append({"file": str(path.relative_to(bundle)), "machine": hex(pe.FILE_HEADER.Machine), "architecture": "AnyCPU managed IL" if any_cpu and pe.FILE_HEADER.Machine == 0x14c else "x86 bootstrap" if bootstrap else "x64", "subsystem": pe.OPTIONAL_HEADER.Subsystem, "clrFlags": hex(flags), "imports": dependencies, "sha256": sha256(path)})
+                raise RuntimeError("Static DLL exists outside its actual loader directories: " + path.relative_to(bundle).as_posix() + ": " + name)
+            scoped[name] = targets[0].relative_to(bundle).as_posix()
+        layout.append({"file": path.relative_to(bundle).as_posix(), "searchedBundledDirectories": [folder.relative_to(bundle).as_posix() for folder in local_dirs], "resolvedBundledImports": scoped})
+        records.append({"file": path.relative_to(bundle).as_posix(), "machine": hex(pe.FILE_HEADER.Machine), "architecture": "AnyCPU managed IL" if any_cpu and pe.FILE_HEADER.Machine == 0x14c else "x86 bootstrap" if bootstrap else "x64", "subsystem": pe.OPTIONAL_HEADER.Subsystem, "clrFlags": hex(flags), "imports": dependencies, "sha256": sha256(path)})
     if unresolved:
         raise RuntimeError("Unresolved static DLL imports: " + json.dumps(unresolved))
     if any(path.suffix in {".dylib", ".so"} for path in bundle.rglob("*")):

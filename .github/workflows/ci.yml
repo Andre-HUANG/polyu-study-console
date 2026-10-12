@@ -9,7 +9,7 @@ env:
 permissions:
   contents: read
 concurrency:
-  group: validation-${{ github.ref }}
+  group: validation-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   security-scan:
