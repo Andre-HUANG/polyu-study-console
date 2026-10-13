@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import academic_calendar
 from native_canvas import HOST, save_private
 from runtime_cache import read_json
-from timetable_reader import KINDS, TYPE, kind
+from timetable_reader import KINDS, TYPE, EXAM_KINDS, kind
 
 HK=ZoneInfo("Asia/Hong_Kong")
 def stamp(): return dt.datetime.now(HK).isoformat()
@@ -114,7 +114,7 @@ def build_rules(config,index,calendar=None):
             if fact.get("kind") in {"midterm","final","test"}:
                 specs[(fact["course"],fact["key"])]=fact
     for rule in grouped.values():
-        if rule.get("kind")=="exam":
+        if rule.get("kind") in EXAM_KINDS:
             for (course,key),spec in specs.items():
                 if rule.get("course")!=course or not re.search(spec.get("pattern","(?!)"),rule.get("title",""),re.I):continue
                 identifier=hashlib.sha256((course+":"+key).encode()).hexdigest()[:16]
@@ -195,7 +195,12 @@ def mutate(profile,config,payload):
     elif action=="group":
         cid=str(payload.get("courseId"))
         if cid not in {str(c["id"]) for c in config.get("courses",[])}: raise ValueError("课程不存在")
-        value["groups"][cid]=_text(payload.get("group"),40)
+        activity=payload.get("kind")
+        if activity is None:activity="legacy"
+        elif activity not in KINDS: raise ValueError("请选择班组对应的课项类型")
+        prior=value["groups"].get(cid,{})
+        if not isinstance(prior,dict):prior={"legacy":prior}
+        value["groups"][cid]={**prior,activity:_text(payload.get("group"),40)}
     elif action in {"confirm","hide","reset"}:
         generated=read_json(Path(profile)/"documents/timetable.json",{})
         rule=next((e for e in generated.get("rules",[]) if e["id"]==payload.get("id") or payload.get("id") in e.get("sourceIds",[])),None)
@@ -240,7 +245,10 @@ def query(profile,config,date,view="day",course=None):
     if generated.get("accountId")!=owner(config): generated={}
     saved=manual(profile,config)
     calendar=academic_calendar.load(profile)
-    pending=[]; active=[]; conflicts=[]; used_decisions=set()
+    pending=[]; active=[]; conflicts=[]; used_decisions=set(); group_conflicts=set()
+    available={}
+    for row in generated.get("rules",[]):
+        available.setdefault((str(row.get("courseId")),row.get("kind")),set()).add(row.get("group") or "")
     for original in generated.get("rules",[]):
         rule=copy.deepcopy(original);decision=next((saved["decisions"][i] for i in rule.get("sourceIds",[rule["id"]]) if i in saved["decisions"]),None)
         if decision:
@@ -251,10 +259,19 @@ def query(profile,config,date,view="day",course=None):
             if decision.get("override"):
                 fields={"courseId","course","title","kind","group","dates","repeat","time","endTime","location","exceptions","cancelled","makeup","issues"}
                 rule.update({key:value for key,value in decision["override"].items() if key in fields});rule["manualDecision"]=True
-        group=saved["groups"].get(str(rule.get("courseId")))
+        cid=str(rule.get("courseId"));selection=saved["groups"].get(cid)
+        group=selection.get(rule.get("kind"),selection.get("legacy")) if isinstance(selection,dict) else selection
         if group and rule.get("group"):
-            if group!=rule["group"]: continue
-            rule["issues"]=[i for i in rule.get("issues",[]) if i!="请选择所属班组"]
+            if group!=rule["group"]:
+                key=(cid,rule.get("kind"))
+                if group in available.get(key,set()):continue
+                message="原班组已不在当前来源中，请重新选择所属班组。"
+                rule["issues"]=list(dict.fromkeys(rule.get("issues",[])+[message]))
+                if key not in group_conflicts:
+                    conflicts.append({"id":rule["id"],"title":rule["title"],"message":message})
+                    group_conflicts.add(key)
+            else:
+                rule["issues"]=[i for i in rule.get("issues",[]) if i!="请选择所属班组"]
         if rule.get("issues"):
             pending.append(rule)
         else: active.append(rule)

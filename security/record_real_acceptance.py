@@ -34,6 +34,7 @@ def main():
             args=[("type","event"),("per_page","100"),("start_date",(today-dt.timedelta(days=90)).isoformat()),("end_date",(today+dt.timedelta(days=365)).isoformat())]+[("context_codes[]","course_"+c) for c in ids[offset:offset+10]]
             try:events+=api.get("/api/v1/calendar_events?"+urlencode(args))
             except Exception as e:errors.append(type(e).__name__)
+        if not ids or errors:raise RuntimeError("Real calendar acceptance requires all expected context batches to succeed")
         checks["calendarServiceChecked"]=True
         index=json.loads((profile/"documents/index.json").read_text())
         assert index.get("accountId")==str(config["user"]["id"])
@@ -42,8 +43,11 @@ def main():
             cid,fid=document.get("courseId"),document.get("fileId");path=profile/"documents/cache"/(str(cid)+"-"+str(fid)+".json")
             if not fid or not path.is_file():continue
             data=json.loads(path.read_text())
-            if data.get("accountId")!=str(config["user"]["id"]):continue
-            found=rules_from(document,data.get("pages",[]),config);interpreted+=1;rules+=len(found)
+            if data.get("accountId") not in {None,str(config["user"]["id"])}:continue
+            pages=data.get("pages") or []
+            if not any(p.get("text") or p.get("rows") for p in pages):continue
+            found=rules_from(document,pages,config);interpreted+=1;rules+=len(found)
+        if not interpreted:raise RuntimeError("Real acceptance requires readable saved documents from the verified owning index")
         checks["savedInterpretationChecked"]=True
         details={"courseCount":len(ids),"calendarEntries":len(events),"calendarFailureTypes":errors,"cachedFilesRead":interpreted,"scheduleRowsInterpreted":rules}
     finally:api.close()

@@ -184,6 +184,26 @@ def parse_html(html):
     if not years: raise ValueError("官方网页校历格式未能读取")
     return years
 
+def merge_web_year(prior,web):
+    """Web revisions own event dates; retain authoritative PDF column semantics."""
+    if prior["start"]!=web["start"]:raise ValueError("网页学期边界与教学周表存在差异")
+    def title_key(title):return re.sub(r"\s+"," ",title or "").strip().casefold()
+    previous=prior.get("events",[])
+    merged=[]
+    for row in web.get("events",[]):
+        event=copy.deepcopy(row)
+        matches=[p for p in previous if title_key(p["title"])==title_key(row["title"])]
+        exact=[p for p in matches if p["start"]==row["start"] and p["end"]==row["end"]]
+        source=exact[0] if len(exact)==1 else matches[0] if len(matches)==1 else None
+        if source and source.get("kind")=="holiday":
+            event.update(kind="holiday",scope=source.get("scope") or "all",tentative=source.get("tentative",False),classificationSource=PDF)
+        merged.append(event)
+    # A PDF holiday omitted from the web table still carries its official scope.
+    names={title_key(e["title"]) for e in merged}
+    merged += [copy.deepcopy(p) for p in previous if p.get("kind")=="holiday" and title_key(p["title"]) not in names]
+    prior.update({**web,"events":merged})
+    return prior
+
 def refresh(profile=None, cancelled=lambda:None, persist_guard=lambda:True, commit=None):
     previous=load(profile)
     def publish(value):
@@ -195,16 +215,14 @@ def refresh(profile=None, cancelled=lambda:None, persist_guard=lambda:True, comm
         html,_=_fetch(SOURCE)
         cancelled()
         web_years=parse_html((html or b"").decode("utf-8"))
-        data,etag=_fetch(PDF,previous.get("etag"))
-        value=copy.deepcopy(previous) if data is None or hashlib.sha256(data).hexdigest()==previous.get("pdfSha256") else parse_pdf(data)
+        data,etag=_fetch(PDF,previous.get("etag") if previous.get("calendarInterpreterVersion")==2 else None)
+        value=copy.deepcopy(previous) if data is None or previous.get("calendarInterpreterVersion")==2 and hashlib.sha256(data).hexdigest()==previous.get("pdfSha256") else parse_pdf(data)
         by_year={y["year"]:y for y in value["years"]}
         for web in web_years:
             prior=by_year.get(web["year"])
             if not prior: raise ValueError("新学年教学周表尚未能核对")
-            old_start=prior["start"]; prior.update(web)
-            if old_start!=web["start"]:
-                raise ValueError("网页学期边界与教学周表存在差异")
-        value.update(checkedAt=stamp(),lastAttemptAt=stamp(),etag=etag,pageSha256=hashlib.sha256(html or b"").hexdigest(),issue="")
+            merge_web_year(prior,web)
+        value.update(calendarInterpreterVersion=2,checkedAt=stamp(),lastAttemptAt=stamp(),etag=etag,pageSha256=hashlib.sha256(html or b"").hexdigest(),issue="")
         return publish(value)
     except Exception as e:
         cancelled()

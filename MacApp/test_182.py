@@ -277,6 +277,54 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         self.assertTrue(all(r["timetableRules"] for r in result["records"]))
         self.assertFalse(documents.needs_cached_upgrade(result,self.config))
 
+    def test_final_midterm_and_mixed_tests_keep_distinct_categories(self):
+        for title,expected in [("Final examination","final"),("Mid-term test","midterm"),("Midterm / final examination","test"),("Written examination","test")]:
+            rules=self.read(title+" 13 October 2026 18:30–20:30")
+            self.assertEqual(rules[0]["kind"],expected)
+            value=timetable._canvas_rules({"events":[{"id":expected,"context_code":"course_1","title":title,"start_at":"2026-10-13T10:30:00Z"}]},{"1":{"code":"COURSE1"}})
+            self.assertEqual(value[0]["kind"],expected)
+            timetable.mutate(self.profile,self.config,self.row(action="save",kind=expected))
+        self.assertEqual({r["kind"] for r in timetable.query(self.profile,self.config,"2026-10-13")["events"]},{"final","midterm","test"})
+
+    def test_separate_activity_groups_and_revised_group_candidates(self):
+        rules=self.read("Lecture Group A 13 October 2026 09:00–11:00\nLecture Group B 13 October 2026 09:00–11:00\nTutorial Group B 13 October 2026 12:00–13:00\nTutorial Group C 13 October 2026 12:00–13:00")
+        index={"records":[{"courseId":"1","timetableRules":rules}]}
+        timetable.rebuild(self.profile,self.config,index)
+        for activity,group in [("lecture","A"),("tutorial","B")]:
+            timetable.mutate(self.profile,self.config,{"action":"group","courseId":"1","kind":activity,"group":group})
+        value=timetable.query(self.profile,self.config,"2026-10-13")
+        self.assertEqual({(r["kind"],r["group"]) for r in value["events"]},{("lecture","A"),("tutorial","B")})
+        rules[0]["group"]="A1";rules[0]["digest"]="changed"
+        timetable.rebuild(self.profile,self.config,index)
+        value=timetable.query(self.profile,self.config,"2026-10-13")
+        self.assertTrue(any(r["group"]=="A1" for r in value["pending"]))
+        self.assertTrue(value["conflicts"])
+        self.assertTrue(any(r["kind"]=="tutorial" for r in value["events"]))
+
+    def test_web_revision_keeps_official_pdf_holiday_scope(self):
+        prior={"year":"2026/27","start":"2026-08-31","end":"2027-08-29","weeks":[{"number":1}],"events":[{"start":"2027-06-09","end":"2027-06-09","title":"Tuen Ng Festival","kind":"holiday","scope":"all","tentative":False}]}
+        web={"year":"2026/27","start":"2026-08-31","end":"2027-08-29","events":[{"start":"2027-06-09","end":"2027-06-09","title":"Tuen Ng Festival","kind":"event","scope":None,"source":calendar.SOURCE}]}
+        result=calendar.merge_web_year(prior,web)
+        self.assertEqual(result["events"][0]["scope"],"all")
+        self.assertEqual(result["events"][0]["kind"],"holiday")
+        self.assertEqual(result["events"][0]["source"],calendar.SOURCE)
+        self.assertEqual(result["weeks"],[{"number":1}])
+
+    def test_legacy_cache_upgrade_uses_verified_owning_index(self):
+        import canvas_documents as documents
+        root=self.profile/"documents";(root/"cache").mkdir(parents=True)
+        record={"type":"file","id":"1:file:12","courseId":"1","course":"COURSE1","fileId":"12","title":"Teaching timetable","url":"https://canvas.polyu.edu.hk/courses/1/files/12","status":"read"}
+        text="Lecture 13 October 2026 18:30–20:30"
+        cache_path=root/"cache/1-12.json"
+        save_private(cache_path,{"readerVersion":documents.READER_VERSION,"pages":[{"page":1,"text":text,"rows":[text],"readable":True,"processed":True}]})
+        save_private(root/"index.json",{"accountId":"1","records":[record],"version":0})
+        with patch.object(documents,"extract",side_effect=AssertionError("Unexpected reread")):
+            result=documents.reprocess_cached_documents(self.profile,self.config,None,lambda:None,lambda message:None)
+        self.assertTrue(result["records"][0]["timetableRules"])
+        self.assertEqual(json.loads(cache_path.read_text())["accountId"],"1")
+        save_private(cache_path,{"accountId":"other","pages":[{"text":text}]})
+        self.assertNotEqual(json.loads(cache_path.read_text())["accountId"],"1")
+
 class CacheAndOCRChecks(unittest.TestCase):
     def test_timetable_reader_upgrade_schedules_cached_file_reinterpretation(self):
         import server

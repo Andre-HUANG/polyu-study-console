@@ -746,7 +746,12 @@ def reprocess_cached_documents(profile, config, reader, cancelled, progress):
             if record.get("fileId"):
                 prefix=cid+"-"+str(record["fileId"])
                 saved=read_json(cache/(prefix+".json"),{})
-                if saved.get("accountId")!=account:continue
+                if saved.get("accountId") not in {None,account}:continue
+                if saved and saved.get("accountId") is None:
+                    # Owning index is verified above; legacy caches live solely
+                    # within this account's private documents directory.
+                    saved={**saved,"accountId":account}
+                    save_private(cache/(prefix+".json"),saved)
                 pages=saved.get("pages") or []
                 if saved.get("readerVersion")!=READER_VERSION:
                     original=next((p for p in cache.glob(prefix+".*") if p.suffix.lower() in SUPPORTED and p.is_file() and not p.is_symlink()),None)

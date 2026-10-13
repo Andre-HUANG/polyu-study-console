@@ -4,7 +4,7 @@
   const e = escapeHtml;
   const shift = (value, days) => { const d = new Date(value + 'T12:00:00+08:00'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); };
   const today = () => state.data?.today || dateFormatter('en-CA', { timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  const kindName = value => ({ lecture: '讲课', lab: '实验', tutorial: '辅导课', exam: '考试' }[value] || '课项');
+  const kindName = value => ({ lecture: '讲课', lab: '实验', tutorial: '辅导课', final: '期末考试', midterm: '期中考试', test: '测验', exam: '考试（未分类）' }[value] || '课项');
   function sourceHtml(sources) {
     return (sources || []).map(source => '<div class="evidence-source">' + anchor(source.url, source.title || 'Canvas 来源') + '<small>' + e(source.locator || '') + ' · ' + e(source.method || '') + (source.confidence < .75 ? ' · 置信度不足' : '') + '</small><blockquote>' + e(source.quote || '') + '</blockquote></div>').join('');
   }
@@ -100,7 +100,7 @@
   async function change(action) {
     try {
       $('#classSave').disabled = true;
-      const value = ['save', 'confirm'].includes(action) ? payload() : { courseId: $('#classForm').elements.courseId.value, group: $('#classForm').elements.group.value };
+      const value = ['save', 'confirm'].includes(action) ? payload() : { courseId: $('#classForm').elements.courseId.value, group: $('#classForm').elements.group.value, kind: $('#classForm').elements.kind.value };
       await api('/api/timetable', { ...value, action, id: ui.edit?.id, digest: ui.edit?.digest });
       $('#classDialog').close(); await refresh(); showNotice('课程表已保存。');
     } catch (error) { $('#classFormError').textContent = error.message; }

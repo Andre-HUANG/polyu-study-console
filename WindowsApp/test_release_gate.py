@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT/"security"))
 import release as publishing
@@ -95,6 +95,46 @@ class ReleaseGateTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):guard.independent_acceptance(signed(bad),self.head)
             bad={**value,"accountId":"synthetic-not-allowed"}
             with self.assertRaises(RuntimeError):guard.independent_acceptance(signed(bad),self.head)
+
+    def test_final_performance_receipt_rejects_stale_or_incomplete_measurements(self):
+        import base64,copy,datetime as dt
+        import performance_receipt as perf
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives import serialization
+        key=Ed25519PrivateKey.generate()
+        public=base64.b64encode(key.public_key().public_bytes(serialization.Encoding.Raw,serialization.PublicFormat.Raw)).decode()
+        (self.root/"updater-lock.json").write_text(json.dumps({"publicKey":public}))
+        import release_build
+        report={"measuredCandidateCommit":self.head,"sourceHashes":{},"checkedAt":dt.datetime.now(dt.timezone.utc).isoformat(),
+            "idleCPU":{"realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"trials":[{"trial":t,"version":v,"state":state,"seconds":60,"cpuSeconds":.1,"wakeups":10} for t in range(1,4) for v in ("1.8.1","1.8.2") for state in ("visible","hidden")]},
+            "syntheticSynchronization":{label:{"version":version,"trials":[{"trial":t,"condition":condition,"files":46,"pages":102,"indexWrites":1} for t in range(1,4) for condition in ("cold","warm")]} for label,version in (("baseline","1.8.1"),("candidate","1.8.2"))}}
+        def signed(value):
+            body=perf.canonical(value)
+            return json.dumps({"body":base64.b64encode(body).decode(),"signature":base64.b64encode(key.sign(body)).decode()})
+        with patch.object(perf,"ROOT",self.root),patch.object(release_build,"source_hashes",return_value={}):
+            self.assertEqual(perf.validate(signed(report),self.head),report)
+            with self.assertRaises(RuntimeError):perf.validate(signed(report),"2"*40)
+            bad=copy.deepcopy(report);bad["idleCPU"]["trials"].pop()
+            with self.assertRaises(RuntimeError):perf.validate(signed(bad),self.head)
+            bad=copy.deepcopy(report);bad["syntheticSynchronization"]["candidate"]["trials"][-1]["indexWrites"]=4
+            with self.assertRaises(RuntimeError):perf.validate(signed(bad),self.head)
+            with self.assertRaises(RuntimeError):perf.validate("",self.head)
+
+    def test_real_receipt_rejects_failed_calendar_or_unread_documents(self):
+        import record_real_acceptance as real
+        home=self.root/"synthetic-home"
+        profile=home/"Library/Application Support/PolyU study控制台/account"
+        (profile/"browser").mkdir(parents=True);(profile/"documents").mkdir()
+        (profile/"config.json").write_text(json.dumps({"user":{"id":"1"},"courses":[{"id":"1"}]}))
+        (profile/"browser/canvas-cookies.json").write_text("[]")
+        (profile/"documents/index.json").write_text(json.dumps({"accountId":"1","records":[]}))
+        api=Mock();api.get.return_value=[]
+        with patch.object(real.pathlib.Path,"home",return_value=home),patch.object(real,"source_sha",return_value=self.head),patch.object(real.sys,"platform","darwin"),patch.object(real,"session_class",return_value=Mock(return_value=api)),patch.object(real,"authenticated_user",return_value={"id":"1"}):
+            api.get.side_effect=ConnectionError()
+            with self.assertRaisesRegex(RuntimeError,"calendar acceptance"):real.main()
+            api.get.side_effect=None
+            with self.assertRaisesRegex(RuntimeError,"readable saved documents"):real.main()
+        self.assertFalse((self.root/"independent-acceptance.json").exists())
 
     def test_dirty_checkout_has_no_source_acceptance(self):
         with patch.object(guard.subprocess,"check_output",side_effect=[self.head+"\\n",b" M source.py\\n"]):

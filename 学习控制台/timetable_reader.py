@@ -6,8 +6,9 @@ import re
 from assessment_reader import readings, time_values, PLACE
 from course_evidence import dates_in, source_for, term_bounds
 
-VERSION = 2
-KINDS = {"lecture": "讲课", "lab": "实验", "tutorial": "辅导课", "exam": "考试"}
+VERSION = 3
+KINDS = {"lecture": "讲课", "lab": "实验", "tutorial": "辅导课", "final": "期末考试", "midterm": "期中考试", "test": "测验", "exam": "考试（未分类）"}
+EXAM_KINDS = {"final", "midterm", "test", "exam"}
 TYPE = re.compile(r"\b(?:lectures?|classes?|sessions?|labs?|laborator(?:y|ies)|tutorials?|seminars?|exam(?:ination)?s?|tests?|quizzes?|mid[- ]?terms?)\b|讲课|講課|课堂|課堂|实验|實驗|辅导|輔導|考试|考試|测验|測驗", re.I)
 DAYS = re.compile(r"\b(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b|(?:星期|周|週)([一二三四五六日天])", re.I)
 GROUP = re.compile(r"\b(?:group|section|class|班组|班組)\s*[:：#]?\s*([A-Z]+\d*|\d+)\b", re.I)
@@ -15,7 +16,12 @@ DAY_NUM = {"mon":0,"tue":1,"wed":2,"thu":3,"fri":4,"sat":5,"sun":6}
 CN_NUM = {"一":0,"二":1,"三":2,"四":3,"五":4,"六":5,"日":6,"天":6}
 
 def kind(text):
-    if re.search(r"exam|test|quiz|mid[- ]?term|考试|考試|测验|測驗",text,re.I): return "exam"
+    mid = bool(re.search(r"mid[\s‐‑–-]*term|期中",text,re.I))
+    final = bool(re.search(r"\bfinal\s+(?:exam(?:ination)?|test)|期末(?:考试|考試|测试|測試)",text,re.I))
+    if mid and final: return "test"
+    if mid: return "midterm"
+    if final: return "final"
+    if re.search(r"exam|test|quiz|考试|考試|测验|測驗",text,re.I): return "test"
     if re.search(r"\blabs?\b|laborator|实验|實驗",text,re.I): return "lab"
     if re.search(r"tutorial|辅导|輔導",text,re.I): return "tutorial"
     return "lecture"

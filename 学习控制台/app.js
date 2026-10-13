@@ -352,16 +352,25 @@ async function poll() {
   } catch { /* A stopped/restarting backend is retried with the adaptive interval. */ }
   finally { if (statusRequest === controller) statusRequest = null; schedulePoll(); }
 }
+function restoreVisibleReads() {
+  if (!pageVisible()) return;
+  window.academicUI?.refresh();
+  if ($('#settingsDialog').open) {
+    selectSettingsTab(state.settingsTab);
+    if (state.settingsTab === 'documents' && state.documentSearch.trim()) searchDocumentText();
+  }
+  poll();
+}
 window.polyuRuntimeState = (value) => {
   const wasVisible = pageVisible();
   nativeHidden = Boolean(value.hidden); lowPower = Boolean(value.lowPower);
   document.body.classList.toggle('low-power', lowPower);
   if (!pageVisible()) { clearTimeout(pollTimer); cancelReadRequests(); }
-  else if (!wasVisible) poll();
+  else if (!wasVisible) restoreVisibleReads();
   else schedulePoll();
 };
 document.addEventListener('visibilitychange', () => {
-  if (pageVisible()) poll(); else { clearTimeout(pollTimer); cancelReadRequests(); }
+  if (pageVisible()) restoreVisibleReads(); else { clearTimeout(pollTimer); cancelReadRequests(); }
 });
 
 

@@ -14,6 +14,7 @@ from release_build import VERSION
 from release_updates import generate as generate_updates, verify as verify_updates, SIGNED as SIGNED_UPDATES
 from github_api import request as github_request, upload as github_upload
 from release_guard import source_sha, accepted, trusted_run, independent_acceptance
+from performance_receipt import write_reports as write_performance
 GIT=os.environ.get("POLYU_GIT","git")
 REPO="Andre-HUANG/polyu-study-console"
 REPORT_FILES=("performance-"+VERSION+".md","performance-"+VERSION+".json","validation-"+VERSION+".md")
@@ -120,6 +121,7 @@ def main():
         verify_updates(source)
         if os.environ.get("PUBLISH_RELEASE")=="true":
             independent_acceptance(os.environ.get("POLYU_RELEASE_ACCEPTANCE",""),head)
+            write_performance(source,os.environ.get("POLYU_RELEASE_PERFORMANCE",""),head)
         tag="v"+VERSION
         if run(GIT,"ls-remote","--tags","https://github.com/"+REPO+".git","refs/tags/"+tag,capture=True):
             raise RuntimeError("Version tag already exists; never replace an existing version")

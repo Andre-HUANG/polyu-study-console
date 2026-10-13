@@ -3,7 +3,7 @@
   "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en",
   "pdfSource": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf",
   "pdfSha256": "4c79658300fe26157d0c38dbe9d5ad4c49303929a4e786a11c654fc3eaa2c949",
-  "checkedAt": "2026-10-13T15:41:46.807885+00:00",
+  "checkedAt": "2026-10-13T21:03:36.238532+00:00",
   "years": [
     {
       "year": "2026/27",
@@ -435,10 +435,11 @@
           "start": "2027-06-09",
           "end": "2027-06-09",
           "title": "Tuen Ng Festival",
-          "kind": "event",
-          "scope": null,
-          "tentative": false,
-          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en",
+          "classificationSource": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
         },
         {
           "id": "840757894c8f4bfa22e1",
@@ -509,6 +510,116 @@
           "scope": null,
           "tentative": false,
           "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "bbb3cc45308f5bbc1fd7",
+          "start": "2026-09-26",
+          "end": "2026-09-26",
+          "title": "The day following the Chinese Mid-Autumn Festival",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "0fb01dbac4a7b7570a4f",
+          "start": "2026-10-01",
+          "end": "2026-10-01",
+          "title": "National Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "934504a838786c1738e0",
+          "start": "2026-10-19",
+          "end": "2026-10-19",
+          "title": "The day following Chung Yeung Festival",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "90a013fd0c2389f1caf0",
+          "start": "2026-12-25",
+          "end": "2026-12-26",
+          "title": "Christmas Day and the first weekday after Christmas Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "5f42cc392ccadff5cae1",
+          "start": "2027-01-01",
+          "end": "2027-01-01",
+          "title": "The first day of January",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "22b7c1c033f42bb4912c",
+          "start": "2027-02-06",
+          "end": "2027-02-09",
+          "title": "Lunar New Year Holidays",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "c19d211a6990b246fd30",
+          "start": "2027-03-26",
+          "end": "2027-03-29",
+          "title": "Easter Holidays",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "ddefcec462083b4791ce",
+          "start": "2027-04-05",
+          "end": "2027-04-05",
+          "title": "Ching Ming Festival",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "db2f0293312f122b72af",
+          "start": "2027-05-01",
+          "end": "2027-05-01",
+          "title": "Labour Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "822f02cc701595e71eae",
+          "start": "2027-05-13",
+          "end": "2027-05-13",
+          "title": "The Birthday of the Buddha",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "2f298ad19c563ed757cc",
+          "start": "2027-07-01",
+          "end": "2027-07-01",
+          "title": "The HKSAR Establishment Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
         }
       ],
       "weeks": [
@@ -1251,5 +1362,10 @@
       ],
       "updatedAt": null
     }
-  ]
+  ],
+  "calendarInterpreterVersion": 2,
+  "lastAttemptAt": "2026-10-13T21:03:36.238536+00:00",
+  "etag": null,
+  "pageSha256": "443ee7c391da783cbf146524a459ea0bcc3dab27801e360ffeb59c00dafc78f8",
+  "issue": ""
 }
