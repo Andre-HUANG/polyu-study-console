@@ -110,6 +110,18 @@ final class NativeGUISmoke {
         report["nativeWindowVisible"] = true
         report["nonPersistentConsoleAndLoginStores"] = true
         report["loopbackOnlyContentRule"] = true
+        let loginConfig = WKWebViewConfiguration()
+        loginConfig.websiteDataStore = .nonPersistent()
+        let temporaryLogin = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+                                      styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        temporaryLogin.isReleasedWhenClosed = false
+        let temporaryView = WKWebView(frame: .zero, configuration: loginConfig)
+        temporaryLogin.contentView = temporaryView; temporaryLogin.delegate = app
+        app.loginWindow = temporaryLogin; app.loginView = temporaryView; app.connecting = true
+        temporaryLogin.close()
+        guard !app.connecting, app.loginWindow == nil, app.loginView == nil,
+              temporaryLogin.contentView == nil else { fail("Closed login resources retained"); return }
+        report["closedLoginConnectionGuardReleased"] = true
         snapshot("initial-empty") {
             guard self.menu("关于 " + applicationName) else { return }
             self.later {

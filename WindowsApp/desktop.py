@@ -157,7 +157,7 @@ class Backend:
     def request(self, operation, payload):
         if not self.url or not self.process or self.process.poll() is not None:
             raise RuntimeError("本机服务已停止")
-        if operation not in {"session", "logout", "diagnostics", "bootstrap"}: raise ValueError("Unknown native operation")
+        if operation not in {"session", "logout", "diagnostics", "bootstrap", "update/prepare"}: raise ValueError("Unknown native operation")
         request = urllib.request.Request(self.url + "api/native/" + operation,
             data=json.dumps(payload).encode("utf-8"), method="POST",
             headers={"Content-Type":"application/json", "X-PolyU-Native":self.secret})

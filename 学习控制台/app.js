@@ -319,6 +319,7 @@ window.polyuReload = async (force = false) => {
   finally { if (dataRequest === controller) dataRequest = null; }
 };
 function cancelReadRequests() {
+  clearTimeout(searchTimer); searchTimer = null; searchRequest?.abort(); searchRequest = null;
   dataRequest?.abort(); statusRequest?.abort(); documentsRequest?.abort();
   dataRequest = null; statusRequest = null; documentsRequest = null;
   window.academicUI?.cancel();
@@ -592,6 +593,7 @@ function renderDocumentList() {
 }
 
 async function searchDocumentText() {
+  if (!pageVisible()) return;
   const query = state.documentSearch.trim();
   searchRequest?.abort();
   state.searchResults = null;

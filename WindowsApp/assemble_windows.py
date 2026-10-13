@@ -439,7 +439,7 @@ def main():
         shutil.copy2(SOURCE / name, bundle / name)
     (bundle / "Windows原生自检.cmd").write_text('@echo off\r\nsetlocal\r\ncd /d "%~dp0"\r\n"runtime\\python.exe" -I -B -X utf8 "WindowsApp\\main.py" --platform-check\r\nif errorlevel 1 echo Native check failed. See the error above.\r\npause\r\n', encoding="utf-8", newline="")
     icon = console / "assets/polyu-favicon.ico"
-    compile_nsis(compiler, SOURCE / "launcher.nsi", {"LAUNCHER_OUT": bundle / "PolyUStudyConsole.exe", "APP_ICON": icon}, "launcher-build.log")
+    compile_nsis(compiler, SOURCE / "launcher.nsi", {"LAUNCHER_OUT": bundle / "PolyUStudyConsole.exe", "APP_ICON": icon, "RELEASE_VERSION": VERSION}, "launcher-build.log")
     verify_bundle(bundle)
     if {path.name for path in console.iterdir() if path.is_file()} != set(CONSOLE_FILES):
         raise RuntimeError("Console file allowlist mismatch")

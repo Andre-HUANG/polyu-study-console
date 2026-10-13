@@ -74,7 +74,7 @@
     const set = (name, value) => { if (form.elements[name]) form.elements[name].value = value ?? ''; };
     const repeat = row?.repeat || {};
     set('courseId', row?.courseId || ui.data?.courses?.[0]?.id); set('kind', row?.kind || 'lecture'); set('title', row?.title);
-    set('date', row ? row.date || row.dates?.[0] || '' : ui.date); set('group', row?.group); set('time', row?.time); set('endTime', row?.endTime); set('location', row?.location);
+    set('date', row ? row.dates?.[0] || row.date || '' : ui.date); set('group', row?.group); set('time', row?.time); set('endTime', row?.endTime); set('location', row?.location);
     set('mode', row?.repeat ? 'repeat' : 'single'); set('start', repeat.start || ui.date); set('end', repeat.end); set('parity', repeat.parity || 'all'); set('basis', repeat.basis || 'anchor'); set('anchor', repeat.anchor);
     set('dates', (row?.dates || []).slice(1).join(','));
     set('semester', repeat.semester || '1'); set('weeks', (repeat.weeks || []).join(',')); set('exceptions', (row?.exceptions || []).join(','));

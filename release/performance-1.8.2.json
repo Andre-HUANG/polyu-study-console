@@ -1,0 +1,889 @@
+{
+  "measuredCandidateCommit": "538075e34ea30552faa4e0d5f5a7df9e9aa29814",
+  "idleCPU": {
+    "machTimebase": {
+      "numer": 125,
+      "denom": 3
+    },
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "trials": [
+      {
+        "trial": 1,
+        "version": "1.8.1",
+        "state": "visible",
+        "seconds": 60.01017837499967,
+        "cpuSeconds": 0.024281083333333398,
+        "averagePercentOfOneCore": 0.04046160833184414,
+        "wakeups": 308,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.015107708333333358
+      },
+      {
+        "trial": 1,
+        "version": "1.8.1",
+        "state": "hidden",
+        "seconds": 30.003358125002705,
+        "cpuSeconds": 0.11237437500000004,
+        "averagePercentOfOneCore": 0.3745393250042737,
+        "wakeups": 1189,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.010508000000000017
+      },
+      {
+        "trial": 1,
+        "version": "1.8.2",
+        "state": "visible",
+        "seconds": 60.002692583999305,
+        "cpuSeconds": 0.1589322916666667,
+        "averagePercentOfOneCore": 0.264875266129388,
+        "wakeups": 1078,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.01446029166666668
+      },
+      {
+        "trial": 1,
+        "version": "1.8.2",
+        "state": "hidden",
+        "seconds": 30.005211916999542,
+        "cpuSeconds": 0.010950374999999957,
+        "averagePercentOfOneCore": 0.036494909718654545,
+        "wakeups": 177,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.006373083333333307
+      },
+      {
+        "trial": 2,
+        "version": "1.8.1",
+        "state": "visible",
+        "seconds": 60.00499349999882,
+        "cpuSeconds": 0.929407625,
+        "averagePercentOfOneCore": 1.5488838024789024,
+        "wakeups": 3344,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.068466625
+      },
+      {
+        "trial": 2,
+        "version": "1.8.1",
+        "state": "hidden",
+        "seconds": 30.00273029100208,
+        "cpuSeconds": 0.41554541666666667,
+        "averagePercentOfOneCore": 1.3850253381482756,
+        "wakeups": 1369,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.030688416666666662
+      },
+      {
+        "trial": 2,
+        "version": "1.8.2",
+        "state": "visible",
+        "seconds": 60.01017554200371,
+        "cpuSeconds": 0.02339695833333337,
+        "averagePercentOfOneCore": 0.03898831843435757,
+        "wakeups": 379,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.01181345833333336
+      },
+      {
+        "trial": 2,
+        "version": "1.8.2",
+        "state": "hidden",
+        "seconds": 30.008225042001868,
+        "cpuSeconds": 0.0313529583333333,
+        "averagePercentOfOneCore": 0.10448121569819352,
+        "wakeups": 617,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.0034809583333333394
+      },
+      {
+        "trial": 3,
+        "version": "1.8.1",
+        "state": "visible",
+        "seconds": 60.010371832999226,
+        "cpuSeconds": 0.02917291666666666,
+        "averagePercentOfOneCore": 0.04861312432432672,
+        "wakeups": 356,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.01497858333333335
+      },
+      {
+        "trial": 3,
+        "version": "1.8.1",
+        "state": "hidden",
+        "seconds": 30.00138524999784,
+        "cpuSeconds": 0.06110058333333333,
+        "averagePercentOfOneCore": 0.2036592071472358,
+        "wakeups": 832,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.011398624999999996
+      },
+      {
+        "trial": 3,
+        "version": "1.8.2",
+        "state": "visible",
+        "seconds": 60.002230833000795,
+        "cpuSeconds": 0.019799416666666653,
+        "averagePercentOfOneCore": 0.03299780090139101,
+        "wakeups": 342,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.011297541666666633
+      },
+      {
+        "trial": 3,
+        "version": "1.8.2",
+        "state": "hidden",
+        "seconds": 30.0102216660016,
+        "cpuSeconds": 0.03894379166666662,
+        "averagePercentOfOneCore": 0.12976842390599805,
+        "wakeups": 884,
+        "processesSampled": 5,
+        "backendCPUSeconds": 0.005729125000000002
+      }
+    ],
+    "mediansCPUSeconds": {
+      "1.8.1": {
+        "visible": 0.02917291666666666,
+        "hidden": 0.11237437500000004
+      },
+      "1.8.2": {
+        "visible": 0.02339695833333337,
+        "hidden": 0.0313529583333333
+      }
+    },
+    "reduction": {
+      "visible": 0.19799043062200805,
+      "hidden": 0.7209954819919284
+    },
+    "scope": "Full native AppKit app, Python backend and newly created WebKit processes. Owned program copies use unique bundle IDs to avoid installed-app collisions; isolated offline synthetic account. Visibility requested via app-owned NSRunningApplication. Same host, sequential alternating versions; OS background workload not controlled. CPU seconds and wakeups, no physical energy meter.",
+    "realAccountAccessed": false,
+    "actualBatteryEnergyMeasured": false,
+    "binaries": {
+      "1.8.1": "79dd275e7da76583e93de8782248a0f1ac658b74cee15ea5639b725ca1bd1920",
+      "1.8.2": "4a3385dac5515d0298590c27cad187b10c4f1f5bdbb55137357bf1b97680b5b3"
+    }
+  },
+  "syntheticSynchronization": {
+    "baseline": {
+      "version": "1.8.1",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "python": "3.12.14 (main, Aug 25 2026, 13:50:33) [Clang 22.1.3 ]",
+      "readerSHA256": "cc4d70782565d8faef725398a82b3f8e738724ef1b8cc048b180e1fe8e6bcf09",
+      "scope": "Synthetic account, real local file transfer/hash/parsers/PDFKit/Vision and evidence integration; simulated HTTP RTT; no real Canvas network or user account.",
+      "cacheConditions": "Cold/warm app cache in each trial; OS page cache not purged; no school cookies; same reader binary and fixtures.",
+      "latencyMsPerFile": 40,
+      "fixtureHashes": {
+        "100": {
+          "name": "Outline 1.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "101": {
+          "name": "Outline 2.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "102": {
+          "name": "Outline 3.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "103": {
+          "name": "Outline 4.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "104": {
+          "name": "Outline 5.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "105": {
+          "name": "Outline 6.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "106": {
+          "name": "Outline 7.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "107": {
+          "name": "Outline 8.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "108": {
+          "name": "Outline 9.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "109": {
+          "name": "Outline 10.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "110": {
+          "name": "Outline 11.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "111": {
+          "name": "Outline 12.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "112": {
+          "name": "Outline 13.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "113": {
+          "name": "Outline 14.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "114": {
+          "name": "Outline 15.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "115": {
+          "name": "Outline 16.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "116": {
+          "name": "Outline 17.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "117": {
+          "name": "Outline 18.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "118": {
+          "name": "Outline 19.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "119": {
+          "name": "Outline 20.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "120": {
+          "name": "Outline 21.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "121": {
+          "name": "Outline 22.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "122": {
+          "name": "Outline 23.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "123": {
+          "name": "Outline 24.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "124": {
+          "name": "Outline 25.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "125": {
+          "name": "Outline 26.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "126": {
+          "name": "Outline 27.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "127": {
+          "name": "Outline 28.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "128": {
+          "name": "Outline 29.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "129": {
+          "name": "Outline 30.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "200": {
+          "name": "Notice 1.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "201": {
+          "name": "Notice 2.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "202": {
+          "name": "Notice 3.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "203": {
+          "name": "Notice 4.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "204": {
+          "name": "Notice 5.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "205": {
+          "name": "Notice 6.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "206": {
+          "name": "Notice 7.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "207": {
+          "name": "Notice 8.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "208": {
+          "name": "Notice 9.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "209": {
+          "name": "Notice 10.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "210": {
+          "name": "Notice 11.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "211": {
+          "name": "Notice 12.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "300": {
+          "name": "Assessment 1.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        },
+        "301": {
+          "name": "Assessment 2.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        },
+        "302": {
+          "name": "Assessment 3.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        },
+        "303": {
+          "name": "Assessment 4.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        }
+      },
+      "trials": [
+        {
+          "trial": 1,
+          "condition": "cold",
+          "downloadSeconds": 0.7850411670005997,
+          "importSeconds": 2.3405602499988163,
+          "totalSeconds": 3.125601416999416,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "a99e3d983427a4ae5f025fb661c5dbc70aad444dd7af94ced570e8eac656e28e",
+          "manifestWrites": 9,
+          "indexWrites": 19,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        {
+          "trial": 1,
+          "condition": "warm",
+          "downloadSeconds": 0.7895319999952335,
+          "importSeconds": 0.19058187500195345,
+          "totalSeconds": 0.9801138749971869,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "a99e3d983427a4ae5f025fb661c5dbc70aad444dd7af94ced570e8eac656e28e",
+          "manifestWrites": 9,
+          "indexWrites": 15,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        },
+        {
+          "trial": 2,
+          "condition": "cold",
+          "downloadSeconds": 0.7939849169997615,
+          "importSeconds": 1.5962750830003642,
+          "totalSeconds": 2.3902600000001257,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "a99e3d983427a4ae5f025fb661c5dbc70aad444dd7af94ced570e8eac656e28e",
+          "manifestWrites": 9,
+          "indexWrites": 19,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        {
+          "trial": 2,
+          "condition": "warm",
+          "downloadSeconds": 0.778247124995687,
+          "importSeconds": 0.23952495800040197,
+          "totalSeconds": 1.017772082996089,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "a99e3d983427a4ae5f025fb661c5dbc70aad444dd7af94ced570e8eac656e28e",
+          "manifestWrites": 9,
+          "indexWrites": 15,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        },
+        {
+          "trial": 3,
+          "condition": "cold",
+          "downloadSeconds": 0.7689187089999905,
+          "importSeconds": 1.6221337499955553,
+          "totalSeconds": 2.3910524589955457,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "a99e3d983427a4ae5f025fb661c5dbc70aad444dd7af94ced570e8eac656e28e",
+          "manifestWrites": 9,
+          "indexWrites": 19,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        {
+          "trial": 3,
+          "condition": "warm",
+          "downloadSeconds": 0.7830992089948268,
+          "importSeconds": 0.20485945800464833,
+          "totalSeconds": 0.9879586669994751,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "a99e3d983427a4ae5f025fb661c5dbc70aad444dd7af94ced570e8eac656e28e",
+          "manifestWrites": 9,
+          "indexWrites": 15,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        }
+      ],
+      "medians": {
+        "cold": {
+          "downloadSeconds": 0.7850411670005997,
+          "importSeconds": 1.6221337499955553,
+          "totalSeconds": 2.3910524589955457,
+          "manifestWrites": 9,
+          "indexWrites": 19,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        "warm": {
+          "downloadSeconds": 0.7830992089948268,
+          "importSeconds": 0.20485945800464833,
+          "totalSeconds": 0.9879586669994751,
+          "manifestWrites": 9,
+          "indexWrites": 15,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        }
+      }
+    },
+    "candidate": {
+      "version": "1.8.2",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "python": "3.12.14 (main, Aug 25 2026, 13:50:33) [Clang 22.1.3 ]",
+      "readerSHA256": "cc4d70782565d8faef725398a82b3f8e738724ef1b8cc048b180e1fe8e6bcf09",
+      "scope": "Synthetic account, real local file transfer/hash/parsers/PDFKit/Vision and evidence integration; simulated HTTP RTT; no real Canvas network or user account.",
+      "cacheConditions": "Cold/warm app cache in each trial; OS page cache not purged; no school cookies; same reader binary and fixtures.",
+      "latencyMsPerFile": 40,
+      "fixtureHashes": {
+        "100": {
+          "name": "Outline 1.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "101": {
+          "name": "Outline 2.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "102": {
+          "name": "Outline 3.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "103": {
+          "name": "Outline 4.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "104": {
+          "name": "Outline 5.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "105": {
+          "name": "Outline 6.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "106": {
+          "name": "Outline 7.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "107": {
+          "name": "Outline 8.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "108": {
+          "name": "Outline 9.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "109": {
+          "name": "Outline 10.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "110": {
+          "name": "Outline 11.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "111": {
+          "name": "Outline 12.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "112": {
+          "name": "Outline 13.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "113": {
+          "name": "Outline 14.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "114": {
+          "name": "Outline 15.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "115": {
+          "name": "Outline 16.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "116": {
+          "name": "Outline 17.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "117": {
+          "name": "Outline 18.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "118": {
+          "name": "Outline 19.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "119": {
+          "name": "Outline 20.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "120": {
+          "name": "Outline 21.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "121": {
+          "name": "Outline 22.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "122": {
+          "name": "Outline 23.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "123": {
+          "name": "Outline 24.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "124": {
+          "name": "Outline 25.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "125": {
+          "name": "Outline 26.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "126": {
+          "name": "Outline 27.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "127": {
+          "name": "Outline 28.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "128": {
+          "name": "Outline 29.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "129": {
+          "name": "Outline 30.docx",
+          "sha256": "b365bc0eebf6fc2efd8db1babb1cd8ddc431e75391b9b210aaea9698ab1a7747",
+          "bytes": 5075
+        },
+        "200": {
+          "name": "Notice 1.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "201": {
+          "name": "Notice 2.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "202": {
+          "name": "Notice 3.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "203": {
+          "name": "Notice 4.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "204": {
+          "name": "Notice 5.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "205": {
+          "name": "Notice 6.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "206": {
+          "name": "Notice 7.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "207": {
+          "name": "Notice 8.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "208": {
+          "name": "Notice 9.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "209": {
+          "name": "Notice 10.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "210": {
+          "name": "Notice 11.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "211": {
+          "name": "Notice 12.txt",
+          "sha256": "b903aea354366de6784dabcf87e6cbbc75679523875d2dbbd516c1a4957e4279",
+          "bytes": 3069
+        },
+        "300": {
+          "name": "Assessment 1.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        },
+        "301": {
+          "name": "Assessment 2.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        },
+        "302": {
+          "name": "Assessment 3.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        },
+        "303": {
+          "name": "Assessment 4.pdf",
+          "sha256": "75349050443f081277d9db05bcb84ac52a9c05b0fe127c8fad84456eed46657c",
+          "bytes": 2426
+        }
+      },
+      "trials": [
+        {
+          "trial": 1,
+          "condition": "cold",
+          "downloadSeconds": 0.7812269580026623,
+          "importSeconds": 1.5980604590004077,
+          "totalSeconds": 2.37928741700307,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "9a94d80ade3597571a4fa4156cce4afa6195bfb2f1dbc449a0f1be19b898a4d2",
+          "manifestWrites": 5,
+          "indexWrites": 8,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        {
+          "trial": 1,
+          "condition": "warm",
+          "downloadSeconds": 0.7721821660015848,
+          "importSeconds": 0.042952625000907574,
+          "totalSeconds": 0.8151347910024924,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "9a94d80ade3597571a4fa4156cce4afa6195bfb2f1dbc449a0f1be19b898a4d2",
+          "manifestWrites": 5,
+          "indexWrites": 1,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        },
+        {
+          "trial": 2,
+          "condition": "cold",
+          "downloadSeconds": 0.7769723749952391,
+          "importSeconds": 1.532643791004375,
+          "totalSeconds": 2.309616165999614,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "9a94d80ade3597571a4fa4156cce4afa6195bfb2f1dbc449a0f1be19b898a4d2",
+          "manifestWrites": 5,
+          "indexWrites": 8,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        {
+          "trial": 2,
+          "condition": "warm",
+          "downloadSeconds": 0.7852278339996701,
+          "importSeconds": 0.04258566600037739,
+          "totalSeconds": 0.8278135000000475,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "9a94d80ade3597571a4fa4156cce4afa6195bfb2f1dbc449a0f1be19b898a4d2",
+          "manifestWrites": 5,
+          "indexWrites": 1,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        },
+        {
+          "trial": 3,
+          "condition": "cold",
+          "downloadSeconds": 0.7891447500005597,
+          "importSeconds": 1.5492575829994166,
+          "totalSeconds": 2.3384023329999764,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "9a94d80ade3597571a4fa4156cce4afa6195bfb2f1dbc449a0f1be19b898a4d2",
+          "manifestWrites": 5,
+          "indexWrites": 8,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        {
+          "trial": 3,
+          "condition": "warm",
+          "downloadSeconds": 0.7810932089996641,
+          "importSeconds": 0.043756541002949234,
+          "totalSeconds": 0.8248497500026133,
+          "files": 46,
+          "pages": 102,
+          "partialDocuments": 0,
+          "evidenceSHA256": "9a94d80ade3597571a4fa4156cce4afa6195bfb2f1dbc449a0f1be19b898a4d2",
+          "manifestWrites": 5,
+          "indexWrites": 1,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        }
+      ],
+      "medians": {
+        "cold": {
+          "downloadSeconds": 0.7812269580026623,
+          "importSeconds": 1.5492575829994166,
+          "totalSeconds": 2.3384023329999764,
+          "manifestWrites": 5,
+          "indexWrites": 8,
+          "textPasses": 46,
+          "fullPasses": 4,
+          "interpretations": 102
+        },
+        "warm": {
+          "downloadSeconds": 0.7810932089996641,
+          "importSeconds": 0.042952625000907574,
+          "totalSeconds": 0.8248497500026133,
+          "manifestWrites": 5,
+          "indexWrites": 1,
+          "textPasses": 0,
+          "fullPasses": 0,
+          "interpretations": 0
+        }
+      }
+    }
+  }
+}

@@ -34,8 +34,8 @@ def child(case,scenario):
    helper_file=pathlib.Path(next(str(arg) for arg in args if str(arg).endswith("update_transaction.py")))
    source=helper_file.read_text()
    if scenario=="rollback":source=source.replace("time.monotonic()+90","time.monotonic()+8")
-   source=source.replace("    limit=time.monotonic()+","    (root/'test-new-pid.json').write_text(json.dumps({'pid':process.pid,'target':str(target)}))\n    limit=time.monotonic()+")
-   source=source.replace('    subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])','    restored_process=subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])\n    (root/"test-restored-pid.json").write_text(json.dumps({"pid":restored_process.pid,"target":str(target)}))')
+   source=source.replace("        limit=time.monotonic()+","        pathlib.Path("+repr(str(case/"new-pid.json"))+").write_text(json.dumps({'pid':process.pid,'target':str(target)}))\n        limit=time.monotonic()+")
+   source=source.replace('        subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])','        restored_process=subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])\n        pathlib.Path('+repr(str(case/"restored-pid.json"))+').write_text(json.dumps({"pid":restored_process.pid,"target":str(target)}))')
    helper_file.write_text(source)
    kw.setdefault("stdin",subprocess.DEVNULL)
    kw.setdefault("stdout",subprocess.DEVNULL)
@@ -139,7 +139,7 @@ def main():
    if mode=="portable":env["LOCALAPPDATA"]=str(case/"local")
    process=None;helper=None;newpid=None
    try:
-    process=subprocess.Popen([sys.executable,"-I","-B",str(__file__),"--driver",str(case),scenario],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    process=subprocess.Popen([sys.executable,"-I","-B","-X","utf8",str(__file__),"--driver",str(case),scenario],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     try:stdout,stderr=process.communicate(timeout=90)
     except subprocess.TimeoutExpired:
      progress=case/"driver-progress.json"
@@ -155,12 +155,17 @@ def main():
       if scenario=="rollback" and current=="1.8.1" and not target.with_name(target.name+".previous-"+VERSION).exists():break
       time.sleep(.2)
      else:raise AssertionError({"scenario":scenario,"currentVersion":current,"stage":str(stage)})
-     p=stage/"test-new-pid.json"
+     p=case/"new-pid.json"
      if p.exists():newpid=json.loads(p.read_text())["pid"]
      # Both successful and failed launches are owned by this isolated transaction.
      if newpid:subprocess.run(["taskkill","/PID",str(newpid),"/T","/F"],capture_output=True)
-     restored=stage/"test-restored-pid.json"
+     restored=case/"restored-pid.json"
      if restored.exists():subprocess.run(["taskkill","/PID",str(json.loads(restored.read_text())["pid"]),"/T","/F"],capture_output=True)
+    if helper and scenario=="upgrade":
+     cleanup_deadline=time.monotonic()+20
+     while stage.exists() and time.monotonic()<cleanup_deadline:time.sleep(.2)
+     assert not stage.exists(),"Program update staging was not released"
+     report["updateStageRemoved"]=True
     current=json.loads((target/"console/release.json").read_text())["version"]
     assert current==(VERSION if scenario=="upgrade" else "1.8.1")
     assert sentinel.read_text()=="synthetic-update-preserved"

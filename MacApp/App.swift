@@ -470,7 +470,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             loginView?.navigationDelegate = nil
             loginView?.uiDelegate = nil
             closing.contentView = nil
-            loginView = nil; loginWindow = nil; loginAddress = nil
+            loginView = nil; loginWindow = nil; loginAddress = nil; connecting = false
         } else if auxiliaryWindows.contains(where: { $0 === closing }) {
             let view = closing.contentView as? WKWebView
             view?.evaluateJavaScript("window.polyuLoginStop?.()")
@@ -505,6 +505,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                 if error == nil, (response as? HTTPURLResponse)?.statusCode == 200 {
                     if !self.diagnosticQueue.isEmpty { self.diagnosticQueue.removeFirst() }
                     self.flushDiagnostics()
+                    if self.diagnosticQueue.isEmpty {
+                        self.console?.evaluateJavaScript("if (typeof pageVisible==='function' && pageVisible() && document.getElementById('settingsDialog')?.open && state.settingsTab==='logs') refreshLogs()")
+                    }
                 }
             }
         }.resume()

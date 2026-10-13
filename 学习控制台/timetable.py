@@ -204,6 +204,9 @@ def mutate(profile,config,payload):
             for identifier in rule.get("sourceIds",[rule["id"]]): value["decisions"].pop(identifier,None)
         else:
             override=validate_rule(payload,config) if action=="confirm" else None
+            if override is not None:
+                override["sources"]=copy.deepcopy(rule.get("sources",[]))
+                override["confidence"]=rule.get("confidence",0)
             for identifier in rule.get("sourceIds",[rule["id"]]):
                 value["decisions"][identifier]={"action":action,"digest":rule["digest"],"override":override,"title":rule["title"],"ruleId":rule["id"],"sourceIds":rule.get("sourceIds",[rule["id"]])}
     else: raise ValueError("操作无效")
@@ -244,7 +247,8 @@ def query(profile,config,date,view="day",course=None):
             if changed: conflicts.append({"id":rule["id"],"title":rule["title"],"message":"来源已修订；保留你的决定，请重新核对。"})
             if decision["action"]=="hide": continue
             if decision.get("override"):
-                rule.update(decision["override"]);rule["manualDecision"]=True
+                fields={"courseId","course","title","kind","group","dates","repeat","time","endTime","location","exceptions","cancelled","makeup","issues"}
+                rule.update({key:value for key,value in decision["override"].items() if key in fields});rule["manualDecision"]=True
         group=saved["groups"].get(str(rule.get("courseId")))
         if group and rule.get("group"):
             if group!=rule["group"]: continue

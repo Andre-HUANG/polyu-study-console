@@ -45,7 +45,7 @@ def unpack_payload(archive,stage,expected_version):
         for item in members:
             name=item.filename;p=pathlib.PurePosixPath(name)
             if p.is_absolute() or not p.parts or ".." in p.parts or "\\" in name or ":" in name: raise ValueError("更新包含不安全路径")
-            if private_path(p.parts[1:]): raise ValueError("更新包含账号资料")
+            if p.parts[0].lower() in FORBIDDEN or private_path(p.parts[1:]): raise ValueError("更新包含账号资料")
             if any(part.rstrip(". ")!=part for part in p.parts): raise ValueError("Windows 更新路径不规范")
             if stat.S_ISLNK(item.external_attr>>16): raise ValueError("更新包不能含符号链接")
             normalized=name.rstrip("/").casefold()
@@ -86,6 +86,43 @@ def restore(target,backup):
         raise
     if failed.exists(): shutil.rmtree(failed)
 
+def cleanup_guard(stage,target,helper_pid):
+    stage=pathlib.Path(stage).absolute();target=safe_program(target)
+    if stage.parent!=target.parent or not stage.name.startswith("PolyU-program-update-"):
+        raise ValueError("更新暂存位置无效")
+    for entry in (stage,*stage.rglob("*")):
+        if entry.is_symlink() or getattr(entry,"is_junction",lambda:False)(): raise ValueError("更新暂存不能含链接")
+    marker=json.loads((stage/"cleanup-owner.json").read_text())
+    spec=json.loads((stage/"spec.json").read_text())
+    if marker!={"schema":1,"target":str(target),"helperPID":int(helper_pid)} or spec.get("target")!=str(target):
+        raise ValueError("更新暂存归属不匹配")
+    return stage
+
+def cleanup_stage(stage,target,helper_pid):
+    stage=cleanup_guard(stage,target,helper_pid)
+    import ctypes
+    from ctypes import wintypes
+    kernel=ctypes.windll.kernel32
+    kernel.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD];kernel.OpenProcess.restype=wintypes.HANDLE
+    kernel.WaitForSingleObject.argtypes=[wintypes.HANDLE,wintypes.DWORD];kernel.WaitForSingleObject.restype=wintypes.DWORD
+    kernel.CloseHandle.argtypes=[wintypes.HANDLE];kernel.CloseHandle.restype=wintypes.BOOL
+    handle=kernel.OpenProcess(0x00100000,False,int(helper_pid))
+    if handle:
+        try:
+            if kernel.WaitForSingleObject(handle,300000)!=0:return
+        finally:kernel.CloseHandle(handle)
+    # Allow loaded runtime files and virus scanners to release their handles.
+    time.sleep(3)
+    cleanup_guard(stage,target,helper_pid)
+    shutil.rmtree(stage)
+
+def schedule_cleanup(stage,target):
+    target=safe_program(target);helper_pid=os.getpid()
+    cleanup_guard(stage,target,helper_pid)
+    subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",
+        str(target/"WindowsApp/update_transaction.py"),"--cleanup",str(stage),str(target),str(helper_pid)],
+        stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=0x08000000)
+
 def run_helper(spec):
     import sys
     sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent))
@@ -96,62 +133,72 @@ def run_helper(spec):
     payload=root/spec["payload"]
     if payload.parent!=root or digest(payload)!=asset["sha256"]: raise ValueError("更新下载校验失败")
     target=safe_program(spec["target"])
-    # The original UI/backend must finish before program files are replaced.
-    import ctypes
-    from ctypes import wintypes
-    kernel=ctypes.windll.kernel32
-    kernel.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD]
-    kernel.OpenProcess.restype=wintypes.HANDLE
-    kernel.WaitForSingleObject.argtypes=[wintypes.HANDLE,wintypes.DWORD]
-    kernel.WaitForSingleObject.restype=wintypes.DWORD
-    kernel.CloseHandle.argtypes=[wintypes.HANDLE]
-    kernel.CloseHandle.restype=wintypes.BOOL
-    handle=kernel.OpenProcess(0x00100000,False,int(spec["pid"]))
-    if handle:
+    if root.parent!=target.parent or not root.name.startswith("PolyU-program-update-"):raise ValueError("更新暂存位置无效")
+    (root/"cleanup-owner.json").write_text(json.dumps({"schema":1,"target":str(target),"helperPID":os.getpid()}))
+    try:
+        # The original UI/backend must finish before program files are replaced.
+        import ctypes
+        from ctypes import wintypes
+        kernel=ctypes.windll.kernel32
+        kernel.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD]
+        kernel.OpenProcess.restype=wintypes.HANDLE
+        kernel.WaitForSingleObject.argtypes=[wintypes.HANDLE,wintypes.DWORD]
+        kernel.WaitForSingleObject.restype=wintypes.DWORD
+        kernel.CloseHandle.argtypes=[wintypes.HANDLE]
+        kernel.CloseHandle.restype=wintypes.BOOL
+        handle=kernel.OpenProcess(0x00100000,False,int(spec["pid"]))
+        if handle:
+            try:
+                if kernel.WaitForSingleObject(handle,60000)!=0: raise RuntimeError("旧版程序仍在运行")
+            finally: kernel.CloseHandle(handle)
+        backup=target.with_name(target.name+".previous-"+metadata["version"])
+        if backup.exists(): raise ValueError("旧版程序回退目录已存在")
+        if spec["mode"]=="portable":
+            new=unpack_payload(payload,root/"payload",metadata["version"])
+            if shutil.disk_usage(target.parent).free<sum(p.stat().st_size for p in new.rglob("*") if p.is_file())+100*1024*1024: raise OSError("磁盘空间不足")
+            replace_portable(target,new,backup)
+        elif spec["mode"]=="installed":
+            expected=pathlib.Path(os.environ["LOCALAPPDATA"])/"Programs/PolyUStudyConsole"
+            if target.resolve()!=expected.resolve(): raise ValueError("安装版位置与本机注册不一致")
+            shutil.copytree(target,backup)
+            try:
+                result=subprocess.run([str(payload),"/S"],timeout=180)
+                if result.returncode: raise RuntimeError("安装程序未完成")
+            except BaseException:
+                restore(target,backup)
+                raise
+        else: raise ValueError("更新模式无效")
+        # The newly installed app signals only after its native window/backend load.
+        ready=root/"new-version-ready"
+        environment=os.environ.copy();environment["POLYU_UPDATE_ACK"]=str(ready)
         try:
-            if kernel.WaitForSingleObject(handle,60000)!=0: raise RuntimeError("旧版程序仍在运行")
-        finally: kernel.CloseHandle(handle)
-    backup=target.with_name(target.name+".previous-"+metadata["version"])
-    if backup.exists(): raise ValueError("旧版程序回退目录已存在")
-    if spec["mode"]=="portable":
-        new=unpack_payload(payload,root/"payload",metadata["version"])
-        if shutil.disk_usage(target.parent).free<sum(p.stat().st_size for p in new.rglob("*") if p.is_file())+100*1024*1024: raise OSError("磁盘空间不足")
-        replace_portable(target,new,backup)
-    elif spec["mode"]=="installed":
-        expected=pathlib.Path(os.environ["LOCALAPPDATA"])/"Programs/PolyUStudyConsole"
-        if target.resolve()!=expected.resolve(): raise ValueError("安装版位置与本机注册不一致")
-        shutil.copytree(target,backup)
-        try:
-            result=subprocess.run([str(payload),"/S"],timeout=180)
-            if result.returncode: raise RuntimeError("安装程序未完成")
+            process=subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")],env=environment)
         except BaseException:
             restore(target,backup)
             raise
-    else: raise ValueError("更新模式无效")
-    # The newly installed app signals only after its native window/backend load.
-    ready=root/"new-version-ready"
-    environment=os.environ.copy();environment["POLYU_UPDATE_ACK"]=str(ready)
-    try:
-        process=subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")],env=environment)
-    except BaseException:
+        limit=time.monotonic()+90
+        while time.monotonic()<limit and not ready.exists() and process.poll() is None: time.sleep(.25)
+        if ready.exists() and ready.read_text()==metadata["version"]:
+            # Keep one program backup through this successful launch, then clean it.
+            shutil.rmtree(backup)
+            return
+        if process.poll() is None:
+            subprocess.run(["taskkill","/PID",str(process.pid),"/T","/F"],capture_output=True)
         restore(target,backup)
-        raise
-    limit=time.monotonic()+90
-    while time.monotonic()<limit and not ready.exists() and process.poll() is None: time.sleep(.25)
-    if ready.exists() and ready.read_text()==metadata["version"]:
-        # Keep one program backup through this successful launch, then clean it.
-        shutil.rmtree(backup)
-        return
-    if process.poll() is None:
-        subprocess.run(["taskkill","/PID",str(process.pid),"/T","/F"],capture_output=True)
-    restore(target,backup)
-    subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])
-    raise RuntimeError("新版未能启动，已恢复上一版程序；账号资料保持原样")
+        subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])
+        raise RuntimeError("新版未能启动，已恢复上一版程序；账号资料保持原样")
+    finally:
+        try:schedule_cleanup(root,target)
+        except Exception:pass  # Preserve a recovery stage when ownership cannot be verified.
 
 if __name__=="__main__":
     import sys
     try:
-        run_helper(json.loads(pathlib.Path(sys.argv[1]).read_text()))
+        if len(sys.argv)==5 and sys.argv[1]=="--cleanup":
+            cleanup_stage(sys.argv[2],sys.argv[3],int(sys.argv[4]))
+        elif len(sys.argv)==2:
+            run_helper(json.loads(pathlib.Path(sys.argv[1]).read_text()))
+        else:raise ValueError("更新参数无效")
     except Exception as error:
         try:
             import ctypes

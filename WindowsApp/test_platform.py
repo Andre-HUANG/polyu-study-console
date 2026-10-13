@@ -17,6 +17,18 @@ from canvas_archive import safe_component
 
 
 class PlatformChecks(unittest.TestCase):
+    def test_native_update_prepare_uses_authorized_fixed_backend_operation(self):
+        backend=desktop.Backend(Path(tempfile.gettempdir())/"synthetic-backend")
+        backend.url="http://127.0.0.1:12345/";backend.secret="synthetic-native-secret";backend.process=Mock()
+        backend.process.poll.return_value=None
+        from io import BytesIO
+        backend.opener=Mock();backend.opener.open.return_value=BytesIO(b'{"ok":true}')
+        self.assertEqual(backend.request("update/prepare",{}),{"ok":True})
+        request=backend.opener.open.call_args.args[0]
+        self.assertEqual(request.full_url,"http://127.0.0.1:12345/api/native/update/prepare")
+        self.assertEqual(request.get_header("X-polyu-native"),"synthetic-native-secret")
+        with self.assertRaises(ValueError):backend.request("../arbitrary",{})
+
     def test_windows_never_calls_posix_setsid(self):
         with patch.object(platform_support, "IS_WINDOWS", True), patch.object(platform_support.os, "setsid", create=True) as group:
             platform_support.backend_session()

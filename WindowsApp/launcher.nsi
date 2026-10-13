@@ -9,10 +9,10 @@ AutoCloseWindow true
 ShowInstDetails nevershow
 ManifestDPIAware true
 ManifestLongPathAware true
-VIProductVersion "1.8.1.0"
+VIProductVersion "${RELEASE_VERSION}.0"
 VIAddVersionKey "ProductName" "PolyU study控制台"
-VIAddVersionKey "ProductVersion" "1.8.1"
-VIAddVersionKey "FileVersion" "1.8.1"
+VIAddVersionKey "ProductVersion" "${RELEASE_VERSION}"
+VIAddVersionKey "FileVersion" "${RELEASE_VERSION}"
 VIAddVersionKey "FileDescription" "PolyU study控制台启动程序"
 VIAddVersionKey "LegalCopyright" "Personal study tool; not an official university application"
 Section

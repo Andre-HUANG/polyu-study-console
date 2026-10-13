@@ -90,7 +90,8 @@ class Updater:
             asset=metadata["artifacts"].get(name)
             if not asset or asset.get("platform")!="windows" or asset.get("architecture")!="x64" or digest(path)!=asset["sha256"] or pathlib.Path(path).stat().st_size!=asset["bytes"]: raise ValueError("版本、平台、架构或下载校验失败")
             target=safe_program(self.bundle)
-            stage=pathlib.Path(tempfile.mkdtemp(prefix="PolyU-program-update-"))
+            stage=pathlib.Path(tempfile.mkdtemp(prefix="PolyU-program-update-",dir=target.parent))
+            self.pending=stage
             shutil.copytree(self.bundle/"runtime",stage/"runtime")
             for module in ("updater.py","update_transaction.py"): shutil.copy2(self.bundle/"WindowsApp"/module,stage/module)
             shutil.copy2(self.bundle/"updater-lock.json",stage/"updater-lock.json")
@@ -117,6 +118,9 @@ class Updater:
                     self.app.backend.stop();self.app.backend.start()
                     self.app.console.load_url(self.app.backend.bootstrap_url())
                 except Exception: pass
+            if self.pending and not self.ready:
+                try:shutil.rmtree(self.pending);self.pending=None
+                except OSError:pass
             self.app.notice("软件更新未完成："+str(error));return -1
     def shutdown(self):
         if self.ready:

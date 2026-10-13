@@ -46,6 +46,7 @@ jobs:
       - run: python -B 验证/run_offline.py
       - run: python -B 验证/verify_local_api.py
       - run: python -B 验证/verify_keychain.py
+      - run: python -B 验证/verify_signed_feeds.py
   mac-build:
     name: macOS Build and Test
     needs: [security-scan, python-tests]

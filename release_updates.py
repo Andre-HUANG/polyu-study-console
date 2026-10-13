@@ -58,7 +58,7 @@ def sign(folder):
         attrs={"url":asset["url"],"length":str(asset["bytes"]),"type":"application/octet-stream","{"+NS+"}version":BUILD if platform=="macos" else VERSION,"{"+NS+"}shortVersionString":VERSION,"{"+NS+"}os":platform,"{"+NS+"}edSignature":asset_signature}
         ET.SubElement(item,"enclosure",attrs)
         ET.ElementTree(rss).write(folder/name,encoding="utf-8",xml_declaration=True)
-        run_sign(tool,folder/name)
+        run_sign(tool,folder/name,only=False)
     verify(folder)
 
 def verify(folder):
