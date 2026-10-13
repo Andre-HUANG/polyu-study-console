@@ -175,6 +175,15 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         self.assertFalse((self.profile/"calendar").exists())
 
 class CacheAndOCRChecks(unittest.TestCase):
+    def test_timetable_reader_upgrade_schedules_cached_file_reinterpretation(self):
+        import server
+        now=dt.datetime.now(server.HK)
+        index={"version":server.EVIDENCE_VERSION,"completedAt":now.isoformat(),"records":[{"status":"read"}]}
+        with patch.dict(server.JOB,busy=False,needsLogin=False,lastAttempt=0):
+            self.assertTrue(server.automatic_sync_due({"autoSync":True},{"user_id":"1"},{"collected_at":now.isoformat()},index,True,now,100))
+            index["records"][0]["timetableVersion"]=timetable_reader.VERSION
+            self.assertFalse(server.automatic_sync_due({"autoSync":True},{"user_id":"1"},{"collected_at":now.isoformat()},index,True,now,100))
+
     def test_read_cache_file_revision_day_and_account_change(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=pathlib.Path(tmp)/"config.json";save_private(path,{"n":1})

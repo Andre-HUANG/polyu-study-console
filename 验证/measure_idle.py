@@ -66,6 +66,7 @@ def main():
        pause(2)
        start=sample(pids);at=time.monotonic();pause(duration);end=sample(pids);elapsed=time.monotonic()-at
        common=set(start)&set(end)
+       if native not in common or backend not in common:raise RuntimeError("Measurement interrupted: required app/backend exited; discard this trial")
        cpu=sum(end[pid]["cpu"]-start[pid]["cpu"] for pid in common)
        row={"trial":trial+1,"version":label,"state":state,"seconds":elapsed,"cpuSeconds":cpu,"averagePercentOfOneCore":cpu/elapsed*100,"wakeups":sum(end[pid]["wakeups"]-start[pid]["wakeups"] for pid in common),"processesSampled":len(common),"backendCPUSeconds":end.get(backend,{"cpu":0})["cpu"]-start.get(backend,{"cpu":0})["cpu"]}
        rows.append(row);print(json.dumps(row),flush=True)

@@ -785,8 +785,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const response = await fetch('/api/data?view=dashboard', { cache: 'no-store' });
     if (!response.ok) throw new Error('读取学习档案失败');
     dataEtag = response.headers.get('ETag');
+    const data = await response.json();
     localRevision = data.revision;
-    render(await response.json());
+    render(data);
     if (['#courses', '#documents'].includes(location.hash)) {
       const tab = location.hash === '#courses' ? 'courses' : 'documents'; history.replaceState(null, '', '#top'); openSettings(tab);
     }

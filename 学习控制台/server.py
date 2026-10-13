@@ -377,7 +377,9 @@ def automatic_sync_due(settings, login, snapshot, document_index, has_grading, n
     settings = sync_settings(settings)
     interval = settings['syncIntervalSeconds']
     at = local_time(snapshot.get('collected_at'))
-    stale = not at or (now-at).total_seconds() >= interval or not has_grading or document_index.get('version') != EVIDENCE_VERSION or not document_index.get('completedAt')
+    from timetable_reader import VERSION as TIMETABLE_VERSION
+    timetable_upgrade=any(record.get("status")=="read" and record.get("timetableVersion")!=TIMETABLE_VERSION for record in document_index.get("records",[]))
+    stale = timetable_upgrade or not at or (now-at).total_seconds() >= interval or not has_grading or document_index.get('version') != EVIDENCE_VERSION or not document_index.get('completedAt')
     return bool(settings.get('autoSync', True) and login and stale and not JOB['busy'] and not JOB['needsLogin'] and (not JOB['lastAttempt'] or monotonic-JOB['lastAttempt'] >= interval))
 
 
