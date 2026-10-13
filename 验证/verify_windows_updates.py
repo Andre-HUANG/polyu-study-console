@@ -15,6 +15,8 @@ def child(case,scenario):
  body=(case/"public/updates.json").read_bytes();signature=(case/"public/updates.json.sig").read_bytes()
  module.public_read=lambda name:body if name=="updates.json" else signature
  finish=threading.Event();errors=[];notes=[];helpers=[]
+ def progress(stage,extra=None):(case/"driver-progress.json").write_text(json.dumps({"stage":stage,"extra":extra},ensure_ascii=False))
+ progress("before SDK initialization")
  class Backend:
   version="1.8.1"
   def request(self,*args):return {"ok":True}
@@ -45,6 +47,7 @@ def child(case,scenario):
   return original(args,*a,**kw)
  subprocess.Popen=popen
  updater=module.Updater(app)
+ progress('SDK initialized')
  updater._call("win_sparkle_set_lang",[ctypes.c_char_p],b"en")
  callback=ctypes.CFUNCTYPE(None)(lambda:(errors.append(True),finish.set()))
  updater._call("win_sparkle_set_error_callback",[ctypes.CFUNCTYPE(None)],callback)
@@ -52,14 +55,17 @@ def child(case,scenario):
  user.GetWindowThreadProcessId.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.DWORD)]
  user.GetWindowTextLengthW.argtypes=[wintypes.HWND];user.GetWindowTextLengthW.restype=ctypes.c_int
  user.GetWindowTextW.argtypes=[wintypes.HWND,wintypes.LPWSTR,ctypes.c_int]
- user.SendMessageW.argtypes=[wintypes.HWND,wintypes.UINT,wintypes.WPARAM,wintypes.LPARAM];user.SendMessageW.restype=ctypes.c_ssize_t
+ user.PostMessageW.argtypes=[wintypes.HWND,wintypes.UINT,wintypes.WPARAM,wintypes.LPARAM];user.PostMessageW.restype=wintypes.BOOL
+ user.IsWindowEnabled.argtypes=[wintypes.HWND];user.IsWindowEnabled.restype=wintypes.BOOL
+ user.IsWindowVisible.argtypes=[wintypes.HWND];user.IsWindowVisible.restype=wintypes.BOOL
  enum=ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM)
  user.EnumWindows.argtypes=[enum,wintypes.LPARAM];user.EnumChildWindows.argtypes=[wintypes.HWND,enum,wintypes.LPARAM]
  def caption(hwnd):
   size=user.GetWindowTextLengthW(hwnd);text=ctypes.create_unicode_buffer(size+1);user.GetWindowTextW(hwnd,text,size+1);return text.value.replace("&","").strip().lower()
  def buttons(hwnd,extra):
   title=caption(hwnd)
-  if title in {"install update","install","download update","install and relaunch","install and restart"}:user.SendMessageW(hwnd,0xF5,0,0)
+  if title in {"install update","install","download update","download","install and relaunch","install and restart"} and user.IsWindowEnabled(hwnd) and user.IsWindowVisible(hwnd):
+   progress("click SDK install",title);user.PostMessageW(hwnd,0xF5,0,0)
   return True
  button_callback=enum(buttons)
  def windows(hwnd,extra):
@@ -68,6 +74,7 @@ def child(case,scenario):
   return True
  window_callback=enum(windows)
  updater.check()
+ progress('checking native SDK update')
  deadline=time.monotonic()+65
  while not finish.is_set() and time.monotonic()<deadline:
   user.EnumWindows(window_callback,0);time.sleep(.2)
@@ -133,7 +140,11 @@ def main():
    process=None;helper=None;newpid=None
    try:
     process=subprocess.Popen([sys.executable,"-I","-B",str(__file__),"--driver",str(case),scenario],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    stdout,stderr=process.communicate(timeout=90);assert process.returncode==0,{"scenario":scenario,"stderr":stderr.decode(errors="replace")[-1800:]}
+    try:stdout,stderr=process.communicate(timeout=90)
+    except subprocess.TimeoutExpired:
+     progress=case/"driver-progress.json"
+     raise AssertionError({"scenario":scenario,"driverStage":json.loads(progress.read_text()) if progress.exists() else None,"helperStarted":(case/"helper.json").exists()}) from None
+    assert process.returncode==0,{"scenario":scenario,"stderr":stderr.decode(errors="replace")[-1800:]}
     report=json.loads((case/"driver-result.json").read_text())
     helper_file=case/"helper.json"
     if helper_file.exists():
