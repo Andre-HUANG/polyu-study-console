@@ -16,8 +16,8 @@ def source_sha():
     return head
 
 def accepted(report,platform,head):
-    checks={"mac":{"nativeGUI","backendRuntime","dmgReadOnlyScan","adHocSigned"},
-            "windows":{"nativeGUI","backendRuntime","dpapi","installUninstall"}}[platform]
+    checks={"mac":{"nativeGUI","backendRuntime","dmgReadOnlyScan","adHocSigned","nativeUpdates"},
+            "windows":{"nativeGUI","backendRuntime","dpapi","installUninstall","nativeUpdates"}}[platform]
     if (report.get("ok") is not True or report.get("platform")!=platform or
         report.get("sourceSHA")!=head or report.get("sourceTreeClean") is not True or
         report.get("archivePrivacyScan") is not True or

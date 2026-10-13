@@ -21,7 +21,7 @@ def sync_settings(saved):
 
 
 class ProgressWriter:
-    """Publish at most eight completions or 250 ms apart, plus final/failure flushes."""
+    """Publish at most 32 completions or one second apart, plus final/failure flushes."""
     def __init__(self, path, cancelled):
         self.path, self.cancelled = path, cancelled
         self.last, self.pending = 0.0, 0
@@ -30,7 +30,7 @@ class ProgressWriter:
         self.cancelled()
         self.pending += 1
         at = time.monotonic()
-        if not force and self.pending < 8 and at - self.last < .25:
+        if not force and self.pending < 32 and at - self.last < 1.0:
             return False
         prepare()
         save_private(self.path, value)

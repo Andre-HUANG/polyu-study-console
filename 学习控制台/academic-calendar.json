@@ -1,0 +1,1255 @@
+{
+  "schema": 1,
+  "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en",
+  "pdfSource": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf",
+  "pdfSha256": "4c79658300fe26157d0c38dbe9d5ad4c49303929a4e786a11c654fc3eaa2c949",
+  "checkedAt": "2026-10-13T15:41:46.807885+00:00",
+  "years": [
+    {
+      "year": "2026/27",
+      "start": "2026-08-31",
+      "end": "2027-08-29",
+      "events": [
+        {
+          "id": "14d380359b317e8f7724",
+          "start": "2026-08-31",
+          "end": "2026-08-31",
+          "title": "Semester One teaching commences (13 teaching weeks)",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "e141c8f99d27a1590112",
+          "start": "2026-08-31",
+          "end": "2026-09-12",
+          "title": "Add/Drop period for Semester One",
+          "kind": "add_drop",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "8fd632ecaa45632a2f33",
+          "start": "2026-09-25",
+          "end": "2026-09-25",
+          "title": "Chinese Mid-Autumn Festival (all evening classes/examinations suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "ac4c0cb0f76d78e67a33",
+          "start": "2026-09-26",
+          "end": "2026-09-26",
+          "title": "General holiday (The day following the Chinese Mid-Autumn Festival)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "8fe8f6042ca701b4563a",
+          "start": "2026-10-01",
+          "end": "2026-10-01",
+          "title": "General holiday (National Day)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "6c58df0188b4351c4af0",
+          "start": "2026-10-10",
+          "end": "2026-10-10",
+          "title": "PolyU Undergraduate Info Day 2026 (all day-time and evening classes/examinations suspended)",
+          "kind": "suspension",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "a919b6c7efa9e3a664db",
+          "start": "2026-10-19",
+          "end": "2026-10-19",
+          "title": "General holiday (The day following Chung Yeung Festival)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "289f0ff8199c3837fbae",
+          "start": "2026-10-31",
+          "end": "2026-10-31",
+          "title": "Thirty-Second Congregation",
+          "kind": "event",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "b80973b8781dc8b8de8a",
+          "start": "2026-11-01",
+          "end": "2026-11-21",
+          "title": "Thirty-Second Congregation",
+          "kind": "event",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "078c1b5abcaafe2236ab",
+          "start": "2026-11-28",
+          "end": "2026-11-28",
+          "title": "Semester One teaching ends",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "e40f17a0c63fe6b3649d",
+          "start": "2026-11-30",
+          "end": "2026-12-02",
+          "title": "Revision days for Semester One examinations",
+          "kind": "revision",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "af25a9bec20870ba13f9",
+          "start": "2026-12-03",
+          "end": "2026-12-18",
+          "title": "Examination Period for Semester One",
+          "kind": "exam_period",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "4feaed25e2cd00bb2de9",
+          "start": "2026-12-22",
+          "end": "2026-12-22",
+          "title": "Winter Solstice (all evening classes/examinations suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "115099c53258a5c50d2a",
+          "start": "2026-12-24",
+          "end": "2026-12-24",
+          "title": "Christmas Eve (all evening classes/examinations suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "031f405fd73eda6b7e3d",
+          "start": "2026-12-25",
+          "end": "2026-12-25",
+          "title": "General holiday (Christmas Day)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "942af3bcf145459871f7",
+          "start": "2026-12-26",
+          "end": "2026-12-26",
+          "title": "General holiday (The first weekday after Christmas Day)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "98a3e77e2ad6def2d8c1",
+          "start": "2026-12-31",
+          "end": "2026-12-31",
+          "title": "New Year Eve (all evening classes/examinations suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "2d9ea80262de0cd59b64",
+          "start": "2027-01-01",
+          "end": "2027-01-01",
+          "title": "General holiday (The first day of January)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "82dfe05ef69d0dee05e5",
+          "start": "2027-01-05",
+          "end": "2027-01-05",
+          "title": "Finalisation of all subject assessment results for Semester One",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "901dda14c9c4702e8656",
+          "start": "2027-01-11",
+          "end": "2027-01-11",
+          "title": "Semester Two teaching commences (13 teaching weeks)",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "4c7f43e6266839e98089",
+          "start": "2027-01-11",
+          "end": "2027-01-23",
+          "title": "Add/Drop period for Semester Two",
+          "kind": "add_drop",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "49aaaf1e0ebd9c5343c2",
+          "start": "2027-01-13",
+          "end": "2027-01-13",
+          "title": "Finalisation of overall assessment results for Semester One",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "bcd775d0321836107a8d",
+          "start": "2027-01-14",
+          "end": "2027-01-14",
+          "title": "Announcement of Semester One overall assessment results",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "a04c9de9b31c6df8a4dc",
+          "start": "2027-02-05",
+          "end": "2027-02-05",
+          "title": "Lunar New Year Eve (all evening classes/examinations suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "ef41ae2c877299e5e19f",
+          "start": "2027-02-06",
+          "end": "2027-02-14",
+          "title": "Lunar New Year Break (all day-time and evening classes/examinations suspended)",
+          "kind": "suspension",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "2656ce2e912581b65211",
+          "start": "2027-02-06",
+          "end": "2027-02-06",
+          "title": "General holiday (Lunar New Year’s Day)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "6a6084a9c083d134b2a2",
+          "start": "2027-02-08",
+          "end": "2027-02-08",
+          "title": "General holiday (The second day of Lunar New Year)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "30b4db7bf827812814c5",
+          "start": "2027-02-09",
+          "end": "2027-02-09",
+          "title": "General holiday (The third day of Lunar New Year)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "429453788e608449e199",
+          "start": "2027-03-26",
+          "end": "2027-03-26",
+          "title": "General holiday (Good Friday)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "d14df44ddb4124c43b4e",
+          "start": "2027-03-27",
+          "end": "2027-03-27",
+          "title": "General holiday (The day following Good Friday)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "d4927faac5d448ef2551",
+          "start": "2027-03-29",
+          "end": "2027-03-29",
+          "title": "General holiday (Easter Monday)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "f734c58fa60b282575ba",
+          "start": "2027-04-05",
+          "end": "2027-04-05",
+          "title": "General holiday (Ching Ming Festival)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "07f6aee090b7c04e2c17",
+          "start": "2027-04-17",
+          "end": "2027-04-17",
+          "title": "Semester Two teaching ends",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "389e237fcabd9cc0173f",
+          "start": "2027-04-19",
+          "end": "2027-04-21",
+          "title": "Revision days for Semester Two examinations",
+          "kind": "revision",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "2c3d97cea882472f20e0",
+          "start": "2027-04-22",
+          "end": "2027-05-08",
+          "title": "Examination Period for Semester Two",
+          "kind": "exam_period",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "74ae38df1de8655966c4",
+          "start": "2027-05-01",
+          "end": "2027-05-01",
+          "title": "General holiday (Labour Day)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "05e5b10d4311a27275dd",
+          "start": "2027-05-13",
+          "end": "2027-05-13",
+          "title": "General holiday (The Birthday of the Buddha)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "cf0b041f9dcbc00c53cc",
+          "start": "2027-05-19",
+          "end": "2027-05-19",
+          "title": "Finalisation of all subject assessment results for Semester Two",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "5c570e4c7ed9aad70eac",
+          "start": "2027-05-24",
+          "end": "2027-05-24",
+          "title": "Summer Term teaching commences (7 teaching weeks)",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "1268ab6fe7840f79318d",
+          "start": "2027-05-24",
+          "end": "2027-05-29",
+          "title": "Add/Drop period for Summer Term",
+          "kind": "add_drop",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "62e5e782891ca61402f3",
+          "start": "2027-05-27",
+          "end": "2027-05-27",
+          "title": "Finalisation of overall assessment results for Semester Two",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "607c10fc16ddf8d47720",
+          "start": "2027-05-28",
+          "end": "2027-05-28",
+          "title": "Announcement of Semester Two overall assessment results",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "7c2b9ff75b71539e499d",
+          "start": "2027-06-09",
+          "end": "2027-06-09",
+          "title": "Tuen Ng Festival",
+          "kind": "event",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "840757894c8f4bfa22e1",
+          "start": "2027-07-01",
+          "end": "2027-07-01",
+          "title": "General holiday (The HKSAR Establishment Day)",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "1103f48798af3ccf0acf",
+          "start": "2027-07-10",
+          "end": "2027-07-10",
+          "title": "Summer Term teaching ends",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "ddc912cc67775add5ca7",
+          "start": "2027-07-12",
+          "end": "2027-07-17",
+          "title": "Examination Period for Summer Term",
+          "kind": "exam_period",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "d42ce451c925bb1a7f0e",
+          "start": "2027-07-27",
+          "end": "2027-07-27",
+          "title": "Finalisation of all subject assessment results for Summer Term",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "275e6414df08fc0c38ff",
+          "start": "2027-08-04",
+          "end": "2027-08-04",
+          "title": "Finalisation of overall assessment results for Summer Term",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "b2aba9816bddbb13f58e",
+          "start": "2027-08-05",
+          "end": "2027-08-05",
+          "title": "Announcement of Summer Term overall assessment results",
+          "kind": "assessment",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        },
+        {
+          "id": "1bb4a17df8dfaf0c8d27",
+          "start": "2027-08-29",
+          "end": "2027-08-29",
+          "title": "Academic Year 2026/27 ends",
+          "kind": "event",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en"
+        }
+      ],
+      "weeks": [
+        {
+          "start": "2026-08-31",
+          "end": "2026-09-06",
+          "number": 1,
+          "semester": 1
+        },
+        {
+          "start": "2026-09-07",
+          "end": "2026-09-13",
+          "number": 2,
+          "semester": 1
+        },
+        {
+          "start": "2026-09-14",
+          "end": "2026-09-20",
+          "number": 3,
+          "semester": 1
+        },
+        {
+          "start": "2026-09-21",
+          "end": "2026-09-27",
+          "number": 4,
+          "semester": 1
+        },
+        {
+          "start": "2026-09-28",
+          "end": "2026-10-04",
+          "number": 5,
+          "semester": 1
+        },
+        {
+          "start": "2026-10-05",
+          "end": "2026-10-11",
+          "number": 6,
+          "semester": 1
+        },
+        {
+          "start": "2026-10-12",
+          "end": "2026-10-18",
+          "number": 7,
+          "semester": 1
+        },
+        {
+          "start": "2026-10-19",
+          "end": "2026-10-25",
+          "number": 8,
+          "semester": 1
+        },
+        {
+          "start": "2026-10-26",
+          "end": "2026-11-01",
+          "number": 9,
+          "semester": 1
+        },
+        {
+          "start": "2026-11-02",
+          "end": "2026-11-08",
+          "number": 10,
+          "semester": 1
+        },
+        {
+          "start": "2026-11-09",
+          "end": "2026-11-15",
+          "number": 11,
+          "semester": 1
+        },
+        {
+          "start": "2026-11-16",
+          "end": "2026-11-22",
+          "number": 12,
+          "semester": 1
+        },
+        {
+          "start": "2026-11-23",
+          "end": "2026-11-29",
+          "number": 13,
+          "semester": 1
+        },
+        {
+          "start": "2027-01-11",
+          "end": "2027-01-17",
+          "number": 1,
+          "semester": 2
+        },
+        {
+          "start": "2027-01-18",
+          "end": "2027-01-24",
+          "number": 2,
+          "semester": 2
+        },
+        {
+          "start": "2027-01-25",
+          "end": "2027-01-31",
+          "number": 3,
+          "semester": 2
+        },
+        {
+          "start": "2027-02-01",
+          "end": "2027-02-07",
+          "number": 4,
+          "semester": 2
+        },
+        {
+          "start": "2027-02-15",
+          "end": "2027-02-21",
+          "number": 5,
+          "semester": 2
+        },
+        {
+          "start": "2027-02-22",
+          "end": "2027-02-28",
+          "number": 6,
+          "semester": 2
+        },
+        {
+          "start": "2027-03-01",
+          "end": "2027-03-07",
+          "number": 7,
+          "semester": 2
+        },
+        {
+          "start": "2027-03-08",
+          "end": "2027-03-14",
+          "number": 8,
+          "semester": 2
+        },
+        {
+          "start": "2027-03-15",
+          "end": "2027-03-21",
+          "number": 9,
+          "semester": 2
+        },
+        {
+          "start": "2027-03-22",
+          "end": "2027-03-28",
+          "number": 10,
+          "semester": 2
+        },
+        {
+          "start": "2027-03-29",
+          "end": "2027-04-04",
+          "number": 11,
+          "semester": 2
+        },
+        {
+          "start": "2027-04-05",
+          "end": "2027-04-11",
+          "number": 12,
+          "semester": 2
+        },
+        {
+          "start": "2027-04-12",
+          "end": "2027-04-18",
+          "number": 13,
+          "semester": 2
+        },
+        {
+          "start": "2027-05-24",
+          "end": "2027-05-30",
+          "number": 1,
+          "semester": 3
+        },
+        {
+          "start": "2027-05-31",
+          "end": "2027-06-06",
+          "number": 2,
+          "semester": 3
+        },
+        {
+          "start": "2027-06-07",
+          "end": "2027-06-13",
+          "number": 3,
+          "semester": 3
+        },
+        {
+          "start": "2027-06-14",
+          "end": "2027-06-20",
+          "number": 4,
+          "semester": 3
+        },
+        {
+          "start": "2027-06-21",
+          "end": "2027-06-27",
+          "number": 5,
+          "semester": 3
+        },
+        {
+          "start": "2027-06-28",
+          "end": "2027-07-04",
+          "number": 6,
+          "semester": 3
+        },
+        {
+          "start": "2027-07-05",
+          "end": "2027-07-11",
+          "number": 7,
+          "semester": 3
+        }
+      ],
+      "updatedAt": "2 September 2026"
+    },
+    {
+      "year": "2027/28",
+      "start": "2027-08-30",
+      "end": "2028-08-27",
+      "events": [
+        {
+          "id": "25d9b13b5265507be57e",
+          "start": "2027-08-30",
+          "end": "2027-08-30",
+          "title": "Sem. 1 teaching commences",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "fafce629ee6c7558b6c2",
+          "start": "2027-08-30",
+          "end": "2027-09-11",
+          "title": "Add/Drop Period for Sem. 1",
+          "kind": "add_drop",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "a68e052b48c73c007840",
+          "start": "2027-09-15",
+          "end": "2027-09-15",
+          "title": "Chinese Mid-Autumn Festival (all evening classes/ exams suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "8715244645786dc79bdc",
+          "start": "2027-11-27",
+          "end": "2027-11-27",
+          "title": "Sem. 1 teaching ends",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "295f3b63796451583b2a",
+          "start": "2027-11-29",
+          "end": "2027-12-01",
+          "title": "Revision Days for Sem. 1",
+          "kind": "revision",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "549215800d7dedf49d58",
+          "start": "2027-12-02",
+          "end": "2027-12-17",
+          "title": "Examination Period for Sem. 1",
+          "kind": "exam_period",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "43aeb06c6968ce7f5c95",
+          "start": "2027-12-22",
+          "end": "2027-12-22",
+          "title": "Winter Solstice (all evening classes/exams suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "90b9f90d08919e7f4033",
+          "start": "2027-12-24",
+          "end": "2027-12-24",
+          "title": "Christmas Eve (all evening classes/exams suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "86b01d38081d332ef53b",
+          "start": "2027-12-31",
+          "end": "2027-12-31",
+          "title": "New Year Eve (all evening classes/exams suspended)",
+          "kind": "suspension",
+          "scope": "evening",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "9d55e9dbc94deb401071",
+          "start": "2028-01-10",
+          "end": "2028-01-10",
+          "title": "Sem. 2 teaching commences",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "0661f7f2decc165221b3",
+          "start": "2028-01-10",
+          "end": "2028-01-22",
+          "title": "Add/Drop Period for Sem. 2",
+          "kind": "add_drop",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "152160e93e93b72507d2",
+          "start": "2028-01-24",
+          "end": "2028-01-30",
+          "title": "Lunar New Year Break (all day-time and evening classes/exams suspended)",
+          "kind": "suspension",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "192993b5533c18399115",
+          "start": "2028-04-13",
+          "end": "2028-04-13",
+          "title": "Sem. 2 teaching ends",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "b75812239cf6b311025f",
+          "start": "2028-04-18",
+          "end": "2028-04-20",
+          "title": "Revision Days for Sem. 2",
+          "kind": "revision",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "fe7a1e748536ccfd8a58",
+          "start": "2028-04-21",
+          "end": "2028-05-09",
+          "title": "Examination Period for Sem. 2",
+          "kind": "exam_period",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "767e32fd9a7c216ad955",
+          "start": "2028-05-22",
+          "end": "2028-05-22",
+          "title": "Summer Term teaching commences",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "f9eeae9779eea53f0c82",
+          "start": "2028-05-22",
+          "end": "2028-05-27",
+          "title": "Add/Drop Period for Summer Term",
+          "kind": "add_drop",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "e5c062e8e8da875e7243",
+          "start": "2028-07-08",
+          "end": "2028-07-08",
+          "title": "Summer Term teaching ends",
+          "kind": "teaching",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "3b78256de2cad834b2be",
+          "start": "2028-07-10",
+          "end": "2028-07-15",
+          "title": "Examination Period for Summer Term",
+          "kind": "exam_period",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "8446b8bcc3442d6284fe",
+          "start": "2028-08-27",
+          "end": "2028-08-27",
+          "title": "Academic Year 2027/28 ends",
+          "kind": "event",
+          "scope": null,
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "1ada3b25fff5631a8f13",
+          "start": "2027-09-16",
+          "end": "2027-09-16",
+          "title": "The day following the Chinese Mid-Autumn Festival",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "edf826d11dd39d9419fd",
+          "start": "2027-10-01",
+          "end": "2027-10-01",
+          "title": "National Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "d5f70dd683cefacc0560",
+          "start": "2027-10-08",
+          "end": "2027-10-08",
+          "title": "Chung Yeung Festival",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "0347ee3fac4a662d22fb",
+          "start": "2027-12-25",
+          "end": "2027-12-25",
+          "title": "Christmas Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "eceb42a1681163a648b8",
+          "start": "2027-12-27",
+          "end": "2027-12-27",
+          "title": "The first weekday after Christmas Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": false,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "255d0b6ea975c66633a9",
+          "start": "2028-01-01",
+          "end": "2028-01-01",
+          "title": "The first day of January",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "23ad8ae130d9e693e795",
+          "start": "2028-01-26",
+          "end": "2028-01-28",
+          "title": "Lunar New Year Holidays",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "9aaa8d4cb4525459e215",
+          "start": "2028-04-04",
+          "end": "2028-04-04",
+          "title": "Ching Ming Festival",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "9a43dcc18fcb627a7abf",
+          "start": "2028-04-14",
+          "end": "2028-04-17",
+          "title": "Easter Holidays",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "fd7032cef29c89fb1ead",
+          "start": "2028-05-01",
+          "end": "2028-05-01",
+          "title": "Labour Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "8f450c7ffaa11760ecad",
+          "start": "2028-05-02",
+          "end": "2028-05-02",
+          "title": "The Birthday of the Buddha",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "164695a2b6a7102f16c3",
+          "start": "2028-05-29",
+          "end": "2028-05-29",
+          "title": "The day following the Tuen Ng Festival",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        },
+        {
+          "id": "7cede6d343d21fe1179b",
+          "start": "2028-07-01",
+          "end": "2028-07-01",
+          "title": "The HKSAR Establishment Day",
+          "kind": "holiday",
+          "scope": "all",
+          "tentative": true,
+          "source": "https://www.polyu.edu.hk/ar/docdrive/polyu-students/AC.pdf"
+        }
+      ],
+      "weeks": [
+        {
+          "start": "2027-08-30",
+          "end": "2027-09-05",
+          "number": 1,
+          "semester": 1
+        },
+        {
+          "start": "2027-09-06",
+          "end": "2027-09-12",
+          "number": 2,
+          "semester": 1
+        },
+        {
+          "start": "2027-09-13",
+          "end": "2027-09-19",
+          "number": 3,
+          "semester": 1
+        },
+        {
+          "start": "2027-09-20",
+          "end": "2027-09-26",
+          "number": 4,
+          "semester": 1
+        },
+        {
+          "start": "2027-09-27",
+          "end": "2027-10-03",
+          "number": 5,
+          "semester": 1
+        },
+        {
+          "start": "2027-10-04",
+          "end": "2027-10-10",
+          "number": 6,
+          "semester": 1
+        },
+        {
+          "start": "2027-10-11",
+          "end": "2027-10-17",
+          "number": 7,
+          "semester": 1
+        },
+        {
+          "start": "2027-10-18",
+          "end": "2027-10-24",
+          "number": 8,
+          "semester": 1
+        },
+        {
+          "start": "2027-10-25",
+          "end": "2027-10-31",
+          "number": 9,
+          "semester": 1
+        },
+        {
+          "start": "2027-11-01",
+          "end": "2027-11-07",
+          "number": 10,
+          "semester": 1
+        },
+        {
+          "start": "2027-11-08",
+          "end": "2027-11-14",
+          "number": 11,
+          "semester": 1
+        },
+        {
+          "start": "2027-11-15",
+          "end": "2027-11-21",
+          "number": 12,
+          "semester": 1
+        },
+        {
+          "start": "2027-11-22",
+          "end": "2027-11-28",
+          "number": 13,
+          "semester": 1
+        },
+        {
+          "start": "2028-01-10",
+          "end": "2028-01-16",
+          "number": 1,
+          "semester": 2
+        },
+        {
+          "start": "2028-01-17",
+          "end": "2028-01-23",
+          "number": 2,
+          "semester": 2
+        },
+        {
+          "start": "2028-01-31",
+          "end": "2028-02-06",
+          "number": 3,
+          "semester": 2
+        },
+        {
+          "start": "2028-02-07",
+          "end": "2028-02-13",
+          "number": 4,
+          "semester": 2
+        },
+        {
+          "start": "2028-02-14",
+          "end": "2028-02-20",
+          "number": 5,
+          "semester": 2
+        },
+        {
+          "start": "2028-02-21",
+          "end": "2028-02-27",
+          "number": 6,
+          "semester": 2
+        },
+        {
+          "start": "2028-02-28",
+          "end": "2028-03-05",
+          "number": 7,
+          "semester": 2
+        },
+        {
+          "start": "2028-03-06",
+          "end": "2028-03-12",
+          "number": 8,
+          "semester": 2
+        },
+        {
+          "start": "2028-03-13",
+          "end": "2028-03-19",
+          "number": 9,
+          "semester": 2
+        },
+        {
+          "start": "2028-03-20",
+          "end": "2028-03-26",
+          "number": 10,
+          "semester": 2
+        },
+        {
+          "start": "2028-03-27",
+          "end": "2028-04-02",
+          "number": 11,
+          "semester": 2
+        },
+        {
+          "start": "2028-04-03",
+          "end": "2028-04-09",
+          "number": 12,
+          "semester": 2
+        },
+        {
+          "start": "2028-04-10",
+          "end": "2028-04-16",
+          "number": 13,
+          "semester": 2
+        },
+        {
+          "start": "2028-05-22",
+          "end": "2028-05-28",
+          "number": 1,
+          "semester": 3
+        },
+        {
+          "start": "2028-05-29",
+          "end": "2028-06-04",
+          "number": 2,
+          "semester": 3
+        },
+        {
+          "start": "2028-06-05",
+          "end": "2028-06-11",
+          "number": 3,
+          "semester": 3
+        },
+        {
+          "start": "2028-06-12",
+          "end": "2028-06-18",
+          "number": 4,
+          "semester": 3
+        },
+        {
+          "start": "2028-06-19",
+          "end": "2028-06-25",
+          "number": 5,
+          "semester": 3
+        },
+        {
+          "start": "2028-06-26",
+          "end": "2028-07-02",
+          "number": 6,
+          "semester": 3
+        },
+        {
+          "start": "2028-07-03",
+          "end": "2028-07-09",
+          "number": 7,
+          "semester": 3
+        }
+      ],
+      "updatedAt": null
+    }
+  ]
+}

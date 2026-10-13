@@ -1,7 +1,9 @@
 let csrf = document.querySelector('meta[name="csrf-token"]').content;
 const state = { data: null, filter: 'all', course: 'all', busy: false, editOriginal: null, documentFilter: 'all', documentSearch: '', searchResults: null, settingsTab: 'account', logs: null, logFilter: 'all' };
 let searchTimer, searchRequest;
-let settingsTrigger, logRequest;
+const dateFormats = new Map();
+function dateFormatter(locale, options) { const key = JSON.stringify([locale, options]); if (!dateFormats.has(key)) (() => { if (dateFormats.size >= 24) dateFormats.delete(dateFormats.keys().next().value); dateFormats.set(key, new Intl.DateTimeFormat(locale, options)); })(); return dateFormats.get(key); }
+let settingsTrigger, logRequest, documentsRequest, documentsRevision;
 const historicalNotice = '部分页面保留其他学年的日期；已采用当前学年且相互印证的安排';
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -11,19 +13,19 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
 function hkDate(date, options = { month: 'long', day: 'numeric', weekday: 'short' }) {
   if (!date) return '日期待确认';
   const parsed = new Date(`${date.slice(0, 10)}T00:00:00+08:00`);
-  return new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', ...options }).format(parsed);
+  return dateFormatter('zh-HK', { timeZone: 'Asia/Hong_Kong', ...options }).format(parsed);
 }
 
 function hkMoment(value) {
   if (!value) return '尚未同步';
-  return new Intl.DateTimeFormat('zh-HK', {
+  return dateFormatter('zh-HK', {
     timeZone: 'Asia/Hong_Kong', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
   }).format(new Date(value));
 }
 
 function hkLongMoment(value) {
   if (!value) return '暂无记录';
-  return new Intl.DateTimeFormat('zh-HK', {
+  return dateFormatter('zh-HK', {
     timeZone: 'Asia/Hong_Kong', year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false
   }).format(new Date(value));
@@ -53,8 +55,10 @@ function relative(days) {
 }
 
 function gradeNumber(value) {
-  return new Intl.NumberFormat('zh-HK', { maximumFractionDigits: 2 }).format(value);
+  return gradeNumber.formatter.format(value);
 }
+
+gradeNumber.formatter = new Intl.NumberFormat('zh-HK', { maximumFractionDigits: 2 });
 
 function kindLabel(kind) {
   return { midterm: '期中考试', final: '期末考试', test: '其他测试', assignment: '作业 / 事项' }[kind] || '安排';
@@ -115,7 +119,19 @@ function selectSettingsTab(tab, focus = false) {
   document.querySelectorAll('[data-settings-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.settingsPanel !== tab || (tab === 'account' && !state.data?.connection?.native);
   });
-  if (state.data && tab === 'documents') renderDocuments(state.data);
+  if (state.data && tab === 'documents') {
+    const revision = dataEtag || localRevision;
+    if (documentsRevision === revision && state.data.documents?.records) renderDocuments(state.data);
+    else {
+      documentsRequest?.abort();
+      const request = documentsRequest = new AbortController(), current = state.data;
+      fetch('/api/documents', { cache: 'no-store', signal: request.signal }).then(r => r.ok ? r.json() : {}).then(documents => {
+        if (request === documentsRequest && current === state.data && pageVisible() && $('#settingsDialog').open && state.settingsTab === 'documents') {
+          state.data.documents = documents; documentsRevision = revision; renderDocuments(state.data);
+        }
+      }).catch(() => {});
+    }
+  }
   if (state.data && tab === 'courses') renderCourses(state.data);
   if (tab === 'logs') refreshLogs();
   if (focus) button.focus();
@@ -183,14 +199,21 @@ async function api(path, payload) {
 }
 
 function render(data) {
+  const contentKey = JSON.stringify([data.today, data.version, data.courses, data.events, data.undated, data.recent, data.grades, data.lastSync, data.freshness, data.recentChanges, data.latestCanvasChange]);
+  if (state.contentKey === contentKey) {
+    state.data = data; renderConnection(data); window.academicUI?.render(data);
+    if ($('#settingsDialog').open && state.settingsTab === 'documents') selectSettingsTab('documents');
+    schedulePoll(); return;
+  }
+  state.contentKey = contentKey;
   const expanded = new Map([...document.querySelectorAll('details[data-preserve]')].map((item) => [item.dataset.preserve, item.open]));
   state.data = data;
   if (data.connection?.native && !data.connection.authorized) {
-    searchRequest?.abort(); clearTimeout(searchTimer);
+    searchRequest?.abort(); documentsRequest?.abort(); documentsRevision = null; clearTimeout(searchTimer);
     state.documentSearch = ''; state.searchResults = null;
     $('#documentSearch').value = ''; $('#documentMatches').innerHTML = '';
   }
-  $('#appVersion').textContent = `v${data.version || '1.8.0'}`;
+  $('#appVersion').textContent = `v${data.version || '1.8.2'}`;
   const today = data.today;
   $('#todayLabel').textContent = hkDate(today, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   $('#syncCaption').textContent = data.lastSync
@@ -221,7 +244,7 @@ function render(data) {
   renderEvents(data);
   renderConnection(data);
   if ($('#settingsDialog').open) {
-    if (state.settingsTab === 'documents') renderDocuments(data);
+    if (state.settingsTab === 'documents') selectSettingsTab('documents');
     if (state.settingsTab === 'courses') renderCourses(data);
     if (state.settingsTab === 'logs') refreshLogs();
     document.querySelectorAll('[data-settings-panel]').forEach((panel) => {
@@ -229,6 +252,8 @@ function render(data) {
     });
   } else document.querySelectorAll('[data-settings-panel]').forEach((panel) => { panel.hidden = true; });
   document.querySelectorAll('details[data-preserve]').forEach((item) => { if (expanded.has(item.dataset.preserve)) item.open = expanded.get(item.dataset.preserve); });
+  window.academicUI?.render(data);
+  schedulePoll();
 }
 
 function nativeAction(action) {
@@ -266,11 +291,77 @@ function renderConnection(data) {
   setBusy(Boolean(connection.busy));
 }
 
-window.polyuNativeNotice = (message, type = 'info') => showNotice(message, type);
-window.polyuReload = async () => {
-  const response = await fetch('/api/data', { cache: 'no-store' });
-  if (response.ok) render(await response.json());
+let formDirty = false;
+document.addEventListener('input', event => { if (event.target.closest('form')) formDirty = true; });
+document.addEventListener('close', event => { if (event.target.matches('#eventDialog, #classDialog')) formDirty = false; }, true);
+window.polyuPrepareUpdate = () => {
+  const openForm = Boolean($('#eventDialog')?.open || $('#classDialog')?.open);
+  return !(openForm && formDirty);
 };
+window.polyuNativeNotice = (message, type = 'info') => showNotice(message, type);
+let statusRequest, dataRequest, dataEtag, pollTimer, localRevision, nativeHidden = false, lowPower = false;
+window.polyuReload = async (force = false) => {
+  if (dataRequest) return;
+  const controller = dataRequest = new AbortController();
+  try {
+    const response = await fetch('/api/data?view=dashboard', {
+      cache: 'no-store', signal: controller.signal,
+      headers: !force && dataEtag ? { 'If-None-Match': dataEtag } : {}
+    });
+    if (response.status === 304) return;
+    if (!response.ok) { if (response.status === 401) { dataEtag = null; localRevision = null; } return; }
+    const data = await response.json();
+    if (dataRequest !== controller || !pageVisible()) return;
+    dataEtag = response.headers.get('ETag');
+    localRevision = data.revision;
+    render(data);
+  } catch (error) { if (error.name !== 'AbortError') throw error; }
+  finally { if (dataRequest === controller) dataRequest = null; }
+};
+function cancelReadRequests() {
+  dataRequest?.abort(); statusRequest?.abort(); documentsRequest?.abort();
+  dataRequest = null; statusRequest = null; documentsRequest = null;
+  window.academicUI?.cancel();
+}
+function pageVisible() { return !nativeHidden && !document.hidden; }
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  if (!pageVisible()) return;
+  pollTimer = setTimeout(poll, state.data?.connection?.busy || state.calendarBusy ? 2000 : lowPower ? 120000 : 60000);
+}
+async function poll() {
+  if (!pageVisible() || statusRequest) return;
+  const controller = statusRequest = new AbortController();
+  try {
+    const response = await fetch('/api/status', { cache: 'no-store', signal: controller.signal });
+    if (response.ok) {
+      const status = await response.json();
+      if (controller !== statusRequest || !pageVisible()) return;
+      state.calendarBusy = status.calendarBusy;
+      if (status.revision !== localRevision) {
+        await window.polyuReload();
+      } else if (state.data) {
+        state.data.connection = { ...state.data.connection, ...status.connection };
+        renderConnection(state.data);
+      }
+      if (state.data) $('#syncAge').textContent = freshnessText(state.data);
+      window.academicUI?.tick();
+    }
+  } catch { /* A stopped/restarting backend is retried with the adaptive interval. */ }
+  finally { if (statusRequest === controller) statusRequest = null; schedulePoll(); }
+}
+window.polyuRuntimeState = (value) => {
+  const wasVisible = pageVisible();
+  nativeHidden = Boolean(value.hidden); lowPower = Boolean(value.lowPower);
+  document.body.classList.toggle('low-power', lowPower);
+  if (!pageVisible()) { clearTimeout(pollTimer); cancelReadRequests(); }
+  else if (!wasVisible) poll();
+  else schedulePoll();
+};
+document.addEventListener('visibilitychange', () => {
+  if (pageVisible()) poll(); else { clearTimeout(pollTimer); cancelReadRequests(); }
+});
+
 
 function gradeRaw(score, points) {
   return score == null || points == null ? '—' : `${gradeNumber(score)} / ${gradeNumber(points)}`;
@@ -651,7 +742,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#courseFilter').addEventListener('change', (event) => { state.course = event.target.value; renderEvents(state.data); });
   $('#documentSearch').addEventListener('input', (event) => {
     state.documentSearch = event.target.value; renderDocumentList();
-    searchRequest?.abort(); clearTimeout(searchTimer);
+    searchRequest?.abort(); documentsRequest?.abort(); documentsRevision = null; clearTimeout(searchTimer);
     searchTimer = setTimeout(searchDocumentText, 250);
   });
   $('#documentFilter').addEventListener('change', (event) => { state.documentFilter = event.target.value; renderDocumentList(); });
@@ -677,21 +768,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateActiveNav();
   });
   updateActiveNav();
-  window.setInterval(() => {
-    if (state.data) $('#syncAge').textContent = freshnessText(state.data);
-  }, 60000);
-  window.setInterval(async () => {
-    if (!state.data?.connection?.native) return;
-    const wasBusy = state.data.connection.busy;
-    try {
-      await window.polyuReload();
-      if (wasBusy && !state.data.connection.busy) {
-        const error = state.data.connection.lastError;
-        if (error) showNotice(error, 'error');
-        else if (state.data.changeCount) showNotice(`确认到 ${state.data.changeCount} 项 Canvas 内容变更，详见 Canvas 更新。`, 'success');
-      }
-    } catch { /* Retry on the next poll while the local service starts. */ }
-  }, 3000);
+  schedulePoll();
+  window.academicUI?.init();
   try {
     const bootstrap = new URLSearchParams(location.hash.slice(1)).get('bootstrap');
     if (bootstrap) {
@@ -704,8 +782,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!authorization.ok) throw new Error('客户端授权已失效，请重新打开控制台');
       csrf = (await authorization.json()).csrf;
     }
-    const response = await fetch('/api/data', { cache: 'no-store' });
+    const response = await fetch('/api/data?view=dashboard', { cache: 'no-store' });
     if (!response.ok) throw new Error('读取学习档案失败');
+    dataEtag = response.headers.get('ETag');
+    localRevision = data.revision;
     render(await response.json());
     if (['#courses', '#documents'].includes(location.hash)) {
       const tab = location.hash === '#courses' ? 'courses' : 'documents'; history.replaceState(null, '', '#top'); openSettings(tab);

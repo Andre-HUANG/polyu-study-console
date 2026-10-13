@@ -56,7 +56,7 @@ func recognize(_ image: CGImage) throws -> ([String], [Float]) {
     return (rows, scores)
 }
 
-func pdfPages(_ path: String, textOnly: Bool) throws -> [[String: Any]] {
+func pdfPages(_ path: String, textOnly: Bool, ocrOnly: Bool = false) throws -> [[String: Any]] {
     guard let document = PDFDocument(url: URL(fileURLWithPath: path)), !document.isLocked else {
         throw NSError(domain: "DocumentReader", code: 1, userInfo: [NSLocalizedDescriptionKey: "PDF 无法打开或受密码保护"])
     }
@@ -66,9 +66,9 @@ func pdfPages(_ path: String, textOnly: Bool) throws -> [[String: Any]] {
             guard let page = document.page(at: index) else {
                 pages.append(["page": index + 1, "text": "", "rows": [], "readable": false]); return
             }
-            let text = page.string ?? ""
+            let text = ocrOnly ? "" : (page.string ?? "")
             let bounds = page.bounds(for: .mediaBox)
-            let blocks = (page.selection(for: bounds)?.selectionsByLine() ?? []).compactMap { selection -> (String, CGRect)? in
+            let blocks = (ocrOnly ? [] : (page.selection(for: bounds)?.selectionsByLine() ?? [])).compactMap { selection -> (String, CGRect)? in
                 guard let string = selection.string?.trimmingCharacters(in: .whitespacesAndNewlines), !string.isEmpty else { return nil }
                 return (string.replacingOccurrences(of: "\n", with: " "), selection.bounds(for: page))
             }
@@ -89,9 +89,9 @@ func pdfPages(_ path: String, textOnly: Bool) throws -> [[String: Any]] {
                     result["issues"] = ["本页图片无法渲染，应用将在下次同步重试"]
                 }
             } catch { result["issues"] = ["本页图片文字识别未完成，应用将在下次同步重试"] } }
-            let notes = page.annotations.compactMap { $0.contents }.filter { !$0.isEmpty }
+            let notes = ocrOnly ? [] : page.annotations.compactMap { $0.contents }.filter { !$0.isEmpty }
             result["annotations"] = notes
-            result["links"] = page.annotations.compactMap { $0.url?.absoluteString }
+            result["links"] = ocrOnly ? [] : page.annotations.compactMap { $0.url?.absoluteString }
             pages.append(result)
         }
     }
@@ -104,7 +104,7 @@ do {
     let path = CommandLine.arguments.last!
     let suffix = URL(fileURLWithPath: path).pathExtension.lowercased()
     let pages: [[String: Any]]
-    if suffix == "pdf" { pages = try pdfPages(path, textOnly: textOnly) }
+    if suffix == "pdf" { pages = try pdfPages(path, textOnly: textOnly, ocrOnly: CommandLine.arguments.contains("--ocr-only")) }
     else {
         guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else {
             throw NSError(domain: "DocumentReader", code: 3, userInfo: [NSLocalizedDescriptionKey: "图片格式无法读取"])

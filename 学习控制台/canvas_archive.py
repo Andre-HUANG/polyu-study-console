@@ -158,32 +158,58 @@ def archive_courses(api, profile, config, cancelled, progress):
         queue.extend(module_links)
         queued = set(queue)
         visited = set()
+        def inspect_page(path):
+            try:
+                cancelled()
+                page_cache = web_root / cid / (hashlib.sha256(path.encode()).hexdigest() + ".json")
+                try: saved = json.loads(page_cache.read_text())
+                except (OSError, ValueError): saved = {}
+                valid = saved.get("accountId") == account_id and saved.get("path") == path and "linkedFiles" in saved and "linkedPages" in saved
+                if valid and saved.get("etag"):
+                    from native_canvas import HOST
+                    headers, body = api.fetch(HOST + path, accept="text/html", validators={"etag": saved["etag"]})
+                    if headers.get("X-PolyU-Not-Modified") == "1":
+                        return path, saved, None
+                    content = body.decode("utf-8", errors="replace")
+                else:
+                    from native_canvas import HOST
+                    headers, body = api.fetch(HOST + path, accept="text/html")
+                    content = body.decode("utf-8", errors="replace")
+                if "text/html" not in (headers.get("Content-Type") or "").lower():
+                    raise RuntimeError("Canvas 页面未返回课程网页")
+                if str(identity(content)["id"]) != account_id: raise RuntimeError("Canvas 当前账号与本机档案不一致。")
+                linked, more = linked_files_and_pages(content, cid)
+                page_data = {"accountId": account_id, "path": path, **readable_main(content),
+                             "linkedFiles": linked, "linkedPages": more, "etag": headers.get("ETag")}
+                # html_page returns only text. Obtain validators on following
+                # rounds by using the same authenticated transport directly.
+                return path, page_data, None
+            except Exception as error:
+                return path, None, str(error)[:100]
         while queue and len(visited) < 1000:
             cancelled()
-            path = queue.popleft()
-            if path in visited: continue
-            visited.add(path)
+            batch=[]
+            while queue and len(batch)<2 and len(visited)<1000:
+                path=queue.popleft()
+                if path in visited: continue
+                visited.add(path);batch.append(path)
             progress(f"{code}：正在检查课程页面附件 {len(visited)}…")
-            try:
-                content = html_page(api, path)
-                if str(identity(content)["id"]) != account_id:
-                    raise RuntimeError("Canvas 当前账号与本机档案不一致。")
-                linked, more = linked_files_and_pages(content, cid)
-                for file in linked:
+            from sync_support import bounded_results
+            for path, page_data, error in bounded_results(inspect_page, batch, 2, cancelled):
+                if error:
+                    summary["issues"].append(path + "：网页附件检查未完成（" + error + "）")
+                    continue
+                for file in page_data.get("linkedFiles", []):
                     if file["id"] not in known_module_files:
                         file["folder"] = "课程页面与公告附件"
-                        items.append(file)
-                        known_module_files.add(file["id"])
-                for link in more:
-                    if link not in queued:
-                        queue.append(link); queued.add(link)
+                        items.append(file);known_module_files.add(file["id"])
+                for link in page_data.get("linkedPages", []):
+                    if link not in queued: queue.append(link);queued.add(link)
                 page_cache = web_root / cid / (hashlib.sha256(path.encode()).hexdigest() + ".json")
-                save_private(page_cache, {"accountId": account_id, "path": path, **readable_main(content)})
+                try: unchanged = json.loads(page_cache.read_text()) == page_data
+                except (OSError, ValueError): unchanged = False
+                if not unchanged: save_private(page_cache, page_data)
                 summary["webPaths"].append(path)
-            except Exception as error:
-                # A hidden course tab may redirect or deny access. Keep its
-                # failure visible; module attachments remain downloadable.
-                summary["issues"].append(path + "：网页附件检查未完成（" + str(error)[:100] + "）")
         if queue:
             summary["issues"].append("课程页面超过 1000 页，后续页面尚未遍历")
         groups = {}

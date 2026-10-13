@@ -51,15 +51,21 @@ class Canvas:
             raise ValueError("Canvas API 请求仅允许学校的只读接口。")
         return url
 
-    def fetch(self, url, accept="application/json"):
+    def fetch(self, url, accept="application/json", validators=None):
         require_readonly_url(url)
         headers = {"Accept": accept, "User-Agent": f"PolyUStudyConsole/{VERSION} (read-only)"}
+        if validators and accept == "text/html":
+            etag = str(validators.get("etag") or "")
+            if etag and len(etag) < 512 and not any(c in etag for c in "\r\n"):
+                headers["If-None-Match"] = etag
         request = urllib.request.Request(url, headers=headers, method="GET")
         for attempt in range(self.retries + 1):
             try:
                 with self.opener.open(request, timeout=self.timeout) as response:
                     return response.headers, response.read()
             except urllib.error.HTTPError as error:
+                if error.code == 304 and validators and accept == "text/html":
+                    return {"X-PolyU-Not-Modified": "1", "ETag": headers.get("If-None-Match", "")}, b""
                 if error.code == 401:
                     raise CanvasAuthError("Canvas 登录已过期，请在应用中重新连接。") from None
                 if error.code not in {429, 500, 502, 503, 504} or attempt == self.retries:

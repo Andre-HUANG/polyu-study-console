@@ -51,7 +51,7 @@ def ocr_image(path):
         return asyncio.run(_ocr(prepared))
 
 
-def read(path, text_only=False):
+def read(path, text_only=False, ocr_only=False):
     path = Path(path)
     if path.suffix.lower() != ".pdf":
         rows = ocr_image(path)
@@ -64,7 +64,7 @@ def read(path, text_only=False):
     try:
         with pdfplumber.open(path) as pdf:
             for number, page in enumerate(pdf.pages, 1):
-                text = page.extract_text(x_tolerance=2, y_tolerance=3) or ""
+                text = "" if ocr_only else page.extract_text(x_tolerance=2, y_tolerance=3) or ""
                 pages.append({"page": number, "text": text, "rows": text.splitlines(),
                               "method": "PDF 文字与版面", "readable": bool(text.strip()),
                               "processed": True, "textOnly": text_only})

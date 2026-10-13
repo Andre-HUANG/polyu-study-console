@@ -48,13 +48,13 @@ def html_text(value):
     return "".join(parser.parts), parser.links
 
 
-def native_read(path, reader, text_only=False):
+def native_read(path, reader, text_only=False, ocr_only=False):
     if reader == "builtin:windows":
         from windows_document import read
-        return read(path, text_only=text_only)
+        return read(path, text_only=text_only, ocr_only=ocr_only)
     if not reader or not Path(reader).is_file():
         raise RuntimeError("缺少应用自带的 PDF/OCR 阅读工具")
-    arguments = [str(reader)] + (["--text-only"] if text_only else []) + [str(path)]
+    arguments = [str(reader)] + (["--ocr-only"] if ocr_only else ["--text-only"] if text_only else []) + [str(path)]
     result = subprocess.run(arguments, capture_output=True, text=True, timeout=7200)
     try: data = json.loads(result.stdout)
     except ValueError: raise RuntimeError("文件阅读未完成") from None
@@ -63,14 +63,15 @@ def native_read(path, reader, text_only=False):
     return data.get("pages") or []
 
 
-def pdf_tables(path, pages, cache):
+def pdf_tables(path, pages, cache, verified_digest=None):
     """Keep table cells beside native/OCR text, with page-level provenance."""
     from pdf_layout import ACADEMIC
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    stored = Path(cache) / "pdf-layout" / (digest.hexdigest() + f"-v{READER_VERSION}.json")
+    if not verified_digest or not re.fullmatch(r"[0-9a-f]{64}", verified_digest):
+        digest = hashlib.sha256()
+        with Path(path).open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""): digest.update(chunk)
+        verified_digest = digest.hexdigest()
+    stored = Path(cache) / "pdf-layout" / (verified_digest + f"-v{READER_VERSION}.json")
     selected = [p["page"] for p in pages if ACADEMIC.search(p.get("text") or "") or not (p.get("text") or "").strip()]
     if not selected:
         return pages
@@ -249,15 +250,31 @@ def office_read(path, reader, cache, text_only=False):
     return pages
 
 
-def extract(path, reader, cache, depth=0, text_only=False):
+def extract(path, reader, cache, depth=0, text_only=False, cached_pages=None, verified_digest=None):
     path, cache = Path(path), Path(cache)
     cache.mkdir(parents=True, exist_ok=True, mode=0o700)
     suffix = path.suffix.lower()
+    if suffix == ".pdf" and cached_pages and not text_only:
+        import copy
+        pages = copy.deepcopy(cached_pages)
+        additional = native_read(path, reader, ocr_only=True)
+        by_page = {p["page"]: p for p in additional}
+        if set(by_page) != {p["page"] for p in pages}: raise RuntimeError("PDF 图片覆盖页数与正文不一致")
+        for page in pages:
+            extra = by_page[page["page"]]
+            for key in ("ocrRows", "ocrRowConfidences", "ocrLowConfidence", "ocrConfidenceUnknown", "ocrConfidenceKind"):
+                if key in extra: page[key] = extra[key]
+            page["textOnly"] = False
+            page["processed"] = bool(page.get("processed") or extra.get("processed"))
+            page["readable"] = bool(page.get("readable") or extra.get("ocrRows"))
+            page["issues"] = list(dict.fromkeys((page.get("issues") or []) + (extra.get("issues") or [])))
+            page["method"] = page.get("method", "PDF") + " · 图片 OCR"
+        return pages
     if suffix == ".pdf" or suffix in IMAGES:
         pages = native_read(path, reader, text_only=text_only and suffix == ".pdf")
         for page in pages:
             page.setdefault("locator", f"第 {page['page']} 页" if suffix == ".pdf" else f"图片 {page['page']}")
-        return pdf_tables(path, pages, cache) if suffix == ".pdf" else pages
+        return pdf_tables(path, pages, cache, verified_digest) if suffix == ".pdf" else pages
     if suffix in {".pptx", ".pptm", ".docx", ".docm", ".xlsx", ".xlsm"}: return office_read(path, reader, cache, text_only=text_only)
     if suffix == ".zip":
         if depth >= 3: raise RuntimeError("压缩包嵌套超过三层，需人工核对")

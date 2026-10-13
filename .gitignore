@@ -26,6 +26,8 @@ canvas-grading-settings.json
 managed-deadlines.json
 MacApp/runtime-cache/
 MacApp/document-vendor/
+MacApp/document-vendor
+.build/
 Mac发布/
 Win发布/
 WindowsApp/.build/
@@ -75,3 +77,5 @@ dist/
 
 验证/native-gui/
 验证/gui-component/
+
+MacApp/runtime-cache

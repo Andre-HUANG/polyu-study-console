@@ -24,6 +24,17 @@ def offline(event, args):
         raise RuntimeError('Network is disabled in this offline regression run')
 
 
+class ProcessIsolatedResult(unittest.TextTestResult):
+    def startTest(self, test):
+        # These tests normally model independent backend processes. A simulated
+        # server shutdown must not leave its process-scoped stop flag in the
+        # next test's fresh profile; flags remain observable inside each test.
+        import runtime_cache
+        runtime_cache.STOP.clear()
+        runtime_cache.WAKE.clear()
+        super().startTest(test)
+
+
 def main():
     # Windows needs its own wheels, never arm64 Mac vendor binaries.
     if sys.platform == 'win32': sys.path.remove(str(ROOT / 'MacApp/document-vendor'))
@@ -38,7 +49,7 @@ def main():
         for directory in ('MacApp', 'WindowsApp'):
             suite.addTests(unittest.defaultTestLoader.discover(str(ROOT / directory), pattern='test_*.py', top_level_dir=str(ROOT / directory)))
         log = io.StringIO()
-        result = unittest.TextTestRunner(stream=log, verbosity=2).run(suite)
+        result = unittest.TextTestRunner(stream=log, verbosity=2, resultclass=ProcessIsolatedResult).run(suite)
         content = log.getvalue() + '\nOFFLINE_NETWORK_ATTEMPTS=' + str(len(blocked)) + '\n'
         (output / 'test-results.txt').write_text(content, encoding='utf-8')
         evidence = {'at':datetime.now(timezone.utc).isoformat(), 'platform':platform.platform(),

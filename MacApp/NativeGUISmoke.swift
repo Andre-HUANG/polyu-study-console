@@ -67,7 +67,7 @@ final class NativeGUISmoke {
                 """) { value, _ in
                 guard !self.done else { return }
                 if let value = value as? [String: Any], value["ready"] as? Bool == true,
-                   value["version"] as? String == "v1.8.1", value["panel"] as? Bool == true,
+                   value["version"] as? String == "v1.8.2", value["panel"] as? Bool == true,
                    value["logoutHidden"] as? Bool == true, value["courseCards"] as? Int == 0,
                    value["settingsClosed"] as? Bool == true, value["navigationCount"] as? Int == 4,
                    !self.app.resettingAccount, !self.app.console.isLoading {
@@ -118,7 +118,7 @@ final class NativeGUISmoke {
                     (view as? NSTextField).map { [$0.stringValue] } ?? view.subviews.flatMap { strings($0) }
                 }
                 let text = panels.flatMap { $0.contentView.map { strings($0) } ?? [] }.joined(separator: "\n")
-                guard text.contains("1.8.1") else { self.fail("Native About panel did not show 1.8.1: " + text); return }
+                guard text.contains("1.8.2") else { self.fail("Native About panel did not show 1.8.2: " + text); return }
                 self.report["nativeAboutVersion"] = text
                 panels.forEach { $0.close() }
                 self.settingsChecks {
@@ -153,6 +153,9 @@ final class NativeGUISmoke {
         js("""
             (()=>{const d=document.getElementById('settingsDialog');return !d.open &&
             ['accountSection','documents','courses'].every(id=>d.contains(document.getElementById(id)) && document.getElementById(id).hidden) &&
+            d.contains(document.getElementById('softwareUpdateButton')) &&
+            (()=>{const a=document.querySelector('.overview-summary').getBoundingClientRect(),b=document.getElementById('timetablePanel').getBoundingClientRect(),c=document.querySelector('.academic-calendar').getBoundingClientRect(),r=document.querySelector('.recent-row').getBoundingClientRect();
+              return Math.abs(a.top-b.top)<2 && b.left>=a.right && Math.abs(c.top-a.top)<2 && r.top>=Math.max(a.bottom,b.bottom,c.bottom)})() &&
             document.querySelectorAll('.side-nav a').length===4 && !document.querySelector('.sidebar #appVersion')})()
             """) { value in
             guard value as? Bool == true else { self.fail("Settings-only modules or four-link navigation failed"); return }

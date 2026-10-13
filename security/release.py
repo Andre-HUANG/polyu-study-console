@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT))
 from release_build import VERSION
+from release_updates import generate as generate_updates, verify as verify_updates, SIGNED as SIGNED_UPDATES
 from github_api import request as github_request, upload as github_upload
 from release_guard import source_sha, accepted, trusted_run
 GIT=os.environ.get("POLYU_GIT","git")
@@ -52,6 +53,7 @@ def collect(source, destination):
         if path.resolve()!=(destination/name).resolve():shutil.copyfile(path,destination/name)
     (destination/"SHA256SUMS.txt").write_text("".join(actual[n]+"  "+n+"\n" for n in sorted(actual)),encoding="utf-8")
     (destination/"validation.json").write_text(json.dumps({"version":VERSION,"sourceSHA":reports[0]["sourceSHA"],"platforms":reports,"artifacts":actual},indent=2),encoding="utf-8")
+    generate_updates(destination,reports[0]["sourceSHA"])
     return reports[0]["sourceSHA"]
 
 
@@ -111,6 +113,7 @@ def main():
         if (source/"SHA256SUMS.txt").read_text(encoding="utf-8")!=sums:raise RuntimeError("Checksum manifest differs")
         for name,digest in report["artifacts"].items():
             if hashlib.sha256((source/name).read_bytes()).hexdigest()!=digest:raise RuntimeError("Changed release payload")
+        verify_updates(source)
         tag="v"+VERSION
         if run(GIT,"ls-remote","--tags","https://github.com/"+REPO+".git","refs/tags/"+tag,capture=True):
             raise RuntimeError("Version tag already exists; never replace an existing version")
@@ -120,7 +123,7 @@ def main():
         release=github_request("/releases","POST",{"tag_name":tag,"target_commitish":head,
             "name":"PolyU Study Console "+VERSION,"body":notes,"draft":True,"prerelease":False})
         # A partial upload stays Draft. Published old assets are never overwritten.
-        for name in sorted(expected|{"SHA256SUMS.txt"}):
+        for name in sorted(expected|{"SHA256SUMS.txt"}|set(SIGNED_UPDATES)):
             result=github_upload(release["id"],source/name)
             expected_digest=hashlib.sha256((source/name).read_bytes()).hexdigest()
             if result.get("digest")!="sha256:"+expected_digest:raise RuntimeError("Uploaded asset digest mismatch")

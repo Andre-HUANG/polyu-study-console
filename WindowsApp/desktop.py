@@ -231,6 +231,11 @@ class Bridge:
             raise ValueError("仅允许控制台窗口调用本机操作")
         if action == "login": app.login()
         elif action == "logout": app.logout()
+        elif action == "softwareUpdate":
+            if not app.updater: raise ValueError("更新组件未启动")
+            app.updater.check()
+        elif action == "academicCalendar":
+            webbrowser.open("https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en")
         elif action == "openSource":
             if not school_url(target): raise ValueError("来源地址必须属于学校 Canvas")
             webbrowser.open(target)
@@ -244,6 +249,9 @@ class Bridge:
 
 class Desktop:
     def __init__(self, root, webview):
+        self.updater = None
+        self.native_hidden = False
+        self.power_handler = None
         self.root, self.webview = Path(root), webview
         self.backend = Backend(root)
         self.console = self.login_window = None
@@ -319,6 +327,29 @@ class Desktop:
             except Exception: pass
             window.destroy()
 
+    def runtime_state(self, hidden=None):
+        if hidden is not None: self.native_hidden=bool(hidden)
+        low_power=False
+        try:
+            import ctypes
+            class Power(ctypes.Structure):
+                _fields_=[("ac",ctypes.c_ubyte),("flags",ctypes.c_ubyte),("percent",ctypes.c_ubyte),("saver",ctypes.c_ubyte),("life",ctypes.c_ulong),("full",ctypes.c_ulong)]
+            power=Power()
+            if ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(power)): low_power=power.saver==1
+        except Exception: pass
+        if self.console:
+            try:self.console.evaluate_js("window.polyuRuntimeState?.("+json.dumps({"hidden":self.native_hidden,"lowPower":low_power})+")")
+            except Exception:pass
+
+    def initialize_power_events(self):
+        self.runtime_state()
+        if self.power_handler: return
+        try:
+            from Microsoft.Win32 import SystemEvents
+            self.power_handler=lambda sender,event:self.runtime_state()
+            SystemEvents.PowerModeChanged+=self.power_handler
+        except Exception: self.power_handler=None
+
     def run(self):
         marker = self.root / "logout-pending"
         if marker.exists(): delete_account(self.root, self.backend)
@@ -329,7 +360,26 @@ class Desktop:
             self.backend.record('logout', 'success')
         self.console = self.webview.create_window(APP_NAME, self.backend.bootstrap_url(),
                     js_api=Bridge(self), width=1360, height=900, min_size=(850,620))
+        def initialize_update():
+            if self.stopping: return
+            self.initialize_power_events()
+            try:
+                from updater import Updater
+                if not self.updater: self.updater = Updater(self)
+            except Exception: self.notice("更新组件暂不可用，请重新安装完整的 1.8.2。")
+            acknowledgement = os.environ.pop("POLYU_UPDATE_ACK", "")
+            if acknowledgement:
+                target=Path(acknowledgement)
+                if target.name=="new-version-ready" and target.parent.name.startswith("PolyU-program-update-"):
+                    deadline=time.monotonic()+30
+                    while time.monotonic()<deadline and not self.stopping:
+                        if self.console.evaluate_js("typeof state !== 'undefined' && state.data?.version") == VERSION:
+                            target.write_text(VERSION);break
+                        threading.Event().wait(.25)
+        self.console.events.loaded += initialize_update
         self.console.events.closing += self._close_login
+        self.console.events.minimized += lambda: self.runtime_state(True)
+        self.console.events.restored += lambda: self.runtime_state(False)
         try:
             self.webview.settings.update(ALLOW_FILE_URLS=False, ALLOW_DOWNLOADS=False,
                 IGNORE_SSL_ERRORS=False, OPEN_EXTERNAL_LINKS_IN_BROWSER=False,
@@ -341,6 +391,13 @@ class Desktop:
                                storage_path=display_path(self.root / "webview"), debug=False)
         finally:
             self.stopping = True
+            if self.power_handler:
+                try:
+                    from Microsoft.Win32 import SystemEvents
+                    SystemEvents.PowerModeChanged-=self.power_handler
+                except Exception: pass
+                self.power_handler=None
+            if self.updater: self.updater.close()
             self.backend.stop()
         if self.logged_out:
             try: delete_account(self.root, self.backend)

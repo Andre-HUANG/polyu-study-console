@@ -18,7 +18,7 @@ concurrency:
 jobs:
   publish:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     timeout-minutes: 10
     permissions:
       contents: write
@@ -39,6 +39,13 @@ jobs:
           path: .security-local/release
           github-token: ${{ github.token }}
           run-id: ${{ inputs.validation_run }}
+      - name: Sign locked update sources
+        env:
+          POLYU_UPDATER_ED25519_KEY: ${{ secrets.POLYU_UPDATER_ED25519_KEY }}
+        run: |
+          test -n "$POLYU_UPDATER_ED25519_KEY"
+          python -m pip install --only-binary=:all: --require-hashes -r security/signing-requirements.txt
+          python -B release_updates.py .security-local/release --sign
       - name: Publish checked artifacts
         env:
           GH_TOKEN: ${{ github.token }}

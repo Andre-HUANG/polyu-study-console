@@ -33,8 +33,10 @@ EPOCH = 1791244800  # 2026-10-06 00:00:00 UTC
 sys.path.insert(0, str(ROOT))
 from release_build import ASSETS, CONSOLE, CONSOLE_FILES, NAME, VERSION, source_hashes, verify_bundle
 
-SHELL_FILES = ("main.py", "desktop.py", "windows_process.py", "native_verify.py", "gui_smoke.py")
+SHELL_FILES = ("main.py", "desktop.py", "windows_process.py", "native_verify.py", "gui_smoke.py", "updater.py", "update_transaction.py")
 SYSTEM_DLLS = {"advapi32.dll", "bcrypt.dll", "bcryptprimitives.dll", "cabinet.dll", "combase.dll", "comctl32.dll", "crypt32.dll", "dwmapi.dll", "gdi32.dll", "imm32.dll", "iphlpapi.dll", "kernel32.dll", "mscoree.dll", "msi.dll", "msvcrt.dll", "netapi32.dll", "ntdll.dll", "ole32.dll", "oleaut32.dll", "pathcch.dll", "powrprof.dll", "psapi.dll", "rpcrt4.dll", "secur32.dll", "setupapi.dll", "shell32.dll", "shlwapi.dll", "user32.dll", "userenv.dll", "version.dll", "winmm.dll", "ws2_32.dll", "wtsapi32.dll"}
+SYSTEM_DLLS.update({"wininet.dll","uxtheme.dll"})  # Official Windows network/theme APIs.
+SYSTEM_DLLS.add("msimg32.dll")  # Windows GDI transparency, used by WinSparkle wxWidgets.
 SYSTEM_DLLS.add("propsys.dll")  # Windows Property System, used by upstream _wmi.
 EXCLUDE_WHEEL_PATHS = ("webview/lib/runtimes/win-arm64/", "webview/lib/runtimes/win-x86/", "clr_loader/ffi/dlls/x86/")
 
@@ -252,6 +254,11 @@ def preserve_licenses(lock, bundle):
                         target.parent.mkdir(parents=True, exist_ok=True)
                         target.write_bytes(archive.read(name))
     shutil.copy2(SOURCE / "runtime-lock.json", licenses / "Runtime-dependency-lock.json")
+    from prepare_updater import prepare as prepare_updater
+    sdk=ROOT/".build/updater/windows/WinSparkle-0.9.4"
+    for name in ("COPYING","COPYING.expat"):
+        shutil.copy2(sdk/name,licenses/("WinSparkle-"+name+".txt"))
+    shutil.copy2(ROOT/"updater-lock.json",licenses/"Updater-dependency-lock.json")
     (licenses / "README.txt").write_text("CPython and its original runtime dependency notices are in Runtime/.\nPython wheels retain their upstream .dist-info licenses and metadata under runtime/Lib/site-packages/.\nWinRT namespace wheels share pywinrt-LICENSE. The upstream proxy_tools license omitted from its sdist is restored.\nMicrosoft runtime DLLs are retained only from the hash-pinned upstream Python/WinRT distributions.\nNSIS/COPYING covers the Windows installer/launcher stubs. Official PolyU asset sources remain console/assets/SOURCES.txt.\n", encoding="utf-8")
 
 
@@ -391,8 +398,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--download", action="store_true", help="retrieve missing files from the official URLs in the SHA256 locks")
     arguments = parser.parse_args()
-    if VERSION != "1.8.1":
-        raise SystemExit("This assembly script is locked to 1.8.1")
+    if VERSION != "1.8.2":
+        raise SystemExit("This assembly script is locked to 1.8.2")
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     lock = json.loads((SOURCE / "runtime-lock.json").read_text(encoding="utf-8"))
     tools = json.loads((SOURCE / "build-tools-lock.json").read_text(encoding="utf-8"))
@@ -407,6 +414,12 @@ def main():
         shutil.rmtree(bundle)
     bundle.mkdir()
     install_runtime(lock, bundle)
+    sys.path.insert(0,str(ROOT))
+    from prepare_updater import prepare as prepare_updater
+    updater_source=prepare_updater("windows")
+    (bundle/"updater").mkdir()
+    shutil.copy2(updater_source/"x64/Release/WinSparkle.dll",bundle/"updater/WinSparkle.dll")
+    shutil.copy2(ROOT/"updater-lock.json",bundle/"updater-lock.json")
     pure_proxy_wheel(lock)
     dependency_audit = install_wheels(lock, bundle)
     console = bundle / "console"

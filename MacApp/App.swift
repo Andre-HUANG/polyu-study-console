@@ -2,12 +2,16 @@ import AppKit
 import WebKit
 import Darwin
 import CryptoKit
+import Sparkle
 
 let applicationName = "PolyU study控制台"
-let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8.1"
+let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8.2"
 let canvasHost = "https://canvas.polyu.edu.hk"
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
+    var updaterController: SPUStandardUpdaterController?
+    var pendingUpdateVersion: String?
+    var pendingUpdateInstall: (() -> Void)?
     var window: NSWindow!
     var console: WKWebView!
     var loginWindow: NSWindow?
@@ -39,12 +43,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var backendPIDs: [pid_t] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        var startupValidated=false
+        defer { if startupValidated { initializeUpdater(); if testIsolation == nil { UpdateRecovery.recordLaunch() } } }
         do { testIsolation = try TestIsolation.parse(ProcessInfo.processInfo.arguments) }
         catch {
             FileHandle.standardError.write(Data("隔离测试拒绝启动：\(error.localizedDescription)\n".utf8))
             NSApp.terminate(nil)
             return
         }
+        startupValidated=true
         if let isolation = testIsolation {
             do { try isolation.prepareControl() }
             catch { FileHandle.standardError.write(Data("隔离测试拒绝启动：\(error.localizedDescription)\n".utf8)); NSApp.terminate(nil); return }
@@ -86,6 +93,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         window.title = applicationName + (testIsolation == nil ? "" : " · 隔离测试（不连接学校）")
         window.minSize = NSSize(width: 850, height: 620)
         window.contentView = console
+        window.delegate = self
+        NotificationCenter.default.addObserver(self, selector: #selector(runtimeStateChanged), name: NSWindow.didChangeOcclusionStateNotification, object: window)
+        NotificationCenter.default.addObserver(self, selector: #selector(runtimeStateChanged), name: NSNotification.Name.NSProcessInfoPowerStateDidChange, object: nil)
         window.isReleasedWhenClosed = false
         if testIsolation == nil { window.setFrameAutosaveName("PolyUConsoleMain") }
         window.center()
@@ -337,6 +347,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
               message.frameInfo.request.url?.host == "127.0.0.1", message.frameInfo.request.url?.port == baseURL?.port,
               let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
         switch action {
+        case "softwareUpdate":
+            if let install = pendingUpdateInstall { prepareUpdateRestart(install) } else { checkSoftwareUpdates() }
         case "login": openLogin()
         case "logout": logout()
         case "dataFolder": openDataFolder()
@@ -365,7 +377,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             const match = scripts.match(/"current_user_id":"?(\\d+)/);
             if (match && document.querySelector('#global_nav_dashboard_link'))
               window.webkit.messageHandlers.canvasLogin.postMessage({authenticated:true});
-          } catch (_) {} }; check(); setInterval(check, 3000); })();
+          } catch (_) {} }; check(); const timer = setInterval(check, 3000); window.polyuLoginStop = () => clearInterval(timer); })();
         """
         configuration.userContentController.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         let view = WKWebView(frame: .zero, configuration: configuration)
@@ -411,7 +423,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let generation = accountGeneration
         loginAddress?.stringValue = "已完成学校登录，正在验证 Canvas 授权并建立本机学习档案…"
         view.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
-            guard let self = self, self.accountGeneration == generation, !self.resettingAccount, !self.terminating else { return }
+            guard let self = self, self.accountGeneration == generation, !self.resettingAccount, !self.terminating, self.loginView === view, self.loginWindow?.isVisible == true else { return }
             let rows: [[String: Any]] = cookies.filter {
                 let domain = $0.domain.trimmingCharacters(in: CharacterSet(charactersIn: "."))
                 return domain == "canvas.polyu.edu.hk" || domain == "polyu.edu.hk"
@@ -440,9 +452,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
     }
 
+    @objc func runtimeStateChanged(_ notification: Notification? = nil) {
+        let value: [String: Bool] = ["hidden": window == nil || !window.isVisible || window.isMiniaturized || !window.occlusionState.contains(.visible),
+                                    "lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled]
+        if let bytes = try? JSONSerialization.data(withJSONObject: value), let text = String(data: bytes, encoding: .utf8) {
+            console?.evaluateJavaScript("window.polyuRuntimeState?.(" + text + ")")
+        }
+    }
+
     func windowWillClose(_ notification: Notification) {
-        if let closing = notification.object as? NSWindow, closing === loginWindow, !loginCompleted, !resettingAccount {
-            recordDiagnostic("login.close", "cancelled")
+        guard let closing = notification.object as? NSWindow else { return }
+        if closing === loginWindow {
+            if !loginCompleted && !resettingAccount { recordDiagnostic("login.close", "cancelled") }
+            loginView?.evaluateJavaScript("window.polyuLoginStop?.()")
+            loginView?.stopLoading()
+            loginView?.configuration.userContentController.removeScriptMessageHandler(forName: "canvasLogin")
+            loginView?.navigationDelegate = nil
+            loginView?.uiDelegate = nil
+            closing.contentView = nil
+            loginView = nil; loginWindow = nil; loginAddress = nil
+        } else if auxiliaryWindows.contains(where: { $0 === closing }) {
+            let view = closing.contentView as? WKWebView
+            view?.evaluateJavaScript("window.polyuLoginStop?.()")
+            view?.configuration.userContentController.removeScriptMessageHandler(forName: "canvasLogin")
+            view?.stopLoading(); view?.navigationDelegate = nil; view?.uiDelegate = nil
+            closing.contentView = nil
+            auxiliaryWindows.removeAll(where: { $0 === closing })
         }
     }
 
@@ -707,6 +742,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if webView === console, webView.url?.host == "127.0.0.1" {
+            runtimeStateChanged()
+            acknowledgeUpdateWhenReady()
             if let text = pendingNotice {
                 pendingNotice = nil
                 notice(text, type: "success")
@@ -737,10 +774,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             }
             return nil
         }
+        let handlers = WKUserContentController()
+        configuration.userContentController.userScripts.forEach { handlers.addUserScript($0) }
+        handlers.add(self, name:"canvasLogin")
+        configuration.userContentController = handlers
         let popup = WKWebView(frame: .zero, configuration: configuration)
         popup.navigationDelegate = self
         popup.uiDelegate = self
         let popupWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 850, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        popupWindow.delegate = self
         popupWindow.title = "学校身份验证"
         popupWindow.isReleasedWhenClosed = false
         popupWindow.contentView = popup
@@ -761,6 +803,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 @main
 struct PolyUApplication {
     static func main() {
+        if CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "--update-watchdog" {
+            exit(UpdateRecovery.watch(CommandLine.arguments[2]))
+        }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

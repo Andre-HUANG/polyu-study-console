@@ -189,12 +189,12 @@ def session_class():
         def last_download(self, value):
             self._download_local.result = value
 
-        def fetch(self, url, accept="application/json"):
+        def fetch(self, url, accept="application/json", validators=None):
             target = urllib.parse.urlsplit(url)
             if target.hostname != "canvas.polyu.edu.hk" or target.scheme != "https" or target.port not in (None, 443) or target.username or target.password:
                 raise ValueError("Canvas API 请求仅允许学校 Canvas 域名。")
             try:
-                headers, body = super().fetch(url, accept)
+                headers, body = super().fetch(url, accept, validators)
             except urllib.error.HTTPError as error:
                 if error.code == 401:
                     raise CanvasAuthError("Canvas 登录已过期，请在应用中重新连接。") from None

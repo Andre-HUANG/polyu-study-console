@@ -52,7 +52,9 @@ def download_document(api, meta, cid, fid, blob, cancelled):
 
 
 def read_json(path, default):
-    try: return json.loads(Path(path).read_text(encoding="utf-8"))
+    try:
+        from runtime_cache import read_json as cached_json
+        return cached_json(path, default)
     except (OSError, ValueError): return default
 
 
@@ -88,6 +90,9 @@ def describe(document, pages, config, analyzing=False):
     title_page = {"page": 0, "locator": "Canvas 标题", "text": document["title"], "rows": [document["title"]], "readable": True}
     document["facts"] = facts_from(document, [title_page, *pages], config)
     document["findings"] = document_findings(document["facts"])
+    from timetable_reader import rules_from, VERSION as TIMETABLE_VERSION
+    document["timetableRules"] = rules_from(document, pages, config)
+    document["timetableVersion"] = TIMETABLE_VERSION
     document["readAt"] = now()
     document["readerVersion"] = READER_VERSION
     return document
@@ -316,7 +321,7 @@ def scan_courses(api, profile, config, reader, cancelled, progress, checkpoint=N
                                     download_document(api, meta, cid, fid, blob, cancelled)
                             pages = extract(blob, reader, cache, text_only=True)
                             save_private(source_cache, {"fingerprint": doc["fingerprint"], "readerVersion": READER_VERSION, "pages": pages})
-                            if any(p.get("textOnly") for p in pages): image_queue.append((doc, cfg, blob, source_cache))
+                            if any(p.get("textOnly") for p in pages): image_queue.append((doc, cfg, blob, source_cache, pages, blob.stat().st_mtime_ns))
                         for page in pages:
                             links = (page.get("links") or []) + re.findall(r"https://canvas\.polyu\.edu\.hk/[^\s<>\"']+", (page.get("text") or "") + "\n" + "\n".join(page.get("ocrRows") or []))
                             references(links, doc["url"])
@@ -353,11 +358,11 @@ def scan_courses(api, profile, config, reader, cancelled, progress, checkpoint=N
         apply_checkpoint()
         # Publish text/table results from every course first. Then read images
         # on every PDF page, rather than delaying all exams behind lecture OCR.
-        for number, (doc, cfg, blob, source_cache) in enumerate(image_queue, 1):
+        for number, (doc, cfg, blob, source_cache, cached_pages, file_stamp) in enumerate(image_queue, 1):
             cancelled()
             progress(f"图片识别 {number} / {len(image_queue)} · {doc['course']} · {doc['title']}")
             try:
-                pages = extract(blob, reader, cache)
+                pages = extract(blob, reader, cache, cached_pages=cached_pages if blob.stat().st_mtime_ns == file_stamp else None)
                 save_private(source_cache, {"fingerprint": doc["fingerprint"], "readerVersion": READER_VERSION, "pages": pages})
                 describe(doc, pages, cfg)
                 cid = doc['courseId']
@@ -424,13 +429,58 @@ def scan_archived_web(api, profile, config, reader, cancelled, progress, checkpo
                                     for r in previous.values() if r.get("courseId") in active],
              "courses": summaries, "discoveredReferences": previous_index.get("discoveredReferences") or {},
              "evidence": {"deadlines": [], "pending": [], "grading": {}}}
+    first_finding = False
     live = set()
     image_queue = []
     writer = ProgressWriter(root / 'index.json', cancelled)
-    context_key = fingerprint([VERSION, READER_VERSION, config])
+    from timetable_reader import VERSION as TIMETABLE_VERSION
+    context_key = fingerprint([VERSION, READER_VERSION, TIMETABLE_VERSION, config])
 
     def publish(force=False):
         return writer.publish(index, force=force, prepare=lambda: index.update(evidence=consolidate(index['records'])))
+
+    def reuse_complete_round():
+        # Archive transport has already verified all file digests for this round.
+        # Check the interpretation context and every cached page before using it.
+        if not previous_index.get("completedAt") or previous_index.get("scanning"): return False
+        expected=set()
+        for entry in archive.get("entries") or []:
+            cid, fid=str(entry.get("courseId")),str(entry.get("id"))
+            if cid not in active: continue
+            identifier=f"{cid}:file:{fid}"; prior=previous.get(identifier) or {}
+            if entry.get("status")!="downloaded" or prior.get("status")!="read" or prior.get("fingerprint")!=entry.get("sha256"): return False
+            stored=read_json(cache/(cid+"-"+fid+".json"),{})
+            if stored.get("fingerprint")!=entry.get("sha256") or stored.get("readerVersion")!=READER_VERSION or stored.get("accountId")!=account_id: return False
+            if not stored.get("pages") or any(p.get("textOnly") or p.get("issues") or not (p.get("processed") or p.get("readable")) for p in stored["pages"]): return False
+            key=fingerprint([context_key, prior["fingerprint"], entry.get("title") or "文件 "+fid, entry.get("url") or HOST+f"/courses/{cid}/files/{fid}", entry.get("folders") or [], active[cid].get("code") or cid])
+            if prior.get("interpretationKey")!=key: return False
+            expected.add(identifier)
+        for summary in summaries:
+            cid=summary["id"]
+            archived=next((c for c in archive.get("courses",[]) if c["id"]==cid),{})
+            for path in archived.get("webPaths") or []:
+                stored=read_json(root/"web"/cid/(hashlib.sha256(path.encode()).hexdigest()+".json"),{})
+                if stored.get("accountId")!=account_id or stored.get("path")!=path: return False
+                if not stored.get("rows"): continue
+                kind="syllabus" if path.endswith("/syllabus") else "announcement" if "/announcements" in path or "/discussion_topics" in path else "assignment" if "/assignments" in path else "quiz" if "/quizzes" in path else "page"
+                identifier=f"{cid}:{kind}:{hashlib.sha256(path.encode()).hexdigest()[:16]}"
+                prior=previous.get(identifier) or {}
+                key=fingerprint([context_key,fingerprint(stored["rows"]),stored.get("title") or path.split("/")[-1] or summary["name"],HOST+path,None,summary["code"]])
+                if prior.get("status")!="read" or prior.get("interpretationKey")!=key: return False
+                expected.add(identifier)
+        old_ids={r["id"] for r in previous.values() if r.get("courseId") in active}
+        if old_ids!=expected: return False
+        cancelled()
+        index["records"]=[{**previous[identifier],"reusedInterpretation":True} for identifier in sorted(expected)]
+        for summary in summaries:
+            summary["fileCount"]=sum(r.get("type")=="file" and r.get("courseId")==summary["id"] for r in index["records"])
+            summary["complete"]=not summary["issues"]
+        index.update(completedAt=now(),scanning=False)
+        publish(force=True)
+        apply_checkpoint()
+        progress("所有文件与网页均未变化；已复用本账号的正文、表格、OCR 和识别结果。")
+        return True
+
 
     def apply_checkpoint():
         if not checkpoint: return
@@ -448,7 +498,7 @@ def scan_archived_web(api, profile, config, reader, cancelled, progress, checkpo
         complete_pages = bool(pages) and all(not p.get('textOnly') and not p.get('issues') and (p.get('processed') or p.get('readable')) for p in pages)
         reusable = complete_pages and not analyzing and doc.get('fingerprint') and prior.get('interpretationKey') == key and prior.get('status') == 'read'
         if reusable:
-            for field in ('pageCount', 'readPages', 'processedPages', 'issues', 'status', 'methods', 'facts', 'findings'):
+            for field in ('pageCount', 'readPages', 'processedPages', 'issues', 'status', 'methods', 'facts', 'findings', 'timetableRules', 'timetableVersion'):
                 if field in prior: doc[field] = prior[field]
             doc.update(readAt=now(), reusedInterpretation=True)
         else:
@@ -456,12 +506,17 @@ def scan_archived_web(api, profile, config, reader, cancelled, progress, checkpo
         doc['interpretationKey'] = key
 
     def put(doc):
+        nonlocal first_finding
         index["records"] = [r for r in index["records"] if r.get("id") != doc["id"]]
         index["records"].append(doc)
         live.add(doc["id"])
-        flushed = publish(force=doc['status'] in {'failed', 'partial', 'locked', 'unsupported'})
-        if flushed and doc.get('findings') and not doc.get('reusedInterpretation'):
+        new_finding = bool((doc.get('findings') or doc.get('timetableRules')) and not first_finding)
+        if new_finding: first_finding = True
+        flushed = publish(force=new_finding or doc['status'] in {'failed', 'partial', 'locked', 'unsupported'})
+        if flushed and (doc.get('findings') or doc.get('timetableRules')) and not doc.get('reusedInterpretation'):
             apply_checkpoint()
+
+    if reuse_complete_round(): return index
 
     try:
         publish(force=True)
@@ -501,11 +556,11 @@ def scan_archived_web(api, profile, config, reader, cancelled, progress, checkpo
             pages = stored.get("pages") or [] if reusable else []
             try:
                 if not pages or any(p.get("textOnly") or p.get("issues") for p in pages):
-                    pages = extract(blob, reader, cache, text_only=True)
+                    pages = extract(blob, reader, cache, text_only=True, verified_digest=doc["fingerprint"])
                     save_private(source_cache, {'accountId': account_id, "fingerprint": doc["fingerprint"], "readerVersion": READER_VERSION, "pages": pages})
                 interpret(doc, pages, analyzing=any(p.get("textOnly") for p in pages))
                 if any(p.get("textOnly") for p in pages):
-                    image_queue.append((doc, blob, source_cache, course))
+                    image_queue.append((doc, blob, source_cache, course, pages, blob.stat().st_mtime_ns))
             except Exception as error:
                 doc.update(status="failed", issues=["文件正文读取失败：" + str(error)[:180]], pageCount=0, readPages=0)
                 prior = previous.get(doc["id"]) or {}
@@ -550,11 +605,11 @@ def scan_archived_web(api, profile, config, reader, cancelled, progress, checkpo
                 put(doc)
         publish(force=True)
         apply_checkpoint()
-        for number, (doc, blob, source_cache, course) in enumerate(image_queue, 1):
+        for number, (doc, blob, source_cache, course, cached_pages, file_stamp) in enumerate(image_queue, 1):
             cancelled()
             progress(f"识别图片 {number}/{len(image_queue)} · {doc['course']} · {doc['title']}")
             try:
-                pages = extract(blob, reader, cache)
+                pages = extract(blob, reader, cache, cached_pages=cached_pages if blob.stat().st_mtime_ns == file_stamp else None, verified_digest=doc["fingerprint"] if blob.stat().st_mtime_ns == file_stamp else None)
                 save_private(source_cache, {'accountId': account_id, "fingerprint": doc["fingerprint"], "readerVersion": READER_VERSION, "pages": pages})
                 interpret(doc, pages)
             except Exception as error:

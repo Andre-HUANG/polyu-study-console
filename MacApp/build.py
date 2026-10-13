@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, str(Path(__file__).resolve().parent / "document-vendor"))
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from prepare_updater import prepare as prepare_updater, LOCK as UPDATER_LOCK
 from release_build import CONSOLE_FILES, ASSETS, NAME, VERSION, BUILD, verify_bundle, source_hashes
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -90,8 +91,14 @@ def main():
         "CPython 3.12.15, python-build-standalone 20261001\n"
         "https://github.com/astral-sh/python-build-standalone/releases/tag/20261001\n"
         "Runtime license files are retained inside each runtime directory.\n", encoding="utf-8")
+    updater_source = prepare_updater("mac")
+    frameworks = CONTENTS / "Frameworks"
+    frameworks.mkdir()
+    shutil.copytree(updater_source / "Sparkle.framework", frameworks / "Sparkle.framework", symlinks=True)
+    shutil.copy2(updater_source / "LICENSE", licenses / "Sparkle-LICENSE.txt")
+    shutil.copy2(ROOT / "updater-lock.json", licenses / "Updater-dependency-lock.json")
     for arch in RUNTIMES:
-        run("xcrun", "swiftc", "-parse-as-library", "-module-cache-path", WORK / "module-cache", "-O", "-file-prefix-map", str(ROOT) + "=/src/polyu-study-console", "-target", f"{arch}-apple-macos13.0", SOURCE / "App.swift", SOURCE / "TestIsolation.swift", SOURCE / "NativeGUISmoke.swift", "-o", WORK / f"PolyUConsole-{arch}")
+        run("xcrun", "swiftc", "-parse-as-library", "-module-cache-path", WORK / "module-cache", "-O", "-file-prefix-map", str(ROOT) + "=/src/polyu-study-console", "-target", f"{arch}-apple-macos13.0", SOURCE / "App.swift", SOURCE / "TestIsolation.swift", SOURCE / "NativeGUISmoke.swift", SOURCE / "SoftwareUpdate.swift", SOURCE / "UpdateRecovery.swift", "-F", frameworks, "-framework", "Sparkle", "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks", "-o", WORK / f"PolyUConsole-{arch}")
     shutil.copy2(WORK / "PolyUConsole-arm64", CONTENTS / "MacOS/PolyUConsole")
     read_tools = RESOURCES / "read-tools"
     read_tools.mkdir()
@@ -107,6 +114,11 @@ def main():
                 "LSMinimumSystemVersion": "13.0", "LSArchitecturePriority": ["arm64"],
                 "LSApplicationCategoryType": "public.app-category.education",
                 "NSHighResolutionCapable": True,
+                "SUFeedURL": "https://github.com/Andre-HUANG/polyu-study-console/releases/latest/download/appcast-macos.xml",
+                "SUPublicEDKey": UPDATER_LOCK["publicKey"], "SUEnableAutomaticChecks": True,
+                "SUAutomaticallyUpdate": False, "SUScheduledCheckInterval": 86400,
+                "SURequireSignedFeed": True, "SUVerifyUpdateBeforeExtraction": True,
+                "SUSendProfileInfo": False,
                 "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
                 "NSHumanReadableCopyright": "PolyU student study console."}
     with (CONTENTS / "Info.plist").open("wb") as stream:
@@ -131,6 +143,17 @@ def main():
                     run("lipo", file, "-thin", "arm64", "-output", thin)
                     os.replace(thin, file)
                 run("codesign", "--force", "--sign", "-", file)
+    # Keep only arm64, then seal nested Sparkle helpers from the inside out.
+    for file in sorted(frameworks.rglob("*")):
+        if file.is_file() and not file.is_symlink() and file.read_bytes()[:4] in macho:
+            architectures = subprocess.check_output(["lipo", "-archs", str(file)], text=True).split()
+            if "arm64" not in architectures: raise RuntimeError("Updater helper lacks arm64")
+            if len(architectures)>1:
+                thin=file.with_name(file.name+".arm64")
+                run("lipo", file, "-thin", "arm64", "-output", thin);os.replace(thin,file)
+            run("codesign", "--force", "--sign", "-", file)
+    bundles=[p for p in frameworks.rglob("*") if p.is_dir() and not p.is_symlink() and p.suffix in {".app",".xpc",".framework"}]
+    for bundle in sorted(bundles,key=lambda p:len(p.parts),reverse=True): run("codesign","--force","--sign","-",bundle)
     # Desktop file providers may reapply Finder flags during runtime signing.
     run("codesign", "--force", "--sign", "-", read_tools / "DocumentReader")
     run("codesign", "--force", "--sign", "-", read_tools / "SessionVault")

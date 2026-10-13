@@ -27,7 +27,7 @@ class ReleaseGateTests(unittest.TestCase):
                 artifacts[name]={"sha256":hashlib.sha256(content).hexdigest(),"bytes":len(content)}
             self.reports[platform]={"ok":True,"platform":platform,"version":publishing.VERSION,"sourceSHA":self.head,
                 "sourceTreeClean":True,"archivePrivacyScan":True,"artifacts":artifacts,
-                "platformChecks":dict.fromkeys(["nativeGUI","backendRuntime","dmgReadOnlyScan","adHocSigned","dpapi","installUninstall"],True)}
+                "platformChecks":dict.fromkeys(["nativeGUI","backendRuntime","dmgReadOnlyScan","adHocSigned","dpapi","installUninstall","nativeUpdates"],True)}
         self.save()
         self.mock=patch.object(publishing,"source_sha",return_value=self.head)
         self.mock.start()
@@ -47,6 +47,11 @@ class ReleaseGateTests(unittest.TestCase):
     def test_missing_native_installation_blocks(self):
         self.reports["windows"]["platformChecks"]["installUninstall"]=False;self.save()
         with self.assertRaises(RuntimeError):self.collect()
+    def test_missing_native_updater_rehearsal_blocks(self):
+        for platform in ("mac","windows"):
+            self.reports[platform]["platformChecks"]["nativeUpdates"]=False;self.save()
+            with self.assertRaises(RuntimeError):self.collect()
+            self.reports[platform]["platformChecks"]["nativeUpdates"]=True
     def test_different_or_stale_commit_blocks(self):
         self.reports["windows"]["sourceSHA"]="2"*40;self.save()
         with self.assertRaises(RuntimeError):self.collect()

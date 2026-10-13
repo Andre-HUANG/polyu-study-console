@@ -75,7 +75,9 @@ def main():
                 assert not [r for r in found if r["classification"]=="FAIL"]
                 for name in CONSOLE_FILES:assert (app/"Contents/Resources/console"/name).read_bytes()==(CONSOLE/name).read_bytes()
             finally:subprocess.run(["hdiutil","detach",str(mount)],check=True,capture_output=True)
-        platform_checks={"nativeGUI":True,"backendRuntime":True,"dmgReadOnlyScan":True,
+        update=evidence("mac-update-evidence.json")
+        assert update["sourceHashes"]==hashes and len(update["scenarios"])==5
+        platform_checks={"nativeUpdates":True,"nativeGUI":True,"backendRuntime":True,"dmgReadOnlyScan":True,
                          "adHocSigned":True,"appleNotarized":False}
     else:
         if sys.platform!="win32":raise RuntimeError("Windows release validation requires Windows")
@@ -84,7 +86,9 @@ def main():
         assert installer["payloadManifestSHA256"]==manifest_digest and installer["setupSHA256"]==sha(files[0])
         assert native["dpapiRoundTrip"] and native["ownedBackendStopped"] and gui["webview2NativeGUI"]
         assert installer["nativeInstallUninstall"] and installer["uninstallPreservesProfile"] and installer["installedGUIExecuted"] and installer["installedInventoryVerified"]
-        platform_checks={"nativeGUI":True,"backendRuntime":True,"dpapi":True,"installUninstall":True,"authenticodeSigned":False}
+        update=evidence("windows-update-evidence.json")
+        assert update["sourceHashes"]==hashes and update["payloadManifestSHA256"]==manifest_digest and len(update["scenarios"])==6
+        platform_checks={"nativeUpdates":True,"nativeGUI":True,"backendRuntime":True,"dpapi":True,"installUninstall":True,"authenticodeSigned":False}
     report={"ok":True,"platform":args.platform,"version":VERSION,"sourceSHA":head,"sourceTreeClean":True,
             "artifacts":{f.name:{"sha256":sha(f),"bytes":f.stat().st_size} for f in files},
             "fileCount":count,"archivePrivacyScan":True,"platformChecks":platform_checks,"realCanvasValidated":False}

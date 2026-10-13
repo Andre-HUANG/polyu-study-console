@@ -35,6 +35,9 @@ from course_evidence import VERSION as EVIDENCE_VERSION
 from assessment_types import KINDS, EXAM_RE, classify
 from diagnostic_log import DiagnosticLog, error_code, validate_event
 from local_access import LocalAccess
+import runtime_cache
+import academic_calendar
+import timetable
 
 
 HERE = Path(__file__).resolve().parent
@@ -54,7 +57,7 @@ DIAGNOSTICS = None
 
 def load_json(path: Path, default):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return runtime_cache.read_json(path, default)
     except (OSError, json.JSONDecodeError):
         return default
 
@@ -175,6 +178,10 @@ def rebuild(collect=True):
     phase("Canvas 评分设置")
     notices = collect_grading(api, PROFILE, cfg, still_connected)
     phase("Canvas 评分设置", "partial" if notices else "complete", "\n".join(notices))
+    phase("Canvas 课程日历")
+    calendar_result = timetable.collect(api, PROFILE, cfg, still_connected)
+    phase("Canvas 课程日历", "partial" if calendar_result["issues"] else "complete",
+          "课程日历覆盖受限；文件识别继续。" if calendar_result["issues"] else "已读取所有可见课程日历分页。")
     phase("课程附件下载")
     JOB["stage"] = "正在按 Canvas 模块下载所有可见附件…"
     archive = archive_courses(api, PROFILE, cfg, still_connected, lambda stage: JOB.update(stage=stage))
@@ -188,6 +195,7 @@ def rebuild(collect=True):
         still_connected()
         reconcile_document_deadlines(PROFILE, index)
         merge_document_grading(PROFILE, index)
+        timetable.rebuild(PROFILE, cfg, index)
     try:
         index = scan_courses(api, PROFILE, cfg, os.environ.get("POLYU_DOCUMENT_READER"), still_connected,
                              lambda stage: JOB.update(stage=stage), checkpoint=apply_findings, archive=archive)
@@ -274,11 +282,15 @@ def _connect_native(payload):
     saved_settings = load_json(PROFILE / 'app-settings.json', {'autoSync': True})
     save_private(PROFILE / 'app-settings.json', sync_settings(saved_settings))
     JOB.update(needsLogin=False, lastError="")
+    runtime_cache.clear()
     return "Canvas 已授权，正在建立本机学习控制台。"
 
 
 def logout_native():
     global CSRF
+    runtime_cache.clear()
+    academic_calendar.clear_memory()
+    DASHBOARD_CACHE.clear()
     ACCESS.rotate()
     CSRF = ACCESS.csrf
     from session_store import delete_session
@@ -314,6 +326,7 @@ def connection_data():
 
 
 def start_sync():
+    if runtime_cache.STOP.is_set(): return False
     if NATIVE and not connection_data()["authorized"]:
         return False
     if not MUTATION_LOCK.acquire(blocking=False):
@@ -340,6 +353,7 @@ def start_sync():
         finally:
             JOB["busy"] = False
             MUTATION_LOCK.release()
+            runtime_cache.WAKE.set()
     threading.Thread(target=worker, daemon=True).start()
     return True
 
@@ -368,14 +382,54 @@ def automatic_sync_due(settings, login, snapshot, document_index, has_grading, n
 
 
 def automatic_sync():
-    while True:
-        settings = read_sync_settings()
-        login = load_json(PROFILE / 'login.json', {})
-        snapshot = load_json(PROFILE / 'snapshot.json', {})
-        document_index = load_json(PROFILE / 'documents/index.json', {})
+    while not runtime_cache.STOP.is_set():
+        runtime_cache.WAKE.clear()
+        with runtime_cache.snapshot():
+            settings = read_sync_settings()
+            login = load_json(PROFILE / 'login.json', {})
+            snapshot = load_json(PROFILE / 'snapshot.json', {})
+            document_index = load_json(PROFILE / 'documents/index.json', {})
         if automatic_sync_due(settings, login, snapshot, document_index, (PROFILE/'grading_schemes.json').exists(), datetime.now(HK), time.monotonic()):
             start_sync()
-        time.sleep(20)
+        delay = None
+        if settings['autoSync'] and login and not JOB['needsLogin']:
+            interval = settings["syncIntervalSeconds"]
+            if JOB['busy']: delay = interval
+            elif JOB["lastAttempt"]: delay = max(1, interval-(time.monotonic()-JOB["lastAttempt"]))
+            else:
+                at = local_time(snapshot.get('collected_at'))
+                delay = max(1, interval-(datetime.now(HK)-at).total_seconds()) if at else interval
+        runtime_cache.WAKE.wait(delay)
+
+CALENDAR_LOCK = threading.Lock()
+CALENDAR_JOB = {"busy": False}
+def start_calendar_refresh():
+    if not CALENDAR_LOCK.acquire(blocking=False): return False
+    CALENDAR_JOB["busy"] = True
+    epoch = ACCESS.token
+    authenticated = connection_data()["authorized"]
+    def cancelled():
+        if runtime_cache.STOP.is_set() or epoch != ACCESS.token: raise RuntimeError("校历读取已取消")
+    def worker():
+        try:
+            def commit(value):
+                with MUTATION_LOCK:
+                    cancelled()
+                    academic_calendar.store_value(value, PROFILE if authenticated and connection_data()["authorized"] else None)
+            academic_calendar.refresh(PROFILE if authenticated else None, cancelled, commit=commit)
+        except RuntimeError: pass
+        finally:
+            CALENDAR_JOB["busy"] = False
+            CALENDAR_LOCK.release()
+    threading.Thread(target=worker, daemon=True).start()
+    return True
+
+def calendar_maintenance():
+    # No background daemon survives application termination.
+    while not runtime_cache.STOP.is_set():
+        profile = PROFILE if connection_data()["authorized"] else None
+        if academic_calendar.due(profile): start_calendar_refresh()
+        if runtime_cache.STOP.wait(7*86400): return
 
 
 def safe_url(value):
@@ -561,6 +615,8 @@ def dashboard_data():
         "recentChanges": changes[:100], "changeCount": len(changes),
         "latestCanvasChange": latest_canvas_change(snapshot, courses, documents) if signed_in else None,
         "version": APP_VERSION, "documents": documents,
+        "academicCalendar": academic_calendar.month_summary(PROFILE if signed_in else None),
+        "timetable": timetable.query(PROFILE, config, today.isoformat()) if signed_in else {"date": today.isoformat(), "view": "day", "days": [today.isoformat()], "events": [], "pending": [], "issues": []},
         "grades": build_grades(courses, snapshot.get("assignments"), safe_url,
                                raw_assignment_meta(snapshot, courses), PROFILE / "grading_schemes.json",
                                load_json(PROFILE / "canvas-course-grades.json", {}) if signed_in else None),
@@ -569,6 +625,31 @@ def dashboard_data():
         "snapshotComplete": bool(snapshot.get("complete", False)),
         "connection": connection_data(),
     }
+
+
+DASHBOARD_CACHE = {}
+def status_data():
+    with runtime_cache.snapshot():
+        connection = connection_data()
+    return {"calendarBusy": CALENDAR_JOB["busy"], "revision": runtime_cache.revision(PROFILE, ACCESS.token + str(academic_calendar.REVISION), datetime.now(HK).date().isoformat()),
+            "connection": {k: connection.get(k) for k in ("native", "authorized", "busy", "stage", "lastError", "needsLogin", "autoSync", "syncIntervalSeconds")}}
+
+def cached_dashboard(view="full"):
+    key = status_data()["revision"]
+    with runtime_cache.LOCK:
+        if DASHBOARD_CACHE.get("key") != key:
+            with runtime_cache.snapshot(): value = dashboard_data()
+            DASHBOARD_CACHE.clear()
+            DASHBOARD_CACHE.update(key=key, data=value)
+        value = {**DASHBOARD_CACHE["data"],"revision":key}
+    with runtime_cache.snapshot(): value["connection"] = connection_data()
+    import hashlib
+    feature_files=("documents/timetable.json","timetable-manual.json","calendar/official.json")
+    value["featuresRevision"]=hashlib.sha256(json.dumps([ACCESS.token,datetime.now(HK).date().isoformat(),academic_calendar.REVISION,
+        [runtime_cache.signature(PROFILE/name) for name in feature_files]]).encode()).hexdigest()
+    if view == "dashboard":
+        value["documents"] = {k: v for k, v in value["documents"].items() if k not in {"records", "downloads", "evidence"}}
+    return value
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -611,6 +692,7 @@ class Handler(BaseHTTPRequestHandler):
     def send_bytes(self, body: bytes, content_type: str, status=HTTPStatus.OK):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
+        if getattr(self, "response_etag", None): self.send_header("ETag", self.response_etag)
         self.send_header("Connection", "close")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         cookie = getattr(self, "session_cookie", None)
@@ -639,8 +721,33 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"app": "polyu-study-console", "ok": True, "native": NATIVE})
         if path.startswith("/api/") and not self.client_authorized():
             return self.send_json({"error": "需要原生客户端授权"}, HTTPStatus.UNAUTHORIZED)
+        if path in {"/api/timetable", "/api/calendar"}:
+            try:
+                args = parse_qs(urlsplit(self.path).query)
+                with runtime_cache.snapshot():
+                    authorized = connection_data()["authorized"]
+                    if path == "/api/calendar":
+                        value = academic_calendar.month_summary(PROFILE if authorized else None, args.get("year", [None])[0], args.get("month", [None])[0])
+                        value["busy"] = CALENDAR_JOB["busy"]
+                    else:
+                        if not authorized: return self.send_sensitive({"days": [], "events": [], "pending": [], "issues": []})
+                        value = timetable.query(PROFILE, load_json(PROFILE / "config.json", {}), args.get("date", [datetime.now(HK).date().isoformat()])[0], args.get("view", ["day"])[0], args.get("course", [None])[0])
+                return self.send_sensitive(value)
+            except ValueError as error:
+                return self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+        if path == "/api/status":
+            return self.send_sensitive(status_data())
+        if path == "/api/documents":
+            with runtime_cache.snapshot():
+                value = public_summary(PROFILE) if connection_data()["authorized"] else {}
+            return self.send_sensitive(value)
         if path == "/api/data":
-            return self.send_sensitive(dashboard_data())
+            revision = status_data()["revision"]
+            view = parse_qs(urlsplit(self.path).query).get("view", ["full"])[0]
+            self.response_etag = '"' + revision + (".dashboard" if view=="dashboard" else ".full") + '"'
+            if self.headers.get("If-None-Match") == self.response_etag and self.client_authorized():
+                return self.send_bytes(b"", "application/json", HTTPStatus.NOT_MODIFIED)
+            return self.send_sensitive(cached_dashboard(view))
         if path == '/api/diagnostics':
             if self.headers.get('X-PolyU-Console') != CSRF:
                 return self.send_json({'error': '请求来源无效'}, HTTPStatus.FORBIDDEN)
@@ -657,6 +764,7 @@ class Handler(BaseHTTPRequestHandler):
             "/": (HERE / "index.html", "text/html; charset=utf-8"),
             "/styles.css": (HERE / "styles.css", "text/css; charset=utf-8"),
             "/app.js": (HERE / "app.js", "application/javascript; charset=utf-8"),
+            "/academic-ui.js": (HERE / "academic-ui.js", "application/javascript; charset=utf-8"),
             "/assets/polyu-logo.png": (HERE / "assets/polyu-logo.png", "image/png"),
             "/assets/polyu-favicon.ico": (HERE / "assets/polyu-favicon.ico", "image/x-icon"),
         }
@@ -703,6 +811,13 @@ class Handler(BaseHTTPRequestHandler):
             self.session_cookie = (ACCESS.cookie_name(self.server.server_port) + "=" + token +
                                    "; Path=/; HttpOnly; SameSite=Strict")
             return self.send_json({"csrf": CSRF})
+        if trusted_native and path == "/api/native/update/prepare":
+            if not MUTATION_LOCK.acquire(blocking=False): return self.send_json({"error": "正在写入账号资料"}, HTTPStatus.CONFLICT)
+            try:
+                runtime_cache.STOP.set()
+                runtime_cache.WAKE.set()
+                return self.send_json({"ok": True})
+            finally: MUTATION_LOCK.release()
         if trusted_native and path == "/api/native/bootstrap":
             return self.send_json({"ticket": ACCESS.issue(), "expiresIn": 30})
         if not trusted_native and not bootstrap and not self.client_authorized():
@@ -715,8 +830,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({'ok': True})
             except ValueError:
                 return self.send_json({'error': '日志事件无效'}, HTTPStatus.BAD_REQUEST)
-        if NATIVE and not trusted_native and path not in {"/api/settings", '/api/diagnostics/clear'} and not connection_data()["authorized"]:
+        if NATIVE and not trusted_native and path not in {"/api/settings", "/api/calendar/refresh", '/api/diagnostics/clear'} and not connection_data()["authorized"]:
             return self.send_json({"error": "请先登录并授权连接 Canvas。"}, HTTPStatus.FORBIDDEN)
+        if runtime_cache.STOP.is_set(): return self.send_json({"error": "程序更新正在安装，请等待重启。"}, HTTPStatus.CONFLICT)
+        if path == "/api/calendar/refresh":
+            if not start_calendar_refresh(): return self.send_json({"error": "校历正在刷新"}, HTTPStatus.CONFLICT)
+            return self.send_json({"message": "正在检查官方校历。"})
         if path == "/api/refresh" and NATIVE:
             if not load_json(PROFILE / "login.json", {}):
                 return self.send_json({"error": "请先登录并授权连接 Canvas。"}, HTTPStatus.BAD_REQUEST)
@@ -748,6 +867,8 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/refresh":
                 rebuild(collect=True)
                 message = "Canvas、成绩和安排已更新。"
+            elif path == "/api/timetable":
+                message = timetable.mutate(PROFILE, load_json(PROFILE / "config.json", {}), payload)
             elif path == "/api/event/save":
                 message = self.save_event(payload)
                 diagnostics().record('event.save', 'success')
@@ -756,7 +877,8 @@ class Handler(BaseHTTPRequestHandler):
                 diagnostics().record('event.delete', 'success')
             else:
                 return self.send_json({"error": "操作不存在"}, HTTPStatus.NOT_FOUND)
-            self.send_json({"message": message, "data": dashboard_data()})
+            runtime_cache.clear()
+            self.send_json({"message": message, "data": cached_dashboard("dashboard")})
             if sync_after:
                 # Launch only after releasing the connection/setup mutation lock.
                 threading.Timer(0.1, start_sync).start()
@@ -880,6 +1002,7 @@ def main():
         save_private(ready, {"url": url, "pid": os.getpid()})
     if NATIVE:
         threading.Thread(target=automatic_sync, daemon=True).start()
+    threading.Thread(target=calendar_maintenance, daemon=True).start()
     if "--no-open" not in sys.argv:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
@@ -887,6 +1010,8 @@ def main():
     except KeyboardInterrupt:
         print("\n控制台已关闭。", flush=True)
     finally:
+        runtime_cache.STOP.set()
+        runtime_cache.WAKE.set()
         server.server_close()
 
 

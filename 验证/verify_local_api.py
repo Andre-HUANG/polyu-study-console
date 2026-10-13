@@ -51,7 +51,7 @@ def main():
                 results.append({"operation": path.split("?")[0], "expectedHTTP": status, "result": "PASS"})
                 return value, response_headers
             try:
-                for path in ["api/data", "api/documents/search?q=synthetic", "api/diagnostics"]:
+                for path in ["api/data", "api/status", "api/documents", "api/timetable?date=2026-10-13", "api/calendar?month=2026-10", "api/documents/search?q=synthetic", "api/diagnostics"]:
                     request(public, path, status=401)
                 page, _ = request(public, "")
                 assert server.CSRF.encode() not in page and server.ACCESS.token.encode() not in page
@@ -71,6 +71,21 @@ def main():
                 save_private(profile/"login.json", {"user_id": "synthetic-A", "name": "Synthetic A"})
                 save_private(profile/"config.json", {"user": {"id": "synthetic-A"}, "courses": []})
                 data, _ = request(private, "api/data"); assert data["connection"]["name"] == "Synthetic A"
+                save_private(profile/"config.json", {"user":{"id":"synthetic-A"},"courses":[{"id":"1","code":"SYNTHETIC"}]})
+                request(private,"api/timetable",{"action":"save","courseId":"1","title":"Synthetic lecture","kind":"lecture","date":"2026-10-13","time":"18:30","endTime":"20:30"},headers)
+                timetable, _ = request(private,"api/timetable?date=2026-10-13")
+                assert len(timetable["events"])==1
+                request(private,"api/timetable",{"action":"delete","id":timetable["events"][0]["id"]},{"Origin":"https://attacker.invalid"},403)
+                request(private,"api/timetable",{"action":"delete","id":timetable["events"][0]["id"]},{"Origin":url[:-1]},403)
+                status, _ = request(private,"api/status");assert "revision" in status and "courses" not in status
+                slim, slim_headers = request(private,"api/data?view=dashboard")
+                assert "records" not in slim.get("documents",{})
+                request(private,"api/data",headers={"If-None-Match":slim_headers["ETag"]})
+                # The ETag path must return no body, preserving full data compatibility.
+                conditional=urllib.request.Request(url+"api/data?view=dashboard",headers={"If-None-Match":slim_headers["ETag"]})
+                try: private.open(conditional)
+                except urllib.error.HTTPError as error:assert error.code==304 and not error.read()
+                else:raise AssertionError("Unchanged data did not return 304")
                 request(public, "api/native/logout", {}, native_headers)
                 request(private, "api/data", status=401)
                 save_private(profile/"login.json", {"user_id": "synthetic-B", "name": "Synthetic B"})

@@ -120,6 +120,7 @@ def main():
                 assert all(e['sha256'] == hashlib.sha256(payloads[e['id']][1]).hexdigest() for e in archive['entries'])
                 assert all(r['status'] in {'read','partial'} for r in index['records']), [(r['title'], r['status'], r['issues']) for r in index['records']]
                 normalized = [{k: r.get(k) for k in ('id', 'facts', 'findings', 'status', 'issues', 'pageCount', 'processedPages')} for r in sorted(index['records'], key=lambda r: r['id'])]
+                args.output.with_name(args.output.stem+'-evidence.json').write_text(json.dumps(normalized,sort_keys=True,ensure_ascii=False,indent=2))
                 row = {'trial': trial+1, 'condition': condition, 'downloadSeconds': downloaded-started,
                        'importSeconds': finished-downloaded, 'totalSeconds': finished-started,
                        'files': len(archive['entries']), 'pages': sum(r['pageCount'] for r in index['records']),
