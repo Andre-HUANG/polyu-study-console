@@ -12,6 +12,15 @@ import zipfile
 MAX_EXPANSION=2*1024*1024*1024
 FORBIDDEN={"account","browser","webview","documents","login.json","config.json","state.json","canvas-cookies.json","grading_schemes.json"}
 
+def private_path(parts):
+    parts=tuple(str(part).lower() for part in parts)
+    for position,part in enumerate(parts):
+        if part not in FORBIDDEN: continue
+        # pywebview is application code, installed in this exact runtime namespace.
+        if part=="webview" and position==3 and parts[:4]==("runtime","lib","site-packages","webview"): continue
+        return True
+    return False
+
 def digest(path):
     value=hashlib.sha256()
     with pathlib.Path(path).open("rb") as f:
@@ -24,7 +33,9 @@ def safe_program(path):
     for part in (path,*path.parents):
         if part.is_symlink() or getattr(part,"is_junction",lambda:False)(): raise ValueError("安装位置不能是链接")
     if not (path/"WindowsApp/main.py").is_file() or not (path/"runtime/python.exe").is_file(): raise ValueError("此位置不是本应用")
-    if any(p.name.lower() in FORBIDDEN for p in path.rglob("*")): raise ValueError("程序目录含账号资料，不能安全自动替换")
+    for entry in path.rglob("*"):
+        if entry.is_symlink() or getattr(entry,"is_junction",lambda:False)(): raise ValueError("程序目录不能包含链接")
+        if private_path(entry.relative_to(path).parts): raise ValueError("程序目录含账号资料，不能安全自动替换")
     return path
 
 def unpack_payload(archive,stage,expected_version):
@@ -34,7 +45,7 @@ def unpack_payload(archive,stage,expected_version):
         for item in members:
             name=item.filename;p=pathlib.PurePosixPath(name)
             if p.is_absolute() or not p.parts or ".." in p.parts or "\\" in name or ":" in name: raise ValueError("更新包含不安全路径")
-            if any(part.lower() in FORBIDDEN for part in p.parts): raise ValueError("更新包含账号资料")
+            if private_path(p.parts[1:]): raise ValueError("更新包含账号资料")
             if any(part.rstrip(". ")!=part for part in p.parts): raise ValueError("Windows 更新路径不规范")
             if stat.S_ISLNK(item.external_attr>>16): raise ValueError("更新包不能含符号链接")
             normalized=name.rstrip("/").casefold()

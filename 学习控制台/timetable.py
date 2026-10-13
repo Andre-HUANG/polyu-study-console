@@ -102,7 +102,33 @@ def build_rules(config,index,calendar=None):
             target["issues"]=list(dict.fromkeys(target.get("issues",[])+rule.get("issues",[])))
         else:
             grouped[key]=copy.deepcopy(rule);grouped[key]["sourceIds"]=[rule["id"]]
+    # Reuse the established assessment evidence rules: an unresolved exam
+    # date/time/venue must not become a confirmed class through a second parser.
+    from course_evidence import consolidate
+    evidence=index.get("evidence") or consolidate(index.get("records",[]))
+    unresolved={p["id"]:p for p in evidence.get("pending",[]) if p.get("needsReview")}
+    detail_conflicts=evidence.get("detailConflicts",[])
+    specs={}
+    for document in index.get("records",[]):
+        for fact in document.get("facts") or []:
+            if fact.get("kind") in {"midterm","final","test"}:
+                specs[(fact["course"],fact["key"])]=fact
     for rule in grouped.values():
+        if rule.get("kind")=="exam":
+            for (course,key),spec in specs.items():
+                if rule.get("course")!=course or not re.search(spec.get("pattern","(?!)"),rule.get("title",""),re.I):continue
+                identifier=hashlib.sha256((course+":"+key).encode()).hexdigest()[:16]
+                conflict=unresolved.get(identifier)
+                messages=[conflict["reason"]] if conflict else []
+                sources=list(conflict.get("sources",[])) if conflict else []
+                for detail in detail_conflicts:
+                    if detail.get("course")==course and detail.get("title")==spec["title"]:
+                        messages.append("来源中的"+("时间" if detail["field"]=="time" else "地点")+"不一致")
+                        sources.extend(detail.get("sources",[]))
+                if messages:
+                    rule["issues"]=list(dict.fromkeys(rule.get("issues",[])+messages))
+                    known={(s.get("documentId"),s.get("locator"),s.get("quote")) for s in rule.get("sources",[])}
+                    rule["sources"].extend(s for s in sources if (s.get("documentId"),s.get("locator"),s.get("quote")) not in known)
         confidence=max((source.get("confidence",0) for source in rule.get("sources",[])),default=rule.get("confidence",0))
         rule["confidence"]=confidence
         if confidence>=.75:rule["issues"]=[issue for issue in rule.get("issues",[]) if issue!="OCR 行置信度不足"]

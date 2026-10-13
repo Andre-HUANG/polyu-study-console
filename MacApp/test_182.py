@@ -56,6 +56,22 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         courses={"1":{"code":"C1"}}
         rows=[{"id":1,"context_code":"course_1","title":"Exam","due_at":"2026-10-13T10:30:00Z"}]
         self.assertEqual(timetable._canvas_rules({"events":rows},courses),[])
+    def test_conflicting_exam_sources_stay_pending_in_both_modules(self):
+        from course_evidence import facts_from,consolidate
+        records=[]
+        for number,date in [(1,"24"),(2,"25")]:
+            text="Midterm test "+date+" October 2026 19:00"
+            document={"type":"file","id":"document-"+str(number),"courseId":"1","course":"COURSE1","title":"Assessment notice","url":"https://canvas.polyu.edu.hk/courses/1/files/"+str(number)}
+            pages=[{"page":1,"text":text,"rows":[text]}]
+            records.append({**document,"facts":facts_from(document,pages,self.config),"timetableRules":timetable_reader.rules_from(document,pages,self.config)})
+        index={"records":records,"evidence":consolidate(records)}
+        self.assertTrue(index["evidence"]["pending"])
+        value=timetable.rebuild(self.profile,self.config,index)
+        self.assertEqual(len(value["rules"]),2)
+        self.assertTrue(all(any("不一致" in issue for issue in r["issues"]) for r in value["rules"]))
+        result=timetable.query(self.profile,self.config,"2026-10-24")
+        self.assertFalse(result["events"]);self.assertEqual(len(result["pending"]),2)
+
     def test_source_dates_times_and_classroom_are_preserved(self):
         rules=self.read("Lecture Monday 18:30–21:30 Location: QR601\nExam 24 October 2026 19:00–21:00")
         self.assertEqual(len(rules),2)
@@ -244,6 +260,34 @@ class UpdateChecks(unittest.TestCase):
             archive=root/"bad.zip"
             with zipfile.ZipFile(archive,"w") as z:z.writestr("../account/login.json","synthetic")
             with self.assertRaises(ValueError):unpack_payload(archive,root/"stage","1.8.3")
+    def test_updater_accepts_bundled_webview_code_but_rejects_private_webview(self):
+        import zipfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp).resolve();program=self.program(root/"app","1.8.3")
+            module=program/"runtime/Lib/site-packages/webview/__init__.py"
+            module.parent.mkdir(parents=True);module.write_text("pass")
+            self.assertEqual(safe_program(program),program)
+            manifest={p.relative_to(program).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in program.rglob("*") if p.is_file()}
+            (program/"payload-sha256.json").write_text(json.dumps(manifest))
+            archive=root/"good.zip"
+            with zipfile.ZipFile(archive,"w") as z:
+                for p in program.rglob("*"):
+                    if p.is_file(): z.write(p,p.relative_to(root).as_posix())
+            self.assertEqual(unpack_payload(archive,root/"stage","1.8.3").name,"app")
+            (program/"webview").mkdir()
+            with self.assertRaises(ValueError):safe_program(program)
+            (program/"webview").rmdir()
+            private=module.parent/"account";private.mkdir()
+            with self.assertRaises(ValueError):safe_program(program)
+    def test_updates_reject_nested_program_symlinks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp).resolve();program=self.program(root/"app","1.8.3")
+            outside=root/"separate";outside.mkdir()
+            link=program/"linked"
+            try: link.symlink_to(outside,target_is_directory=True)
+            except (OSError,NotImplementedError):self.skipTest("Symlink privilege unavailable")
+            with self.assertRaises(ValueError):safe_program(program)
+
     def test_failed_swap_restores_previous_program(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp).resolve();old=self.program(root/"app","1.8.2");new=self.program(root/"new","1.8.3")

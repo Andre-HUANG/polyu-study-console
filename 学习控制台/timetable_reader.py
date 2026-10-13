@@ -6,7 +6,7 @@ import re
 from assessment_reader import readings, time_values, PLACE
 from course_evidence import dates_in, source_for, term_bounds
 
-VERSION = 1
+VERSION = 2
 KINDS = {"lecture": "讲课", "lab": "实验", "tutorial": "辅导课", "exam": "考试"}
 TYPE = re.compile(r"\b(?:lectures?|classes?|sessions?|labs?|laborator(?:y|ies)|tutorials?|seminars?|exam(?:ination)?s?|tests?|quizzes?|mid[- ]?terms?)\b|讲课|講課|课堂|課堂|实验|實驗|辅导|輔導|考试|考試|测验|測驗", re.I)
 DAYS = re.compile(r"\b(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b|(?:星期|周|週)([一二三四五六日天])", re.I)
@@ -16,7 +16,7 @@ CN_NUM = {"一":0,"二":1,"三":2,"四":3,"五":4,"六":5,"日":6,"天":6}
 
 def kind(text):
     if re.search(r"exam|test|quiz|mid[- ]?term|考试|考試|测验|測驗",text,re.I): return "exam"
-    if re.search(r"\blab\b|laborator|实验|實驗",text,re.I): return "lab"
+    if re.search(r"\blabs?\b|laborator|实验|實驗",text,re.I): return "lab"
     if re.search(r"tutorial|辅导|輔導",text,re.I): return "tutorial"
     return "lecture"
 
