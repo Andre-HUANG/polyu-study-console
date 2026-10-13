@@ -74,6 +74,22 @@ enum UpdateRecovery {
             throw error
         }
     }
+    static func abortUncommitted() -> Bool {
+        do {
+            let data=try Data(contentsOf:marker)
+            guard let spec=try JSONSerialization.jsonObject(with:data) as? [String:Any],
+                  spec["pid"] as? Int == Int(getpid()),
+                  spec["target"] as? String == Bundle.main.bundleURL.resolvingSymlinksInPath().path,
+                  let folderPath=spec["folder"] as? String, let backupPath=spec["backup"] as? String else { return false }
+            let folder=try safe(URL(fileURLWithPath:folderPath),below:container)
+            let backup=try safe(URL(fileURLWithPath:backupPath),below:folder)
+            let original=try metadata(backup);let current=try metadata(Bundle.main.bundleURL.resolvingSymlinksInPath())
+            guard original["CFBundleVersion"] as? String == current["CFBundleVersion"] as? String else { return false }
+            try write(["pid":getpid()],at:folder.appendingPathComponent("aborted.json"))
+            try FileManager.default.removeItem(at:marker)
+            return true
+        } catch { return false }
+    }
     static func recordLaunch() {
         guard let data=try? Data(contentsOf:marker),var spec=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],
               spec["target"] as? String == Bundle.main.bundleURL.resolvingSymlinksInPath().path,
@@ -104,7 +120,18 @@ enum UpdateRecovery {
             let backup=try safe(URL(fileURLWithPath:backupPath),below:folder)
             _=try metadata(backup)
             let limit=Date().addingTimeInterval(600)
-            while kill(pid_t(pid),0)==0 && Date()<limit { Thread.sleep(forTimeInterval:0.5) }
+            while kill(pid_t(pid),0)==0 && Date()<limit {
+                if let data=try? Data(contentsOf:folder.appendingPathComponent("aborted.json")),
+                   let cancelled=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],
+                   cancelled["pid"] as? Int == pid {
+                    if let markerData=try? Data(contentsOf:marker),
+                       let pending=(try? JSONSerialization.jsonObject(with:markerData)) as? [String:Any],
+                       pending["folder"] as? String == folder.path { try? FileManager.default.removeItem(at:marker) }
+                    try FileManager.default.removeItem(at:folder)
+                    return 0
+                }
+                Thread.sleep(forTimeInterval:0.5)
+            }
             if kill(pid_t(pid),0)==0 { return 1 } // Original app still owns writes.
             let ready=folder.appendingPathComponent("ready.json")
             let deadline=Date().addingTimeInterval(120)

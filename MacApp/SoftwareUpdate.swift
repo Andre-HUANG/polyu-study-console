@@ -33,8 +33,10 @@ extension AppDelegate: SPUUpdaterDelegate {
 
     func prepareUpdateRestart(_ completion: @escaping () -> Void) {
         guard !terminating, !resettingAccount else { return }
+        updateGeneration += 1
+        let generation = updateGeneration
         console.evaluateJavaScript("window.polyuPrepareUpdate?.() ?? false") { [weak self] result, _ in
-            guard let self = self else { return }
+            guard let self = self, generation == self.updateGeneration else { return }
             if result as? Bool != true {
                 self.alert("请先保存安排", "课程表或安排表单尚未保存。保存或关闭表单后再安装更新。")
                 self.pendingUpdateInstall = completion
@@ -42,13 +44,20 @@ extension AppDelegate: SPUUpdaterDelegate {
             }
             do { try UpdateRecovery.prepare(version: self.pendingUpdateVersion ?? applicationVersion) }
             catch { self.alert("更新准备未完成",error.localizedDescription);self.pendingUpdateInstall=completion;return }
-            self.waitForSafeUpdate(completion)
+            self.waitForSafeUpdate(completion, generation: generation)
         }
     }
 
-    func waitForSafeUpdate(_ completion: @escaping () -> Void) {
+    func waitForSafeUpdate(_ completion: @escaping () -> Void, generation: Int) {
+        guard generation == updateGeneration else { return }
         postNative("update/prepare", payload: [:]) { [weak self] result in
             guard let self = self, !self.terminating, !self.resettingAccount else { return }
+            if generation != self.updateGeneration {
+                if case .success = result, self.backend != nil {
+                    self.stopBackend(); self.showStartup("更新已取消，正在恢复学习服务…"); self.startBackend()
+                }
+                return
+            }
             switch result {
             case .success:
                 self.console.stopLoading()
@@ -57,7 +66,7 @@ extension AppDelegate: SPUUpdaterDelegate {
                 completion()
             case .failure:
                 self.console.evaluateJavaScript("window.polyuNativeNotice?.('更新包已校验；正在等待当前同步与识别安全完成。')")
-                DispatchQueue.main.asyncAfter(deadline: .now()+2) { [weak self] in self?.waitForSafeUpdate(completion) }
+                DispatchQueue.main.asyncAfter(deadline: .now()+2) { [weak self] in self?.waitForSafeUpdate(completion, generation: generation) }
             }
         }
     }
@@ -72,7 +81,12 @@ extension AppDelegate: SPUUpdaterDelegate {
     }
 
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
-        guard !terminating, !resettingAccount, backend == nil else { return }
+        guard !terminating, !resettingAccount else { return }
+        updateGeneration += 1
+        pendingUpdateInstall = nil
+        pendingUpdateVersion = nil
+        _ = UpdateRecovery.abortUncommitted()
+        guard backend == nil else { return }
         showStartup("更新未完成，正在恢复学习服务…")
         startBackend()
     }

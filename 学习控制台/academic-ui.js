@@ -99,7 +99,7 @@
     try {
       $('#classSave').disabled = true;
       const value = ['save', 'confirm'].includes(action) ? payload() : { courseId: $('#classForm').elements.courseId.value, group: $('#classForm').elements.group.value };
-      await api('/api/timetable', { ...value, action, id: ui.edit?.id });
+      await api('/api/timetable', { ...value, action, id: ui.edit?.id, digest: ui.edit?.digest });
       $('#classDialog').close(); await refresh(); showNotice('课程表已保存。');
     } catch (error) { $('#classFormError').textContent = error.message; }
     finally { $('#classSave').disabled = false; }

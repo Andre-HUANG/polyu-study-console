@@ -30,7 +30,10 @@ def prepare(platform):
             p=pathlib.PurePosixPath(name)
             if p.is_absolute() or ".." in p.parts: raise ValueError("更新依赖路径无效")
         archive.extractall(folder)
-    return folder/("WinSparkle-"+entry["version"])
+    result=folder/("WinSparkle-"+entry["version"])
+    if hashlib.sha256((result/"x64/Release/WinSparkle.dll").read_bytes()).hexdigest()!=entry["dllSHA256"]:
+        raise RuntimeError("更新组件内部 DLL 哈希不匹配")
+    return result
 
 if __name__=="__main__":
     import sys

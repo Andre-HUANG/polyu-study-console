@@ -38,6 +38,23 @@ final class Delegate:NSObject,NSApplicationDelegate,SPUUpdaterDelegate {
         window.title="PolyU isolated updater validation "+applicationVersion
         window.makeKeyAndOrderFront(nil)
         record("launch",Int(getpid()))
+        if Bundle.main.infoDictionary!["TestScenario"] as? String == "abort-recovery" {
+            do {
+                try UpdateRecovery.prepare(version:"1.8.3")
+                let spec=try JSONSerialization.jsonObject(with:Data(contentsOf:UpdateRecovery.marker)) as! [String:Any]
+                let folder=spec["folder"] as! String
+                guard UpdateRecovery.abortUncommitted() else { record("error","Abort rejected");NSApp.terminate(nil);return }
+                let limit=Date().addingTimeInterval(10)
+                func checkCleanup() {
+                    if !FileManager.default.fileExists(atPath:UpdateRecovery.marker.path) && !FileManager.default.fileExists(atPath:folder) {
+                        record("abortRecoveryCleared");NSApp.terminate(nil)
+                    } else if Date()>limit {record("error","Aborted recovery retained");NSApp.terminate(nil)}
+                    else {DispatchQueue.main.asyncAfter(deadline:.now()+0.1) {checkCleanup()}}
+                }
+                checkCleanup()
+            } catch {record("error",String(describing:error));NSApp.terminate(nil)}
+            return
+        }
         if applicationVersion=="1.8.3" {
             UpdateRecovery.recordLaunch()
             if Bundle.main.infoDictionary!["TestCrash"] as? Bool == true { exit(7) }

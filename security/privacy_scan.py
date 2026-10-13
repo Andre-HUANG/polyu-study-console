@@ -29,6 +29,7 @@ PRIVATE_DIRS = {"account", ".jiujiastudy", "documents", "raw", "diagnostics", "w
 ALLOWED_EMAIL_SUFFIX = (b"@users.noreply.github.com", b"@example.com", b"@example.org", b"@example.invalid")
 PUBLIC_EMAILS = {b"noreply@github.com"}
 OWNER_EMAILS = None
+UPDATER_FILES = {"updater/WinSparkle.dll": json.loads((ROOT/"updater-lock.json").read_text())["winsparkle"]["dllSHA256"]}
 PUBLIC_CA_SHA256 = "bbc7e9c01d7551bb8a159b5dedd989b8ee3ce105aff522b68eb1b01bf854cab0"
 WINDOWS_LIBRARY_FILES = json.loads((ROOT / "security/dependency-exceptions.json").read_text())["windowsLibraryFiles"]
 VENDOR_SHA256 = "a02ac8b749df11924e0e054ab933f68c614261d6d29a749e673b2bc60a45b955"
@@ -158,7 +159,9 @@ def artifact(path):
         if PurePosixPath(name).is_absolute() or ".." in parts: rows.append(finding(name, "archive-path-traversal"))
         public_ca = (name.endswith("/pip/_vendor/certifi/cacert.pem") and
                      hashlib.sha256(contents).hexdigest() == PUBLIC_CA_SHA256)
-        third_party = any(p in {"runtime", "Licenses"} for p in parts)
+        updater_relative="/".join(parts[-2:])
+        known_updater = UPDATER_FILES.get(updater_relative)==hashlib.sha256(contents).hexdigest()
+        third_party = any(p in {"runtime", "Licenses"} for p in parts) or known_updater
         library_suffix = "/Lib/site-packages/"
         windows_library = (name.split(library_suffix,1)[1] if library_suffix in name else None)
         known_webview = (third_party and windows_library is not None and windows_library.startswith("webview/") and

@@ -50,6 +50,19 @@ class PrivacyGateChecks(unittest.TestCase):
             findings,_,_=gate.artifact(path)
             self.assertTrue(any(r["rule"]=="private-generated-path" for r in findings))
 
+    def test_only_hash_locked_updater_gets_upstream_contact_classification(self):
+        import hashlib,tempfile,zipfile
+        contents=b"public upstream contact "+b"upstream"+b"@gmail.com"
+        with tempfile.TemporaryDirectory() as temporary:
+            package=Path(temporary)/"updater.zip"
+            def write(data):
+                with zipfile.ZipFile(package,"w") as archive:archive.writestr("bundle/updater/WinSparkle.dll",data)
+            with patch.object(gate,"UPDATER_FILES",{"updater/WinSparkle.dll":hashlib.sha256(contents).hexdigest()}):
+                write(contents);findings,_,_=gate.artifact(package)
+                self.assertEqual([r["classification"] for r in findings],["THIRD_PARTY"])
+                write(contents+b"modified");findings,_,_=gate.artifact(package)
+                self.assertEqual([r["classification"] for r in findings],["FAIL"])
+
     def test_identity_number_format_is_detected_and_redacted(self):
         # Deliberately assembled synthetic format examples, never real identities.
         for prefix in (b"X", b"ZX"):

@@ -170,7 +170,7 @@ function renderLogs() {
 }
 
 async function refreshLogs() {
-  if (!$('#settingsDialog').open || state.settingsTab !== 'logs') return;
+  if (!pageVisible() || !$('#settingsDialog').open || state.settingsTab !== 'logs') return;
   logRequest?.abort();
   const request = logRequest = new AbortController();
   try {
@@ -320,6 +320,7 @@ window.polyuReload = async (force = false) => {
 };
 function cancelReadRequests() {
   clearTimeout(searchTimer); searchTimer = null; searchRequest?.abort(); searchRequest = null;
+  logRequest?.abort(); logRequest = null;
   dataRequest?.abort(); statusRequest?.abort(); documentsRequest?.abort();
   dataRequest = null; statusRequest = null; documentsRequest = null;
   window.academicUI?.cancel();
@@ -748,9 +749,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     searchTimer = setTimeout(searchDocumentText, 250);
   });
   $('#documentFilter').addEventListener('change', (event) => { state.documentFilter = event.target.value; renderDocumentList(); });
-  document.querySelectorAll('.segmented button').forEach((button) => button.addEventListener('click', () => {
+  document.querySelectorAll('.segmented button[data-filter]').forEach((button) => button.addEventListener('click', () => {
     state.filter = button.dataset.filter;
-    document.querySelectorAll('.segmented button').forEach((item) => {
+    document.querySelectorAll('.segmented button[data-filter]').forEach((item) => {
       item.classList.toggle('selected', item === button);
       item.setAttribute('aria-selected', String(item === button));
     });

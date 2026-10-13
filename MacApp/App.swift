@@ -11,6 +11,7 @@ let canvasHost = "https://canvas.polyu.edu.hk"
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
     var updaterController: SPUStandardUpdaterController?
     var pendingUpdateVersion: String?
+    var updateGeneration = 0
     var pendingUpdateInstall: (() -> Void)?
     var window: NSWindow!
     var console: WKWebView!

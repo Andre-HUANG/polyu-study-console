@@ -236,8 +236,11 @@ final class NativeGUISmoke {
             {id:'synthetic-undated-project',course:course.code,title:'Project date pending',kind:'assignment',sources:[]}]};
             window.polyuReload=async()=>render(window._smokeData);render(window._smokeData);
             document.querySelector('[data-filter="final"]').click();
+            document.querySelector('[data-class-view="week"]').click();
+            const tabsIndependent=state.filter==='final';
+            document.querySelector('[data-class-view="day"]').click();
             const list=document.getElementById('eventList'),details=list.querySelector('details.evidence-details');
-            return {checks:{oneRow:list.querySelectorAll('.event-row').length===1,finalBadge:list.querySelector('.kind-final')?.textContent==='期末考试',
+            return {checks:{tabsIndependent,oneRow:list.querySelectorAll('.event-row').length===1,finalBadge:list.querySelector('.kind-final')?.textContent==='期末考试',
             collapsed:!!details && !details.open,summary:details?.querySelector('summary').textContent==='查看详情',
             sourceQuiet:!list.innerText.includes('核对来源') && !list.innerText.includes('自动识别'),historyQuiet:!list.innerText.includes(historicalNotice),
             conflictVisible:list.innerText.includes('地点信息需要核对'),timeVisible:list.innerText.includes('14:00'),venueVisible:list.innerText.includes('ZS301'),
@@ -399,13 +402,15 @@ final class NativeGUISmoke {
                             guard FileManager.default.fileExists(atPath: self.isolation.data.appendingPathComponent("account/diagnostics/events.json").path) else { self.fail("Synthetic account log was not saved before logout"); return }
                             self.report["syntheticAccountDiagnosticsPersistedBeforeLogout"] = true
                             self.report["logoutCancelPreservedSyntheticData"] = true
-                            self.js("openSettings('logs');true") { _ in
+                            self.wait("native logout logs committed", until: { self.app.diagnosticQueue.isEmpty && !self.app.diagnosticSending }) {
+                              self.js("openSettings('logs');true") { _ in
                                 self.waitForJS("logout cancellation log", "state.logs?.persistent===true && state.logs.events.some(e=>e.event==='logout' && e.result==='cancelled')") {
                                     self.report["logoutCancellationLogged"] = true
                                     self.snapshot("settings-cancelled-logout-log") {
                                         self.js("document.getElementById('closeSettingsButton').click();true") { _ in self.confirmLogout() }
                                     }
                                 }
+                              }
                             }
                         }
                     }

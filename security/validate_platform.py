@@ -76,7 +76,7 @@ def main():
                 for name in CONSOLE_FILES:assert (app/"Contents/Resources/console"/name).read_bytes()==(CONSOLE/name).read_bytes()
             finally:subprocess.run(["hdiutil","detach",str(mount)],check=True,capture_output=True)
         update=evidence("mac-update-evidence.json")
-        assert update["sourceHashes"]==hashes and len(update["scenarios"])==5
+        assert update["sourceHashes"]==hashes and len(update["scenarios"])==6
         platform_checks={"nativeUpdates":True,"nativeGUI":True,"backendRuntime":True,"dmgReadOnlyScan":True,
                          "adHocSigned":True,"appleNotarized":False}
     else:

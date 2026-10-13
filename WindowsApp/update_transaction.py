@@ -56,12 +56,19 @@ def unpack_payload(archive,stage,expected_version):
     roots=list(stage.iterdir())
     if len(roots)!=1 or not roots[0].is_dir(): raise ValueError("更新包根目录无效")
     root=roots[0]
+    verify_payload(root,expected_version)
+    return root
+
+def verify_payload(root,expected_version,installed=False):
+    root=safe_program(root)
     release=json.loads((root/"console/release.json").read_text())
     if release.get("version")!=expected_version or "Windows-x64" not in release.get("targets",[]): raise ValueError("更新版本或架构不匹配")
     manifest=json.loads((root/"payload-sha256.json").read_text())
     if not isinstance(manifest,dict): raise ValueError("更新文件清单无效")
     actual={p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()}
-    if actual!=set(manifest)|{"payload-sha256.json"}: raise ValueError("更新包文件清单不完整")
+    allowed=set(manifest)|{"payload-sha256.json"}
+    if installed and (root/"Uninstall.exe").is_file():allowed.add("Uninstall.exe")
+    if actual!=allowed: raise ValueError("更新包文件清单不完整")
     for relative,expected in manifest.items():
         if not isinstance(expected,str) or digest(root/relative)!=expected: raise ValueError("更新包内部文件校验失败")
     safe_program(root)
@@ -151,6 +158,8 @@ def run_helper(spec):
             try:
                 if kernel.WaitForSingleObject(handle,60000)!=0: raise RuntimeError("旧版程序仍在运行")
             finally: kernel.CloseHandle(handle)
+        old_version=json.loads((target/"console/release.json").read_text())["version"]
+        verify_payload(target,old_version,installed=spec["mode"]=="installed")
         backup=target.with_name(target.name+".previous-"+metadata["version"])
         if backup.exists(): raise ValueError("旧版程序回退目录已存在")
         if spec["mode"]=="portable":
@@ -160,10 +169,11 @@ def run_helper(spec):
         elif spec["mode"]=="installed":
             expected=pathlib.Path(os.environ["LOCALAPPDATA"])/"Programs/PolyUStudyConsole"
             if target.resolve()!=expected.resolve(): raise ValueError("安装版位置与本机注册不一致")
-            shutil.copytree(target,backup)
+            target.rename(backup)
             try:
                 result=subprocess.run([str(payload),"/S"],timeout=180)
                 if result.returncode: raise RuntimeError("安装程序未完成")
+                verify_payload(target,metadata["version"],installed=True)
             except BaseException:
                 restore(target,backup)
                 raise

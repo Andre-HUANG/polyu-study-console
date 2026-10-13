@@ -28,7 +28,7 @@ def main():
   recovery=recovery.replace("} catch { return 1 } // Keep previous.app", '} catch { record("recoveryError",String(describing:error));return 1 } // Keep previous.app')
   (root/"Recovery.swift").write_text(recovery)
   run("xcrun","swiftc","-parse-as-library","-O","-module-cache-path",root/"modules","-target","arm64-apple-macos13.0",ROOT/"验证/NativeUpdateSmoke.swift",root/"Recovery.swift","-F",sdk,"-framework","Sparkle","-Xlinker","-rpath","-Xlinker","@executable_path/../Frameworks","-o",root/"Smoke")
-  for scenario in ["upgrade","wrong-signature","corrupt","offline","rollback"]:
+  for scenario in ["upgrade","wrong-signature","corrupt","offline","rollback","abort-recovery"]:
    case=root/scenario;case.mkdir();public=case/"public";public.mkdir()
    class Handler(SimpleHTTPRequestHandler):
     def log_message(self,*args):pass
@@ -46,7 +46,7 @@ def main():
     contents=app/"Contents";(contents/"MacOS").mkdir(parents=True);(contents/"Frameworks").mkdir()
     shutil.copy2(root/"Smoke",contents/"MacOS/PolyUConsole")
     shutil.copytree(sdk/"Sparkle.framework",contents/"Frameworks/Sparkle.framework",symlinks=True)
-    info={"CFBundleIdentifier":identity,"CFBundleExecutable":"PolyUConsole","CFBundlePackageType":"APPL","CFBundleName":"UpdaterSmoke","CFBundleVersion":build,"CFBundleShortVersionString":version,"TestRoot":str(case),"TestCrash":version=="1.8.3" and scenario=="rollback","LSMinimumSystemVersion":"13.0","NSAppTransportSecurity":{"NSAllowsLocalNetworking":True},"SUPublicEDKey":pub,"SUFeedURL":f"http://127.0.0.1:{http.server_port}/feed.xml","SUEnableAutomaticChecks":False,"SUAutomaticallyUpdate":False}
+    info={"CFBundleIdentifier":identity,"CFBundleExecutable":"PolyUConsole","CFBundlePackageType":"APPL","CFBundleName":"UpdaterSmoke","CFBundleVersion":build,"CFBundleShortVersionString":version,"TestRoot":str(case),"TestCrash":version=="1.8.3" and scenario=="rollback","TestScenario":scenario,"LSMinimumSystemVersion":"13.0","NSAppTransportSecurity":{"NSAllowsLocalNetworking":True},"SUPublicEDKey":pub,"SUFeedURL":f"http://127.0.0.1:{http.server_port}/feed.xml","SUEnableAutomaticChecks":False,"SUAutomaticallyUpdate":False}
     (contents/"Info.plist").write_bytes(plistlib.dumps(info))
     run("codesign","--force","--deep","--sign","-",app)
     run("codesign","--verify","--deep","--strict",app)
@@ -70,12 +70,14 @@ def main():
      ready=case/"program-updates/pending.json"
      if scenario=="upgrade" and new.get("acknowledged") and not ready.exists():break
      if scenario=="rollback" and old.get("rolledBack"):break
+     if scenario=="abort-recovery" and old.get("abortRecoveryCleared"):break
      if scenario not in {"upgrade","rollback"} and old.get("error"):break
      time.sleep(.2)
     else:raise AssertionError({"scenario":scenario,"old":old,"new":new,"stderr":(case/"err.txt").read_text()[-1500:] if (case/"err.txt").exists() else ""})
     current=plistlib.loads((target/"Contents/Info.plist").read_bytes())["CFBundleShortVersionString"]
     assert current==("1.8.3" if scenario=="upgrade" else "1.8.2")
     assert sentinel.read_text()=="untouched synthetic account"
+    if scenario=="abort-recovery":assert old.get("abortRecoveryCleared") and not ready.exists()
     reports.append({"scenario":scenario,"ok":True,"installedVersion":current,"programAccountPreserved":True,"sdkDownloadValidated":scenario in {"upgrade","rollback"},"sourceRecoveryPrepared":bool(old.get("recoveryPrepared"))})
     print(json.dumps(reports[-1]),flush=True)
    finally:
@@ -88,7 +90,7 @@ def main():
        except ProcessLookupError:pass
     if process and process.poll() is None:process.terminate()
     http.shutdown();http.server_close();worker.join()
- report={"ok":len(reports)==5,"platform":"mac","sourceHashes":source_hashes(),"scenarios":reports,"realAccountAccessed":False,"realCanvasValidated":False,"scope":"Locked Sparkle SDK in isolated native test apps; production UpdateRecovery source adapted only for temporary container/bundle identity and 8-second launch timeout. No real-account upgrade.","sdkVersion":"2.10.0"}
+ report={"ok":len(reports)==6,"platform":"mac","sourceHashes":source_hashes(),"scenarios":reports,"realAccountAccessed":False,"realCanvasValidated":False,"scope":"Locked Sparkle SDK in isolated native test apps; production UpdateRecovery source adapted only for temporary container/bundle identity and 8-second launch timeout. No real-account upgrade.","sdkVersion":"2.10.0"}
  (ROOT/"验证/mac-update-evidence.json").write_text(json.dumps(report,indent=2))
  print("Native update rehearsal passed.")
 if __name__=="__main__":main()

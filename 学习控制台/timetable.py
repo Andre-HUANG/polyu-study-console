@@ -200,6 +200,7 @@ def mutate(profile,config,payload):
         generated=read_json(Path(profile)/"documents/timetable.json",{})
         rule=next((e for e in generated.get("rules",[]) if e["id"]==payload.get("id") or payload.get("id") in e.get("sourceIds",[])),None)
         if not rule: raise ValueError("候选课项已变化，请刷新")
+        if payload.get("digest")!=rule["digest"]:raise ValueError("来源已更新，请刷新并重新核对后再保存。")
         if action=="reset":
             for identifier in rule.get("sourceIds",[rule["id"]]): value["decisions"].pop(identifier,None)
         else:

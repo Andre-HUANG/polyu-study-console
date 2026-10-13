@@ -107,6 +107,9 @@ def main():
    release=target/"console/release.json";value=json.loads(release.read_text());value["version"]="1.8.1";value["build"]="181";release.write_text(json.dumps(value))
    key=Ed25519PrivateKey.generate();pub=base64.b64encode(key.public_key().public_bytes(serialization.Encoding.Raw,serialization.PublicFormat.Raw)).decode()
    lock_path=target/"updater-lock.json";lock=json.loads(lock_path.read_text());lock["publicKey"]=pub;lock_path.write_text(json.dumps(lock))
+   (target/"obsolete-program.py").write_text("# Synthetic old-only packaged module")
+   old_manifest={p.relative_to(target).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in target.rglob("*") if p.is_file() and p.name not in {"payload-sha256.json","Uninstall.exe"}}
+   (target/"payload-sha256.json").write_text(json.dumps(old_manifest))
    sentinel=profile/"account/documents/update-sentinel.txt";sentinel.parent.mkdir(parents=True,exist_ok=True);sentinel.write_text("synthetic-update-preserved")
    name="PolyUStudyConsole-"+VERSION+("-windows-x64-setup.exe" if mode=="installed" else "-windows-x64.zip")
    package=public/name
@@ -150,7 +153,8 @@ def main():
     if helper_file.exists():
      helper=json.loads(helper_file.read_text());stage=pathlib.Path(helper["stage"]);deadline=time.monotonic()+120
      while time.monotonic()<deadline:
-      current=json.loads((target/"console/release.json").read_text())["version"]
+      try:current=json.loads((target/"console/release.json").read_text())["version"]
+      except (OSError,ValueError):time.sleep(.2);continue
       if scenario=="upgrade" and (stage/"new-version-ready").exists() and not target.with_name(target.name+".previous-"+VERSION).exists():break
       if scenario=="rollback" and current=="1.8.1" and not target.with_name(target.name+".previous-"+VERSION).exists():break
       time.sleep(.2)
@@ -169,6 +173,8 @@ def main():
     current=json.loads((target/"console/release.json").read_text())["version"]
     assert current==(VERSION if scenario=="upgrade" else "1.8.1")
     assert sentinel.read_text()=="synthetic-update-preserved"
+    assert (target/"obsolete-program.py").exists() == (scenario!="upgrade")
+    report["oldOnlyProgramFilesRemoved"]=scenario=="upgrade"
     result={"mode":mode,"scenario":scenario,"ok":True,"versionAfter":current,"accountPreserved":True,"nativeSDK":True,"realUpdatedShellBoot":scenario=="upgrade",**report};results.append(result);print(json.dumps(result),flush=True)
    finally:
     if process and process.poll() is None:process.kill();process.wait()

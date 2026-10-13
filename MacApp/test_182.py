@@ -29,7 +29,12 @@ class CalendarAndTimetableChecks(unittest.TestCase):
     def tearDown(self):
         calendar.clear_memory();runtime_cache.clear();self.temp.cleanup()
     def row(self,**extra):
-        return {"courseId":"1","title":"Lecture","kind":"lecture","date":"2026-10-13","time":"18:30","endTime":"20:30",**extra}
+        value={"courseId":"1","title":"Lecture","kind":"lecture","date":"2026-10-13","time":"18:30","endTime":"20:30",**extra}
+        if value.get("action") in {"confirm","hide","reset"} and "digest" not in value:
+            saved=json.loads((self.profile/"documents/timetable.json").read_text())
+            rule=next(r for r in saved["rules"] if r["id"]==value["id"])
+            value["digest"]=rule["digest"]
+        return value
     def read(self,text,**extra):
         doc={"id":"doc","courseId":"1","course":"COURSE1","title":"Teaching timetable","url":"https://canvas.polyu.edu.hk/courses/1/files/3"}
         return timetable_reader.rules_from(doc,[{"page":1,"text":text,"rows":text.splitlines(),**extra}],self.config)
@@ -103,6 +108,18 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         timetable.rebuild(self.profile,self.config,{"records":[]})
         event=timetable.query(self.profile,self.config,"2026-10-13")["events"][0]
         self.assertEqual(event["sources"],generated["sources"])
+
+    def test_stale_confirmation_or_hide_cannot_replace_a_revised_source(self):
+        rule=self.read("Lecture 13 October 2026 18:30–20:30")[0]
+        index={"records":[{"courseId":"1","timetableRules":[rule]}]}
+        shown=timetable.rebuild(self.profile,self.config,index)["rules"][0]
+        rule["sources"][0]["quote"]+=" revision";rule["digest"]="revised"
+        current=timetable.rebuild(self.profile,self.config,index)["rules"][0]
+        self.assertNotEqual(shown["digest"],current["digest"])
+        for action in ("confirm","hide"):
+            with self.assertRaisesRegex(ValueError,"来源已更新"):
+                timetable.mutate(self.profile,self.config,self.row(action=action,id=shown["id"],digest=shown["digest"]))
+        self.assertEqual(timetable.manual(self.profile,self.config)["decisions"],{})
 
     def test_multiple_dates_survive_manual_confirmation(self):
         timetable.mutate(self.profile,self.config,self.row(action="save",dates=["2026-10-13","2026-10-20"]))
@@ -343,6 +360,8 @@ class UpdateChecks(unittest.TestCase):
         (stage/"updater-lock.json").write_text(json.dumps({"publicKey":public}))
         spec={"target":str(target),"mode":mode,"pid":1,"payload":name,"asset":name}
         (stage/"spec.json").write_text(json.dumps(spec))
+        manifest={p.relative_to(target).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in target.rglob("*") if p.is_file()}
+        (target/"payload-sha256.json").write_text(json.dumps(manifest))
         account=root/"account";account.mkdir();(account/"sentinel.txt").write_text("synthetic-account")
         return target,stage,spec,account
     def test_helper_disk_full_preserves_program_and_separate_account(self):
@@ -362,6 +381,7 @@ class UpdateChecks(unittest.TestCase):
             root=pathlib.Path(tmp).resolve();target,stage,spec,account=self.helper_fixture(root,"installed")
             kernel=types.SimpleNamespace(OpenProcess=Mock(return_value=None),WaitForSingleObject=Mock(),CloseHandle=Mock())
             def interrupt(*args,**kwargs):
+                (target/"console").mkdir(parents=True,exist_ok=True)
                 (target/"console/release.json").write_text('{"version":"broken"}')
                 raise subprocess.TimeoutExpired("synthetic-installer",180)
             with patch.object(transaction,"__file__",str(stage/"update_transaction.py")),patch.object(ctypes,"windll",types.SimpleNamespace(kernel32=kernel),create=True),patch.dict(transaction.os.environ,{"LOCALAPPDATA":str(root)}),patch.object(transaction.subprocess,"run",side_effect=interrupt),patch.object(transaction,"schedule_cleanup"),self.assertRaises(subprocess.TimeoutExpired):
