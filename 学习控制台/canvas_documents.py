@@ -712,44 +712,74 @@ def read_downloaded_materials(profile, config, reader, progress):
     return index
 
 
+def cached_upgrade_key(config):
+    from timetable_reader import VERSION as TIMETABLE_VERSION
+    return fingerprint([VERSION,READER_VERSION,TIMETABLE_VERSION,config])
+
+def needs_cached_upgrade(index,config):
+    from timetable_reader import VERSION as TIMETABLE_VERSION
+    account=str((config.get("user") or {}).get("id"))
+    if not index.get("records") or index.get("accountId")!=account:return False
+    if index.get("localUpgradeAttemptVersion")==cached_upgrade_key(config):return False
+    return index.get("version")!=VERSION or any(r.get("status") in {"read","partial","cached"} and
+        (r.get("timetableVersion")!=TIMETABLE_VERSION or r.get("readerVersion")!=READER_VERSION) for r in index["records"])
+
 def reprocess_cached_documents(profile, config, reader, cancelled, progress):
-    """Upgrade interpretation from this account's saved original pages/files."""
-    profile = Path(profile)
-    root, cache = profile / "documents", profile / "documents/cache"
-    index = read_json(root / "index.json", {})
-    if not index.get('records'): return None
-    courses = {str(c['id']) for c in config.get('courses') or []}
-    index.update(scanning=True, version=VERSION, sourceMode=index.get('sourceMode') or 'reprocessed')
+    """Upgrade this account's saved pages/files without any Canvas requests."""
+    profile=Path(profile);root=profile/"documents";cache=root/"cache"
+    index=read_json(root/"index.json",{})
+    account=str((config.get("user") or {}).get("id"))
+    if not index.get("records") or index.get("accountId")!=account:return None
+    courses={str(c["id"]) for c in config.get("courses") or []}
+    index.update(scanning=True,version=VERSION,sourceMode=index.get("sourceMode") or "reprocessed")
+    from sync_support import ProgressWriter
+    writer=ProgressWriter(root/"index.json",cancelled)
+    def publish(force=False):
+        return writer.publish(index,force=force,prepare=lambda:index.update(evidence=consolidate(index["records"])))
+    first=True
     try:
-        for record in index.get('records') or []:
+        for record in index["records"]:
             cancelled()
-            if record.get('courseId') not in courses or not record.get('fileId'): continue
-            prefix = record['courseId'] + '-' + record['fileId']
-            saved = read_json(cache / (prefix + '.json'), {})
-            pages = saved.get('pages') or []
-            if saved.get('readerVersion') != READER_VERSION:
-                original = next((p for p in cache.glob(prefix + '.*') if p.suffix.lower() in SUPPORTED and p.is_file() and not p.is_symlink()), None)
-                if original is None:
-                    downloads = read_json(root / 'downloads.json', {})
-                    entry = next((e for e in downloads.get('entries') or [] if e.get('courseId') == record['courseId'] and e.get('id') == record['fileId'] and e.get('status') == 'downloaded'), None)
-                    if entry and entry.get('paths'):
-                        candidate = root / 'files' / entry['paths'][0]
-                        if candidate.is_file() and candidate.suffix.lower() in SUPPORTED and not candidate.is_symlink():
-                            original = candidate
-                if original:
-                    progress('重读本账号已下载文件 · ' + record['title'])
-                    try:
-                        pages = extract(original, reader, cache)
-                        save_private(cache / (prefix + '.json'), {**saved, 'readerVersion': READER_VERSION, 'pages': pages})
-                    except Exception:
-                        record.update(status='partial', issues=['此文件的识别升级未完成，继续扫描其他课程并在下载阶段重试'])
-                        continue
+            cid=str(record.get("courseId"))
+            if cid not in courses:continue
+            pages=[]
+            if record.get("fileId"):
+                prefix=cid+"-"+str(record["fileId"])
+                saved=read_json(cache/(prefix+".json"),{})
+                if saved.get("accountId")!=account:continue
+                pages=saved.get("pages") or []
+                if saved.get("readerVersion")!=READER_VERSION:
+                    original=next((p for p in cache.glob(prefix+".*") if p.suffix.lower() in SUPPORTED and p.is_file() and not p.is_symlink()),None)
+                    if original is None:
+                        downloads=read_json(root/"downloads.json",{})
+                        entry=next((e for e in downloads.get("entries") or [] if str(e.get("courseId"))==cid and str(e.get("id"))==str(record["fileId"]) and e.get("status")=="downloaded"),None)
+                        if entry and entry.get("paths"):
+                            candidate=root/"files"/entry["paths"][0]
+                            if candidate.resolve().is_relative_to((root/"files").resolve()) and candidate.is_file() and candidate.suffix.lower() in SUPPORTED and not candidate.is_symlink():original=candidate
+                    if original:
+                        progress("重读本账号已下载文件 · "+record["title"])
+                        try:
+                            pages=extract(original,reader,cache)
+                            save_private(cache/(prefix+".json"),{**saved,"accountId":account,"readerVersion":READER_VERSION,"pages":pages})
+                        except Exception:
+                            record.update(status="partial",issues=["此文件的识别升级未完成，将在后续同步重试"])
+                            continue
+            else:
+                from urllib.parse import urlsplit
+                path=urlsplit(record.get("url") or "").path
+                saved=read_json(root/"web"/cid/(hashlib.sha256(path.encode()).hexdigest()+".json"),{})
+                if saved.get("accountId")==account and saved.get("rows"):
+                    rows=saved["rows"]
+                    pages=[{"page":1,"text":"\n".join(rows),"rows":rows,"method":"Canvas course page","readable":True,"processed":True,"confidence":1.0}]
             if pages:
-                describe(record, pages, config)
-                index['evidence'] = consolidate(index['records'])
-                save_private(root / 'index.json', index)
-        index['evidence'] = consolidate(index['records'])
+                describe(record,pages,config)
+                publish(force=first and bool(record.get("facts") or record.get("timetableRules")))
+                if record.get("facts") or record.get("timetableRules"):first=False
+            elif record.get("status") in {"read","partial","cached"}:
+                record.update(status="partial",issues=["原缓存正文缺失，保留已有证据并等待后续同步重读"])
+        index["localUpgradeAttemptVersion"]=cached_upgrade_key(config)
+        index["reprocessedAt"]=now()
     finally:
-        index['scanning'] = False
-        save_private(root / 'index.json', index)
+        index["scanning"]=False
+        publish(force=True)
     return index

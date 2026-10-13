@@ -17,10 +17,10 @@
     if (token !== ui.token || !pageVisible()) throw new DOMException('读取已取消', 'AbortError');
     return value;
   }
-  async function refresh() {
+  async function refresh(fullPending = false) {
     if (!pageVisible() || !ui.data) return;
     cancel(); const token = ui.token;
-    const paths = ['/api/timetable?' + new URLSearchParams({ date: ui.date, view: ui.view, ...(ui.course ? { course: ui.course } : {}) }), '/api/calendar?' + new URLSearchParams({ month: ui.month, ...(ui.year ? { year: ui.year } : {}) })];
+    const paths = ['/api/timetable?' + new URLSearchParams({ date: ui.date, view: ui.view, ...(!fullPending ? { summary: '1' } : {}), ...(ui.course ? { course: ui.course } : {}) }), '/api/calendar?' + new URLSearchParams({ month: ui.month, ...(ui.year ? { year: ui.year } : {}) })];
     const results = await Promise.allSettled(paths.map(path => read(path, token)));
     if (token !== ui.token || !pageVisible()) return;
     results.forEach((result, i) => {
@@ -40,8 +40,10 @@
     if (ui.view === 'week' && value.days?.length) {
       $('#timetableBody').innerHTML = value.days.map(date => '<div class="class-column"><h3>' + e(hkDate(date, { month: 'numeric', day: 'numeric', weekday: 'short' })) + '</h3>' + (events.filter(row => row.date === date).map(card).join('') || '<p class="class-empty">暂无已确认课项</p>') + '</div>').join('');
     } else $('#timetableBody').innerHTML = events.map(card).join('') || '<p class="class-empty">' + (ui.data?.connection?.authorized ? '本日暂无已确认的上课或考试安排。' : '登录 Canvas 后显示个人课程表。') + '</p>';
+    if (value.eventsTotal > events.length) $('#timetableBody').innerHTML += '<button class="text-link" type="button" data-class-all-pending>查看全部课项</button>';
     const pending = value.pending || [];
-    $('#timetablePending').innerHTML = pending.length ? '<summary>待确认 ' + pending.length + ' 项</summary>' + pending.map(row => '<div class="class-candidate"><strong>' + e(row.course + ' · ' + row.title) + '</strong><small>' + e((row.issues || []).join('；')) + '</small><button class="text-link" type="button" data-class-detail="' + e(row.id) + '">核对 / 确认</button></div>').join('') : '';
+    $('#timetablePending').innerHTML = pending.length ? '<summary>待确认 ' + (value.pendingTotal ?? pending.length) + ' 项</summary>' + pending.map(row => '<div class="class-candidate"><strong>' + e(row.course + ' · ' + row.title) + '</strong><small>' + e((row.issues || []).join('；')) + '</small><button class="text-link" type="button" data-class-detail="' + e(row.id) + '">核对 / 确认</button></div>').join('') : '';
+    if (value.pendingTotal > pending.length) $('#timetablePending').innerHTML += '<button class="text-link" type="button" data-class-all-pending>查看全部待确认课项</button>';
     $('#timetablePending').hidden = !pending.length;
     $('#timetableStatus').textContent = [...(value.issues || []).map(v => v.message), ...(value.conflicts || []).map(v => v.title + '：' + v.message)].join('；');
     $('#addClassButton').disabled = !ui.data?.connection?.authorized || !ui.data?.courses?.length || Boolean(ui.data?.connection?.busy);
@@ -117,7 +119,17 @@
     $('#calendarDays').onclick = event => { const b = event.target.closest('[data-calendar-date]'); if (b) { ui.date = b.dataset.calendarDate; ui.view = 'day'; refresh(); } };
     $('#calendarRefresh').onclick = async () => { try { await api('/api/calendar/refresh'); $('#calendarStatus').textContent = '正在检查官方修订…'; $('#calendarRefresh').disabled = true; state.calendarBusy = true; schedulePoll(); } catch (error) { showNotice(error.message, 'error'); } };
     $('#addClassButton').onclick = () => formRow();
-    $('#timetablePanel').onclick = event => { const b = event.target.closest('[data-class-detail]'); if (b) { const row = [...(ui.timetable?.events || []), ...(ui.timetable?.pending || [])].find(r => r.id === b.dataset.classDetail); if (row) formRow(row); } };
+    $('#timetablePanel').onclick = async event => {
+      if (event.target.closest('[data-class-all-pending]')) { await refresh(true); return; }
+      const b = event.target.closest('[data-class-detail]');
+      if (!b) return;
+      let row = [...(ui.timetable?.events || []), ...(ui.timetable?.pending || [])].find(r => r.id === b.dataset.classDetail);
+      if (!row) return;
+      try {
+        if (row.summary) row = await read('/api/timetable?' + new URLSearchParams({ date: ui.date, view: ui.view, detail: row.id, ...(ui.course ? { course: ui.course } : {}) }), ui.token);
+        formRow(row);
+      } catch (error) { if (error.name !== 'AbortError') showNotice(error.message, 'error'); }
+    };
     $('#classClose').onclick = () => $('#classDialog').close();
     $('#classForm').elements.mode.onchange = event => { $('#classRepeatFields').hidden = event.target.value !== 'repeat'; };
     $('#classForm').onsubmit = event => { event.preventDefault(); change(ui.edit && !ui.edit.manual ? 'confirm' : 'save'); };

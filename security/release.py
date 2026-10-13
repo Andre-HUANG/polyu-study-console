@@ -13,7 +13,7 @@ sys.path.insert(0,str(ROOT))
 from release_build import VERSION
 from release_updates import generate as generate_updates, verify as verify_updates, SIGNED as SIGNED_UPDATES
 from github_api import request as github_request, upload as github_upload
-from release_guard import source_sha, accepted, trusted_run
+from release_guard import source_sha, accepted, trusted_run, independent_acceptance
 GIT=os.environ.get("POLYU_GIT","git")
 REPO="Andre-HUANG/polyu-study-console"
 REPORT_FILES=("performance-"+VERSION+".md","performance-"+VERSION+".json","validation-"+VERSION+".md")
@@ -118,6 +118,8 @@ def main():
         for name in REPORT_FILES:
             if (source/name).read_bytes()!=(ROOT/"release"/name).read_bytes():raise RuntimeError("Changed release report")
         verify_updates(source)
+        if os.environ.get("PUBLISH_RELEASE")=="true":
+            independent_acceptance(os.environ.get("POLYU_RELEASE_ACCEPTANCE",""),head)
         tag="v"+VERSION
         if run(GIT,"ls-remote","--tags","https://github.com/"+REPO+".git","refs/tags/"+tag,capture=True):
             raise RuntimeError("Version tag already exists; never replace an existing version")

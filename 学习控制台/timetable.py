@@ -223,6 +223,7 @@ def _matches(rule,date,calendar):
     current=dt.date.fromisoformat(date)
     if current.weekday() not in repeat.get("weekdays",[]): return False
     parity=repeat.get("parity","all");numbers=repeat.get("weeks") or []
+    if repeat.get("basis")=="anchor" and repeat.get("anchor") and current<dt.date.fromisoformat(repeat["anchor"]):return False
     if parity=="all" and not numbers: return True
     n=None
     if repeat.get("basis")=="anchor" and repeat.get("anchor"):
@@ -230,7 +231,7 @@ def _matches(rule,date,calendar):
     elif repeat.get("basis")=="semester":
         year=academic_calendar.selected_year(calendar,current)
         n=next((w["number"] for w in (year or {}).get("weeks",[]) if w["start"]<=date<=w["end"] and w["semester"]==repeat.get("semester")),None)
-    return bool(n and (not numbers or n in numbers) and (parity=="all" or n%2==(1 if parity=="odd" else 0)))
+    return bool(n and n>=1 and (not numbers or n in numbers) and (parity=="all" or n%2==(1 if parity=="odd" else 0)))
 
 def query(profile,config,date,view="day",course=None):
     date=_date(date)
@@ -257,7 +258,7 @@ def query(profile,config,date,view="day",course=None):
         if rule.get("issues"):
             pending.append(rule)
         else: active.append(rule)
-    orphaned=set()
+    orphaned={saved["decisions"][i].get("ruleId",i) for i in used_decisions}
     for identifier,decision in saved["decisions"].items():
         if identifier in used_decisions: continue
         original_id=decision.get("ruleId",identifier)
@@ -272,10 +273,31 @@ def query(profile,config,date,view="day",course=None):
     days=[(start+dt.timedelta(days=i)).isoformat() for i in range(7 if view=="week" else 1)]
     occurrences=[]
     cancellations=[r for r in active if r.get("cancelled")]
+    cancelled_targets={}
+    uncertain_cancellations=set()
+    def title_key(title):
+        return re.sub(r"(?:cancelled|canceled|cancellation|取消|停课)|[^\w]+","",title or "",flags=re.I).casefold()
+    generic={"noclass","noclasses","lecture","lab","laboratory","tutorial","exam","class","讲课","实验","辅导课","考试","上课"}
+    for day in days:
+        targets=[r for r in active if not r.get("cancelled") and _matches(r,day,calendar)]
+        matches=set()
+        for cancellation in cancellations:
+            if not _matches(cancellation,day,calendar):continue
+            title=title_key(cancellation.get("title"))
+            pool=[r for r in targets if r["courseId"]==cancellation["courseId"] and
+                  r.get("kind")==cancellation.get("kind") and r.get("kind")!="other" and
+                  (not cancellation.get("group") or r.get("group")==cancellation["group"]) and
+                  (not cancellation.get("time") or r.get("time")==cancellation["time"]) and
+                  (not title or title in generic or title_key(r.get("title"))==title)]
+            if len(pool)==1:matches.add(pool[0]["id"])
+            elif cancellation["id"] not in uncertain_cancellations:
+                uncertain_cancellations.add(cancellation["id"])
+                pending.append({**cancellation,"issues":cancellation.get("issues",[])+["停课范围无法对应到唯一课项，请核对课程类型、班组和时间。"]})
+        cancelled_targets[day]=matches
     for day in days:
         for rule in active:
             if rule.get("cancelled") or course and str(rule.get("courseId"))!=str(course) or not _matches(rule,day,calendar): continue
-            cancelled=any(c["courseId"]==rule["courseId"] and (not c.get("group") or c.get("group")==rule.get("group")) and _matches(c,day,calendar) for c in cancellations)
+            cancelled=rule["id"] in cancelled_targets[day]
             occurrences.append({**rule,"date":day,"cancelled":cancelled,"calendarHints":academic_calendar.hints(day,profile),"overlaps":[]})
     occurrences.sort(key=lambda r:(r["date"],r.get("time") or "99:99",r["course"],r["title"]))
     for i,a in enumerate(occurrences):
@@ -285,3 +307,16 @@ def query(profile,config,date,view="day",course=None):
                 a["overlaps"].append(b["id"]);b["overlaps"].append(a["id"])
     if course: pending=[r for r in pending if str(r.get("courseId"))==str(course)]
     return {"date":date,"view":view,"days":days,"events":occurrences,"pending":pending,"conflicts":conflicts,"groups":saved["groups"],"coverage":generated.get("coverage",{}),"issues":generated.get("issues",[]),"checkedAt":generated.get("checkedAt")}
+
+def compact_summary(value):
+    """Bound dashboard transfers; original evidence is loaded when requested."""
+    fields={"id","courseId","course","title","kind","group","time","endTime","location","manual","manualDecision","date","digest","cancelled","makeup","confidence","issues","overlaps","calendarHints"}
+    result={k:v for k,v in value.items() if k not in {"events","pending","conflicts"}}
+    def row(item):
+        data={k:v for k,v in item.items() if k in fields}
+        data["sourcesCount"]=len(item.get("sources",[]))
+        data["summary"]=True
+        return data
+    result.update(events=[row(r) for r in value.get("events",[])[:80]],pending=[row(r) for r in value.get("pending",[])[:20]],
+        conflicts=value.get("conflicts",[])[:20],pendingTotal=len(value.get("pending",[])),eventsTotal=len(value.get("events",[])),summary=True)
+    return result

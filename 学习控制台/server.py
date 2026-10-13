@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 
 from grades import build_grades
 from canvas_sync import collect as collect_canvas
-from canvas_documents import public_summary, scan_courses
+from canvas_documents import public_summary, scan_courses, needs_cached_upgrade, reprocess_cached_documents
 from canvas_archive import archive_courses
 from canvas_web import authenticated_user
 from document_deadlines import PREFIX as DOCUMENT_DEADLINE_PREFIX, reconcile as reconcile_document_deadlines
@@ -383,6 +383,30 @@ def automatic_sync_due(settings, login, snapshot, document_index, has_grading, n
     return bool(settings.get('autoSync', True) and login and stale and not JOB['busy'] and not JOB['needsLogin'] and (not JOB['lastAttempt'] or monotonic-JOB['lastAttempt'] >= interval))
 
 
+def start_cached_upgrade():
+    if runtime_cache.STOP.is_set() or not connection_data()["authorized"]:return False
+    if not MUTATION_LOCK.acquire(blocking=False):return False
+    config=load_json(PROFILE/"config.json",{});account=str((config.get("user") or {}).get("id"));epoch=ACCESS.token
+    JOB.update(busy=True,stage="正在升级本账号已保存资料的识别结果…")
+    def cancelled():
+        if runtime_cache.STOP.is_set() or ACCESS.token!=epoch or str(load_json(PROFILE/"login.json",{}).get("user_id"))!=account:
+            raise RuntimeError("本账号识别升级已取消")
+    def worker():
+        try:
+            index=reprocess_cached_documents(PROFILE,config,os.environ.get("POLYU_DOCUMENT_READER"),cancelled,lambda stage:JOB.update(stage=stage))
+            cancelled()
+            if index:
+                from canvas_grading import merge_document_grading
+                reconcile_document_deadlines(PROFILE,index);merge_document_grading(PROFILE,index);timetable.rebuild(PROFILE,config,index)
+            JOB.update(stage="已使用本账号的保存资料完成识别升级。")
+        except Exception as error:
+            JOB.update(lastError="保存资料的识别升级未完成，后续同步会重试。",stage="本机识别升级未完成")
+            diagnostics().record("operation","failure",error_code(error))
+        finally:
+            JOB["busy"]=False;MUTATION_LOCK.release();runtime_cache.clear()
+    threading.Thread(target=worker,daemon=True).start()
+    return True
+
 def automatic_sync():
     while not runtime_cache.STOP.is_set():
         runtime_cache.WAKE.clear()
@@ -391,6 +415,9 @@ def automatic_sync():
             login = load_json(PROFILE / 'login.json', {})
             snapshot = load_json(PROFILE / 'snapshot.json', {})
             document_index = load_json(PROFILE / 'documents/index.json', {})
+            config = load_json(PROFILE / "config.json", {})
+        if login and needs_cached_upgrade(document_index,config) and not JOB["busy"]:
+            if start_cached_upgrade():continue
         if automatic_sync_due(settings, login, snapshot, document_index, (PROFILE/'grading_schemes.json').exists(), datetime.now(HK), time.monotonic()):
             start_sync()
         delay = None
@@ -651,6 +678,7 @@ def cached_dashboard(view="full"):
         [runtime_cache.signature(PROFILE/name) for name in feature_files]]).encode()).hexdigest()
     if view == "dashboard":
         value["documents"] = {k: v for k, v in value["documents"].items() if k not in {"records", "downloads", "evidence"}}
+        value["timetable"]=timetable.compact_summary(value["timetable"])
     return value
 
 
@@ -734,6 +762,11 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         if not authorized: return self.send_sensitive({"days": [], "events": [], "pending": [], "issues": []})
                         value = timetable.query(PROFILE, load_json(PROFILE / "config.json", {}), args.get("date", [datetime.now(HK).date().isoformat()])[0], args.get("view", ["day"])[0], args.get("course", [None])[0])
+                        if args.get("detail"):
+                            identifier=args["detail"][0]
+                            value=next((r for r in value["events"]+value["pending"] if r["id"]==identifier),None)
+                            if value is None:return self.send_json({"error":"课项已变化，请刷新后重新核对。"},HTTPStatus.NOT_FOUND)
+                        elif args.get("summary")==["1"]:value=timetable.compact_summary(value)
                 return self.send_sensitive(value)
             except ValueError as error:
                 return self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)

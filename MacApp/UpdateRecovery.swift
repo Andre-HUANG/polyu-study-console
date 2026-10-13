@@ -57,19 +57,22 @@ enum UpdateRecovery {
         }
         let folder=container.appendingPathComponent("program-"+UUID().uuidString,isDirectory:true)
         try manager.createDirectory(at: folder, withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
-        let backup=folder.appendingPathComponent("previous.app")
-        try manager.copyItem(at: target, to: backup)
-        _ = try metadata(backup)
-        let spec:[String:Any]=["schema":1,"target":target.path,"backup":backup.path,"folder":folder.path,"pid":getpid(),"version":version]
-        try write(spec,at:folder.appendingPathComponent("transaction.json"))
-        try write(spec,at:marker)
-        let watcher=Process()
-        watcher.executableURL=backup.appendingPathComponent("Contents/MacOS/PolyUConsole")
-        watcher.arguments=["--update-watchdog",folder.appendingPathComponent("transaction.json").path]
-        watcher.standardOutput=FileHandle.nullDevice;watcher.standardError=FileHandle.nullDevice
-        do { try watcher.run() }
-        catch {
-            try? manager.removeItem(at:marker)
+        do {
+            let backup=folder.appendingPathComponent("previous.app")
+            try manager.copyItem(at: target, to: backup)
+            _ = try metadata(backup)
+            let spec:[String:Any]=["schema":1,"target":target.path,"backup":backup.path,"folder":folder.path,"pid":getpid(),"version":version]
+            try write(spec,at:folder.appendingPathComponent("transaction.json"))
+            try write(spec,at:marker)
+            let watcher=Process()
+            watcher.executableURL=backup.appendingPathComponent("Contents/MacOS/PolyUConsole")
+            watcher.arguments=["--update-watchdog",folder.appendingPathComponent("transaction.json").path]
+            watcher.standardOutput=FileHandle.nullDevice;watcher.standardError=FileHandle.nullDevice
+            try watcher.run()
+        } catch {
+            if let data=try? Data(contentsOf:marker),
+               let pending=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],
+               pending["folder"] as? String == folder.path { try? manager.removeItem(at:marker) }
             try? manager.removeItem(at:folder)
             throw error
         }

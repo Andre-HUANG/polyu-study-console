@@ -74,6 +74,28 @@ class ReleaseGateTests(unittest.TestCase):
         guard.trusted_run(valid,self.head)
         for key,value in [("event","pull_request"),("head_branch","security/synthetic"),("head_sha","2"*40),("conclusion","failure"),("status","in_progress"),("path",".github/workflows/other.yml")]:
             with self.subTest(key=key),self.assertRaises(RuntimeError):guard.trusted_run(dict(valid,**{key:value}),self.head)
+    def test_independent_receipt_requires_signature_current_source_and_freshness(self):
+        import base64,datetime as dt,uuid
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives import serialization
+        key=Ed25519PrivateKey.generate()
+        public=base64.b64encode(key.public_key().public_bytes(serialization.Encoding.Raw,serialization.PublicFormat.Raw)).decode()
+        (self.root/"updater-lock.json").write_text(json.dumps({"publicKey":public}))
+        value={"schema":1,"sourceSHA":self.head,"checkedAt":dt.datetime.now(dt.timezone.utc).isoformat(),"scope":"independent-local-mac","receipt":str(uuid.uuid4()),"checks":dict.fromkeys(["authenticatedOwnerChecked","calendarServiceChecked","savedInterpretationChecked","accountFilesUnmodified"],True)}
+        def signed(data):
+            body=json.dumps(data).encode()
+            return json.dumps({"body":base64.b64encode(body).decode(),"signature":base64.b64encode(key.sign(body)).decode()})
+        with patch.object(guard,"ROOT",self.root):
+            self.assertTrue(guard.independent_acceptance(signed(value),self.head))
+            with self.assertRaises(RuntimeError):guard.independent_acceptance("",self.head)
+            with self.assertRaises(RuntimeError):guard.independent_acceptance(signed(value),"2"*40)
+            old={**value,"checkedAt":(dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=2)).isoformat()}
+            with self.assertRaises(RuntimeError):guard.independent_acceptance(signed(old),self.head)
+            bad={**value,"checks":{**value["checks"],"accountFilesUnmodified":False}}
+            with self.assertRaises(RuntimeError):guard.independent_acceptance(signed(bad),self.head)
+            bad={**value,"accountId":"synthetic-not-allowed"}
+            with self.assertRaises(RuntimeError):guard.independent_acceptance(signed(bad),self.head)
+
     def test_dirty_checkout_has_no_source_acceptance(self):
         with patch.object(guard.subprocess,"check_output",side_effect=[self.head+"\\n",b" M source.py\\n"]):
             with self.assertRaises(RuntimeError):guard.source_sha()

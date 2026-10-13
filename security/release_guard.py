@@ -30,3 +30,23 @@ def trusted_run(data,head):
         data.get("event") not in {"push","workflow_dispatch"} or
         data.get("path")!=".github/workflows/ci.yml"):
         raise RuntimeError("Require a successful trusted main validation at this commit")
+
+def independent_acceptance(encoded,head):
+    """Fail closed on missing, unsigned or stale independent service acceptance."""
+    import base64,json,uuid
+    from datetime import datetime,timezone
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    try:
+        envelope=json.loads(encoded);body=base64.b64decode(envelope["body"],validate=True)
+        public=json.loads((ROOT/"updater-lock.json").read_text())["publicKey"]
+        Ed25519PublicKey.from_public_bytes(base64.b64decode(public,validate=True)).verify(base64.b64decode(envelope["signature"],validate=True),body)
+        value=json.loads(body);now=datetime.now(timezone.utc);at=datetime.fromisoformat(value["checkedAt"]);age=(now-at).total_seconds()
+        required={"authenticatedOwnerChecked","calendarServiceChecked","savedInterpretationChecked","accountFilesUnmodified"}
+        if (value.get("schema")!=1 or value.get("sourceSHA")!=head or value.get("scope")!="independent-local-mac" or
+            not 0<=age<=86400 or set(value.get("checks",{}))!=required or not all(value["checks"][k] is True for k in required)):
+            raise ValueError("Missing acceptance")
+        if set(value)!={"schema","sourceSHA","checkedAt","scope","receipt","checks"}:raise ValueError("Unexpected acceptance fields")
+        uuid.UUID(value["receipt"])
+        return True
+    except Exception:
+        raise RuntimeError("Publication requires a current signed independent real-service receipt") from None

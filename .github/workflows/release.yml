@@ -50,5 +50,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLISH_RELEASE: ${{ inputs.publish }}
+          POLYU_RELEASE_ACCEPTANCE: ${{ secrets.POLYU_RELEASE_ACCEPTANCE }}
           VALIDATION_RUN: ${{ inputs.validation_run }}
         run: python -B security/release.py --publish .security-local/release

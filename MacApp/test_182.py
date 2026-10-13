@@ -121,6 +121,40 @@ class CalendarAndTimetableChecks(unittest.TestCase):
                 timetable.mutate(self.profile,self.config,self.row(action=action,id=shown["id"],digest=shown["digest"]))
         self.assertEqual(timetable.manual(self.profile,self.config)["decisions"],{})
 
+    def test_week_numbers_never_extend_before_anchor(self):
+        timetable.mutate(self.profile,self.config,self.row(action="save",repeat={"start":"2026-08-31","end":"2026-10-31","weekdays":[0],"parity":"odd","weeks":[],"basis":"anchor","anchor":"2026-09-14"}))
+        self.assertFalse(timetable.query(self.profile,self.config,"2026-08-31")["events"])
+        self.assertEqual(len(timetable.query(self.profile,self.config,"2026-09-14")["events"]),1)
+    def test_partial_source_removal_does_not_duplicate_merged_manual_override(self):
+        one=self.read("Lecture 13 October 2026 18:30–20:30")[0]
+        two=copy.deepcopy(one);two["id"]="second-source";two["sources"][0]["documentId"]="second-document"
+        index={"records":[{"courseId":"1","timetableRules":[one]},{"courseId":"1","timetableRules":[two]}]}
+        generated=timetable.rebuild(self.profile,self.config,index)["rules"][0]
+        self.assertEqual(len(generated["sourceIds"]),2)
+        timetable.mutate(self.profile,self.config,self.row(action="confirm",id=generated["id"]))
+        timetable.rebuild(self.profile,self.config,{"records":index["records"][:1]})
+        result=timetable.query(self.profile,self.config,"2026-10-13")
+        self.assertEqual(len(result["events"]),1);self.assertEqual(len(result["conflicts"]),1)
+    def test_lab_cancellation_does_not_cancel_lecture_or_exam(self):
+        for kind,title,time,end in [("lecture","Lecture","09:00","11:00"),("lab","Lab","12:00","14:00"),("exam","Exam","15:00","17:00")]:
+            timetable.mutate(self.profile,self.config,self.row(action="save",kind=kind,title=title,time=time,endTime=end))
+        timetable.mutate(self.profile,self.config,self.row(action="save",kind="lab",title="Lab cancelled",time="12:00",endTime="14:00",cancelled=True))
+        result=timetable.query(self.profile,self.config,"2026-10-13")
+        self.assertEqual([r["kind"] for r in result["events"] if r["cancelled"]],["lab"])
+    def test_ambiguous_cancellation_remains_pending(self):
+        for time,end in [("09:00","11:00"),("13:00","15:00")]:
+            timetable.mutate(self.profile,self.config,self.row(action="save",kind="lab",title="Lab",time=time,endTime=end))
+        timetable.mutate(self.profile,self.config,self.row(action="save",kind="lab",title="Lab cancelled",time="",endTime="",cancelled=True))
+        result=timetable.query(self.profile,self.config,"2026-10-13")
+        self.assertTrue(all(not r["cancelled"] for r in result["events"]));self.assertEqual(len(result["pending"]),1)
+    def test_dashboard_summary_bounds_rows_and_defers_original_sources(self):
+        row={"id":"candidate","sources":[{"quote":"large original excerpt "*1000}],"dates":["2026-10-13"],"kind":"exam"}
+        value={"events":[copy.deepcopy(row) for _ in range(100)],"pending":[copy.deepcopy(row) for _ in range(1000)],"conflicts":[]}
+        summary=timetable.compact_summary(value)
+        self.assertEqual(len(summary["events"]),80);self.assertEqual(len(summary["pending"]),20)
+        self.assertEqual(summary["pendingTotal"],1000)
+        self.assertTrue(all("sources" not in r for r in summary["pending"]));self.assertIn("sources",value["pending"][0])
+
     def test_multiple_dates_survive_manual_confirmation(self):
         timetable.mutate(self.profile,self.config,self.row(action="save",dates=["2026-10-13","2026-10-20"]))
         for date in ["2026-10-13","2026-10-20"]:
@@ -184,7 +218,8 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         self.assertTrue(all(r["overlaps"] for r in rows))
         timetable.mutate(self.profile,self.config,self.row(action="save",title="No class",cancelled=True))
         rows=timetable.query(self.profile,self.config,"2026-10-13")["events"]
-        self.assertTrue(all(r["cancelled"] for r in rows))
+        self.assertEqual([r["kind"] for r in rows if r["cancelled"]],["lecture"])
+        self.assertFalse(next(r for r in rows if r["kind"]=="lab")["cancelled"])
     def test_manual_recurring_exception_and_makeup(self):
         row=self.row(action="save",repeat={"start":"2026-10-01","end":"2026-10-31","weekdays":[1],"parity":"all"},exceptions=["2026-10-13"])
         row.pop("date");timetable.mutate(self.profile,self.config,row)
@@ -224,6 +259,23 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         with patch.object(calendar,"_fetch",return_value=(b"",None)):
             with self.assertRaises(RuntimeError):calendar.refresh(self.profile,cancelled=cancel)
         self.assertFalse((self.profile/"calendar").exists())
+
+    def test_saved_file_and_page_upgrade_runs_without_canvas_requests(self):
+        import canvas_documents as documents
+        file={"type":"file","id":"1:file:12","courseId":"1","course":"COURSE1","fileId":"12","title":"Teaching timetable","url":"https://canvas.polyu.edu.hk/courses/1/files/12","fingerprint":"a"*64,"status":"read","readerVersion":0,"timetableVersion":0}
+        text="Lecture 13 October 2026 18:30–20:30"
+        root=self.profile/"documents";(root/"cache").mkdir(parents=True)
+        save_private(root/"cache/1-12.json",{"accountId":"1","readerVersion":documents.READER_VERSION,"pages":[{"page":1,"text":text,"rows":[text],"method":"native","confidence":1.0,"readable":True,"processed":True}]})
+        path="/courses/1/pages/timetable";web=copy.deepcopy(file);web.update(type="page",id="1:page:web",fileId=None,url="https://canvas.polyu.edu.hk"+path)
+        (root/"web/1").mkdir(parents=True)
+        save_private(root/"web/1"/(hashlib.sha256(path.encode()).hexdigest()+".json"),{"accountId":"1","path":path,"rows":[text]})
+        index={"accountId":"1","records":[file,web],"version":0}
+        save_private(root/"index.json",index)
+        self.assertTrue(documents.needs_cached_upgrade(index,self.config))
+        with patch.object(documents,"extract",side_effect=AssertionError("Unexpected file reread")):
+            result=documents.reprocess_cached_documents(self.profile,self.config,None,lambda:None,lambda message:None)
+        self.assertTrue(all(r["timetableRules"] for r in result["records"]))
+        self.assertFalse(documents.needs_cached_upgrade(result,self.config))
 
 class CacheAndOCRChecks(unittest.TestCase):
     def test_timetable_reader_upgrade_schedules_cached_file_reinterpretation(self):
