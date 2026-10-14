@@ -58,6 +58,10 @@ def verify(app):
     assert ui(lambda: not core.Settings.IsPasswordAutosaveEnabled and not core.Settings.IsGeneralAutofillEnabled)
     attempt = app.login_attempt
     app._credential_smoke_stage = 'cancel and forget'
+    def detach_fixture():
+        core.Stop()
+        core.WebResourceRequested -= intercept
+    school.native.Invoke(Action(detach_fixture))
     school.destroy()
     wait(lambda: app.login_window is None)
     assert not attempt.active and attempt.candidate is None
