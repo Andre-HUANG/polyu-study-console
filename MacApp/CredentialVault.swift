@@ -26,6 +26,7 @@ final class CredentialVault {
     let root: URL
     let testKeychain: SecKeychain?
     let lock = NSRecursiveLock()
+    var deletionRequested = false
     var directory: URL { root.appendingPathComponent("credentials", isDirectory: true) }
     var settings: URL { directory.appendingPathComponent("consent.json") }
     init(root: URL, testKeychain: SecKeychain? = nil) { self.root = root; self.testKeychain = testKeychain }
@@ -90,14 +91,18 @@ final class CredentialVault {
     }
     func enable() throws {
         lock.lock(); defer { lock.unlock() }
+        if deletionRequested { try forget() }
         try cleanup(); var value = try state(); value.enabled = true; value.consentVersion = 1; try writeState(value)
     }
     func forget() throws {
         lock.lock(); defer { lock.unlock() }
+        deletionRequested = true
         var value = try state(); value.enabled = false; value.purgePending = true; try writeState(value); try cleanup()
+        deletionRequested = false
     }
     func record() throws -> SavedCanvasCredential? {
         lock.lock(); defer { lock.unlock() }
+        if deletionRequested { try forget() }
         try cleanup(); let value = try state()
         guard value.enabled, value.consentVersion == 1, let ref = value.activeRef else { return nil }
         guard let data = try bytes(ref), let row = try? JSONDecoder().decode(SavedCanvasCredential.self, from: data),
@@ -108,6 +113,7 @@ final class CredentialVault {
     }
     func saveVerified(username: String, password: String, userId: String) throws {
         lock.lock(); defer { lock.unlock() }
+        if deletionRequested { try forget() }
         try cleanup(); var value = try state()
         guard value.enabled, value.consentVersion == 1, !username.isEmpty, username.count <= 512,
               !password.isEmpty, password.count <= 4096, !userId.isEmpty,

@@ -94,6 +94,16 @@ class CredentialPolicyTests(unittest.TestCase):
         self.store.resume_purge(); self.assertEqual(self.store.status()['state'], 'off')
         self.assertFalse(self.store.file.exists())
 
+    def test_failed_disable_write_stops_fill_until_delete_retry(self):
+        self.saved()
+        with patch.object(self.store, '_save_state', side_effect=PermissionError()):
+            with self.assertRaises(PermissionError): self.store.forget()
+            self.assertEqual(self.store.status()['state'], 'unavailable')
+            self.assertFalse(self.store.status()['enabled'])
+            with self.assertRaises(PermissionError): self.store.record()
+        self.assertIsNone(self.store.record())
+        self.assertFalse(self.store.file.exists())
+
     def test_linked_credentials_never_reads_or_writes_outside(self):
         outside = pathlib.Path(self.temp.name)/'outside'; outside.mkdir(); (outside/'sentinel').write_text('preserve')
         try: self.store.directory.symlink_to(outside, target_is_directory=True)

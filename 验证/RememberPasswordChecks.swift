@@ -66,6 +66,15 @@ import Security
         try vault.forget()
         check(vault.status()["state"] as? String == "off")
         check(try! vault.bytes(previous!) == nil)
+        try vault.enable(); try vault.saveVerified(username: "synthetic-delete", password: "synthetic-delete-only", userId: "123")
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: vault.directory.path)
+        do { try vault.forget(); fatalError("Read-only consent directory accepted deletion") }
+        catch { count += 1 }
+        check(vault.status()["state"] as? String == "unavailable")
+        check(vault.status()["enabled"] as? Bool == false)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: vault.directory.path)
+        check(try! vault.record() == nil)
+        check(vault.status()["state"] as? String == "off")
         let marker = root.appendingPathComponent("logout-pending")
         try JSONSerialization.data(withJSONObject:["version":2,"keepRememberedPassword":true]).write(to:marker)
         check(CredentialVault.logoutPolicy(root))

@@ -35,6 +35,7 @@ class RememberedCredentials:
         self.file = self.directory / "protected.bin"
         self.protector = protector
         self.lock = threading.RLock()
+        self.deletion_requested = False
 
     def _paths(self):
         if any(is_link(p) for p in (self.root, self.directory, self.settings, self.file)):
@@ -67,6 +68,7 @@ class RememberedCredentials:
 
     @synchronized
     def enable(self):
+        if self.deletion_requested: self.forget()
         self.resume_purge()
         self._save_state({"version": 1, "enabled": True, "consentVersion": 1})
 
@@ -76,15 +78,18 @@ class RememberedCredentials:
 
     @synchronized
     def forget(self):
+        self.deletion_requested = True
         self._save_state({"version": 1, "enabled": False, "purgePending": True})
         try:
             self._paths(); self.file.unlink(missing_ok=True)
             if self.file.exists(): raise safe_error()
             self._save_state({"version": 1, "enabled": False})
+            self.deletion_requested = False
         except Exception: raise safe_error() from None
 
     @synchronized
     def record(self):
+        if self.deletion_requested: self.forget()
         self.resume_purge()
         state = self._state()
         if not state["enabled"] or state.get("consentVersion") != 1: return None
@@ -100,6 +105,7 @@ class RememberedCredentials:
 
     @synchronized
     def save_verified(self, username, password, user_id):
+        if self.deletion_requested: self.forget()
         state = self._state()
         if not state["enabled"] or state.get("consentVersion") != 1: raise safe_error()
         if not isinstance(username, str) or not 0 < len(username) <= 512 or not isinstance(password, str) or not 0 < len(password) <= 4096:

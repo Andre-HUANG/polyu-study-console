@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var diagnosticSending = false
     var loginCompleted = false
     var credentialAttempt: LoginCredentialAttempt?
-    var credentialVault: CredentialVault { CredentialVault(root: dataDirectory) }
+    lazy var credentialVault = CredentialVault(root: dataDirectory!)
     var readyTimer: Timer?
     var baseURL: URL?
     var nativeSecret = UUID().uuidString + UUID().uuidString
