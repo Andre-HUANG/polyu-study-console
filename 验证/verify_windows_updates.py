@@ -105,7 +105,7 @@ def main():
    if mode=="installed":
     run(setup,"/S",timeout=180);target=real_install;profile=real_profile
    else:target=case/"program";shutil.copytree(bundle,target);profile=case/"local"/NAME
-   release=target/"console/release.json";value=json.loads(release.read_text());value["version"]="1.8.2";value["build"]="181";release.write_text(json.dumps(value))
+   release=target/"console/release.json";value=json.loads(release.read_text());value["version"]="1.8.2";value["build"]="182";release.write_text(json.dumps(value))
    key=Ed25519PrivateKey.generate();pub=base64.b64encode(key.public_key().public_bytes(serialization.Encoding.Raw,serialization.PublicFormat.Raw)).decode()
    lock_path=target/"updater-lock.json";lock=json.loads(lock_path.read_text());lock["publicKey"]=pub;lock_path.write_text(json.dumps(lock))
    (target/"obsolete-program.py").write_text("# Synthetic old-only packaged module")
