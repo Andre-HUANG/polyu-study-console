@@ -139,7 +139,7 @@ final class NativeGUISmoke {
                     self.wait("isolated login sheet", until: { self.app.currentAlert?.messageText == "隔离测试模式" }) {
                         self.report["productionLoginBridgeReached"] = true
                         self.app.currentAlert!.buttons[0].performClick(nil)
-                        self.wait("login sheet dismissal", until: { self.app.currentAlert == nil }) { self.searchAndError() }
+                        self.wait("login sheet dismissal", until: { self.app.currentAlert == nil }) { self.rememberConsentChecks { self.searchAndError() } }
                     }
                   }
                 }
@@ -148,13 +148,48 @@ final class NativeGUISmoke {
     }
 
 
+    func rememberConsentChecks(_ action: @escaping () -> Void) {
+        progress("native remember-password consent: cancel, enable, pending and forget")
+        js("openSettings('account');document.getElementById('rememberPasswordToggle').click();true") { _ in
+            self.wait("remember consent", until: { self.app.currentAlert?.messageText == "在本机记住账号和密码？" }) {
+                guard self.app.currentAlert?.informativeText == CredentialVault.consentText,
+                      self.app.currentAlert?.buttons.first?.title == "同意并开启" else { self.fail("Remember consent text/button failed"); return }
+                self.app.currentAlert!.buttons[1].performClick(nil)
+                self.waitForJS("remember consent cancelled", "!document.getElementById('rememberPasswordToggle').checked && !document.getElementById('rememberPasswordToggle').disabled && document.getElementById('rememberPasswordStatus').textContent==='未开启'") {
+                    self.report["rememberConsentCancelled"] = true
+                    self.js("document.getElementById('rememberPasswordToggle').click();true") { _ in
+                        self.wait("second remember consent", until: { self.app.currentAlert != nil }) {
+                            self.app.currentAlert!.buttons[0].performClick(nil)
+                            self.waitForJS("remember enabled pending", "document.getElementById('rememberPasswordToggle').checked && document.getElementById('rememberPasswordStatus').textContent.includes('等待保存') && !document.getElementById('forgetPasswordButton').hidden") {
+                                self.report["rememberNativeConsentEnabledPending"] = true
+                                self.snapshot("settings-remember-pending") {
+                                    self.js("document.getElementById('forgetPasswordButton').click();true") { _ in
+                                        self.waitForJS("remember forgotten", "!document.getElementById('rememberPasswordToggle').checked && document.getElementById('rememberPasswordStatus').textContent==='未开启' && document.getElementById('forgetPasswordButton').hidden") {
+                                            self.report["rememberForgetPreservesCurrentDashboard"] = true
+                                            action()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     func waitForJS(_ label: String, _ expression: String, then action: @escaping () -> Void) {
         let deadline = Date().addingTimeInterval(15)
         func poll() {
             guard !done else { return }
             js(expression) { value in
                 if value as? Bool == true { action() }
-                else if Date() > deadline { self.fail("UI timeout: " + label) }
+                else if Date() > deadline {
+                    self.js("({visible:pageVisible(),documentHidden:document.hidden,nativeHidden,settingsOpen:document.getElementById('settingsDialog').open,settingsTab:state.settingsTab,status:document.getElementById('logStatus').textContent,events:state.logs?.events.map(e=>({event:e.event,result:e.result,code:e.code})) ?? []})") { context in
+                        self.report["timeoutContext"] = context
+                        self.fail("UI timeout: " + label)
+                    }
+                }
                 else { self.later { poll() } }
             }
         }
@@ -319,7 +354,11 @@ final class NativeGUISmoke {
 
     func checkDiagnosticView(_ action: @escaping () -> Void) {
         progress("settings logs: native login attempt, local verification failure, filter and clear")
-        js("selectSettingsTab('logs');true") { _ in
+        app.window.collectionBehavior.insert(.moveToActiveSpace)
+        app.window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        waitForJS("visible dashboard for logs", "pageVisible()") {
+          self.js("selectSettingsTab('logs');true") { _ in
             self.waitForJS("login failure logs", "state.logs?.events.some(e=>e.event==='login.open' && e.result==='failure' && e.code==='TEST_MODE') && state.logs?.events.some(e=>e.event==='login.verify' && e.result==='failure' && e.code==='INVALID_INPUT')") {
                 self.report["nativeLoginAttemptsAndLocalFailureLogged"] = true
                 self.snapshot("settings-logs") {
@@ -335,6 +374,7 @@ final class NativeGUISmoke {
                     }
                 }
             }
+          }
         }
     }
 
@@ -395,6 +435,9 @@ final class NativeGUISmoke {
                 guard cookies.contains(where: { $0.name == cookie.name }) else { self.fail("Synthetic nonpersistent cookie not set"); return }
                 guard self.menu("退出登录…") else { return }
                 self.wait("logout confirmation", until: { self.app.currentAlert?.buttons.count == 2 }) {
+                    guard let retain = self.app.currentAlert?.accessoryView as? NSButton, retain.state == .off,
+                          retain.title.contains("在本机保留已记住的账号密码") else { self.fail("Logout retention checkbox must default off"); return }
+                    self.report["logoutRememberedPasswordRetentionDefaultOff"] = true
                     self.app.currentAlert!.buttons[1].performClick(nil)
                     self.wait("logout cancellation", until: { self.app.currentAlert == nil }) {
                         guard self.sentinels.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }) else { self.fail("Cancelled logout deleted data"); return }

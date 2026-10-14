@@ -42,7 +42,7 @@ def main():
                         credential_checks.update(verify(app))
                         results.append("nativeRememberedPasswordSyntheticFlow")
                     except Exception as error:
-                        errors.append(type(error).__name__)
+                        errors.append({"type":type(error).__name__, "stage":getattr(app, "_credential_smoke_stage", "dashboard")})
                     finally:
                         window.destroy()
                 window.events.loaded += loaded

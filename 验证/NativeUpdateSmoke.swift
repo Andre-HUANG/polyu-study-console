@@ -40,7 +40,7 @@ final class Delegate:NSObject,NSApplicationDelegate,SPUUpdaterDelegate {
         record("launch",Int(getpid()))
         if Bundle.main.infoDictionary!["TestScenario"] as? String == "abort-recovery" {
             do {
-                try UpdateRecovery.prepare(version:"1.8.3")
+                try UpdateRecovery.prepare(version:"1.9.1")
                 let spec=try JSONSerialization.jsonObject(with:Data(contentsOf:UpdateRecovery.marker)) as! [String:Any]
                 let folder=spec["folder"] as! String
                 guard UpdateRecovery.abortUncommitted() else { record("error","Abort rejected");NSApp.terminate(nil);return }
@@ -55,7 +55,7 @@ final class Delegate:NSObject,NSApplicationDelegate,SPUUpdaterDelegate {
             } catch {record("error",String(describing:error));NSApp.terminate(nil)}
             return
         }
-        if applicationVersion=="1.8.3" {
+        if applicationVersion=="1.9.1" {
             UpdateRecovery.recordLaunch()
             if Bundle.main.infoDictionary!["TestCrash"] as? Bool == true { exit(7) }
             UpdateRecovery.acknowledge()
@@ -63,7 +63,7 @@ final class Delegate:NSObject,NSApplicationDelegate,SPUUpdaterDelegate {
             DispatchQueue.main.asyncAfter(deadline:.now()+2) {NSApp.terminate(nil)}
             return
         }
-        if FileManager.default.fileExists(atPath:testRoot.appendingPathComponent("events-1.8.3.json").path) {
+        if FileManager.default.fileExists(atPath:testRoot.appendingPathComponent("events-1.9.1.json").path) {
             record("rolledBack");NSApp.terminate(nil);return
         }
         updater=SPUUpdater(hostBundle:Bundle.main,applicationBundle:Bundle.main,userDriver:driver,delegate:self)
