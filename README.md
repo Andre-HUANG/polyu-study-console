@@ -2,7 +2,7 @@
 
 连接香港理工大学 Canvas，集中查看考试与作业、成绩、课程变化和文档证据。学生制作的工具，非学校官方应用。首次启动为空框架，没有默认课程、预设评分比例或随包账号资料。
 
-当前开发版本：**1.9.1（构建 191）**，以 1.8.2 为基线，新增用户主动开启的本机记住密码。本分支的构建是候选包；正式发布状态以 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest) 为准。旧版包保留。
+当前版本：**1.9.1（构建 191）**，以 1.8.2 为基线，新增用户主动开启的本机记住密码。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。GitHub 仅保留最新版安装包；旧版本源码、标签与发布记录保留。
 
 ## 安装
 

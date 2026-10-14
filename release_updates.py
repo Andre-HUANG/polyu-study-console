@@ -53,7 +53,7 @@ def sign(folder):
         channel=ET.SubElement(rss,"channel");ET.SubElement(channel,"title").text="PolyU Study Console"
         item=ET.SubElement(channel,"item");ET.SubElement(item,"title").text="PolyU Study Console "+VERSION
         ET.SubElement(item,"pubDate").text=formatdate(usegmt=True)
-        ET.SubElement(item,"description").text="1.8.2：性能与耗电优化、课程表、本日／本周视图、官方 PolyU 校历和应用内签名更新。"
+        ET.SubElement(item,"description").text="1.9.1：经用户明确同意后在本机记住学校账号密码；重新登录时填入，仍由用户手动提交并完成学校验证。"
         ET.SubElement(item,"{"+NS+"}minimumSystemVersion").text="13.0" if platform=="macos" else "10.0.19041"
         attrs={"url":asset["url"],"length":str(asset["bytes"]),"type":"application/octet-stream","{"+NS+"}version":BUILD if platform=="macos" else VERSION,"{"+NS+"}shortVersionString":VERSION,"{"+NS+"}os":platform,"{"+NS+"}edSignature":asset_signature}
         ET.SubElement(item,"enclosure",attrs)
