@@ -1,10 +1,10 @@
-PolyU study控制台 · 1.8.2 · Windows x64
+PolyU study控制台 · 1.9.1 · Windows x64
 
 安装
 1. 适用于 AMD / Intel x64、Windows 10 2004（build 19041）或更新版本。
-2. 双击“PolyUStudyConsole-1.8.2-windows-x64-setup.exe”。安装到当前用户的 %LOCALAPPDATA%\Programs\PolyUStudyConsole，不要求管理员权限。
+2. 双击“PolyUStudyConsole-1.9.1-windows-x64-setup.exe”。安装到当前用户的 %LOCALAPPDATA%\Programs\PolyUStudyConsole，不要求管理员权限。
 3. 从开始菜单打开“PolyU study控制台”。已包含独立 Python 3.12.15 运行时，无需另装 Python、Codex 或自行构建。
-4. 便携版可完整解压“PolyUStudyConsole-1.8.2-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
+4. 便携版可完整解压“PolyUStudyConsole-1.9.1-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
 
 安装包使用哈希锁定的官方 Windows 二进制输入，并检查 PE 架构及静态 DLL 依赖/加载目录。Mac 组装只提供静态结果；GitHub Actions 在 Windows 原生环境执行验收，实际结果见同版 Release 和 SECURITY_TESTS.md。安装程序和启动器采用官方 NSIS 32 位 Unicode 引导程序，Python、PYD 和原生 DLL 为 x64，托管库为 AnyCPU。静态检查不能替代 Windows 原生验证。
 包未进行 Authenticode 签名。可对照同版 Release 的 SHA256SUMS.txt 核对来源和文件完整性；遇 Windows 安全提示时保留系统安全设置。
@@ -46,12 +46,17 @@ Windows OCR 不提供逐行数值置信度，标记“置信度未提供”；�
 运行日志可刷新、筛选失败或清空，只保留最近 200 条固定操作与结果，包含登录/退出的开始、结果和错误；不记录密码、Cookie、Token、学校登录响应、账号姓名或文档正文。登录后的日志只保存在 account/diagnostics 下，随退出账号一起删除。登录前与刚完成退出的结果只在本次运行内显示。清空日志不影响课程、成绩或个人安排。
 
 
-1.8.2 隐私更新
+1.9.1 隐私更新
 敏感 API 需要原生随机会话，退出/重启撤销旧凭据。Mac Cookie 保存 Keychain，迁移写入读回复核，失败保留且不回退明文。ad-hoc 更新可能要求钥匙串授权，变更签名升级待实机验收。Windows 保留用户 DPAPI；卸载保留资料，删除请先退出登录。无新增遥测或学习资料上传。
 
 
-1.8.2 新增
+1.9.1 新增
 - 设置中的“软件更新”检查 GitHub 正式版，确认后下载、校验并安装重启。1.8.0/1.8.1 需先手动安装本版，之后使用应用内更新。
 - 课程表显示上课和考试，可切换本日/本周、核对来源、选择班组、确认或补充安排。作业截止日期继续显示在考试与作业区域。
 - 官方 PolyU 校历支持学年切换、教学周和停课提示；学校考试期不是个人考试日期。离线保留上次有效校历。
 - 低电量模式减少闲置检查和动画；OCR 继续尽快完成。
+
+1.9.1 本机记住账号和密码
+在「设置 → Canvas 账号」手动开启并同意说明，成功完成学校登录后保存；以后只填入一次账号密码，登录按钮和学校验证仍由你完成。此功能默认关闭。
+密码只由本机原生窗口和系统保护存储管理。正常关闭或会话到期保留密码；主动退出默认删除，也可当次主动勾选保留。无论是否保留密码，主动退出均删除学习资料和登录会话。
+「删除已保存密码并关闭」不影响当前已连接的账号资料。保护或删除失败会显示未完成，禁止回退明文。

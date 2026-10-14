@@ -361,3 +361,7 @@ body.settings-open{overflow:hidden}
 .calendar-important{margin:12px 0;font-size:.7rem;color:var(--wine)}.calendar-important summary{cursor:pointer;padding:6px 0;border-top:1px solid var(--line)}.calendar-important .calendar-events{margin:8px 0}.calendar-week{margin:0 0 8px}.academic-calendar .class-date-nav{margin:8px 0 12px}.academic-calendar .calendar-footer{margin-top:12px}
 
 @media(min-width:721px) and (max-width:1150px){.academic-calendar .calendar-important{grid-column:2;grid-row:1/6;align-self:start;margin:0}.academic-calendar .calendar-important .calendar-events{max-height:220px}}
+
+.remember-password-options { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; margin-top:12px; }
+#rememberPasswordStatus { color:var(--muted, #596575); font-size:12px; }
+.remember-password-options input { accent-color:var(--polyu-red, #a6192e); }

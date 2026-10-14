@@ -7,7 +7,7 @@ def main():
               ["security/tool_runner.py","gitleaks","git","--redact=100","--config",".gitleaks.toml","--log-opts=--all","."],
               ["验证/run_offline.py"],["验证/verify_local_api.py"]]
     if sys.platform in {"darwin","linux"}:commands.append(["security/tool_runner.py","actionlint","-shellcheck=","-pyflakes="])
-    if sys.platform=="darwin":commands.append(["验证/verify_keychain.py"])
+    if sys.platform=="darwin":commands.extend([["验证/verify_keychain.py"], ["验证/verify_remember_password.py"]])
     for arguments in commands:
         subprocess.run([sys.executable,"-B",*arguments],cwd=ROOT,check=True)
     subprocess.run([sys.executable,"-B","security/privacy_scan.py","--staged"],cwd=ROOT,check=True)

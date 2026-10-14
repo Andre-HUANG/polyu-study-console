@@ -168,7 +168,8 @@
             <h2 id="accountTitle">连接你的 PolyU Canvas</h2>
             <p id="accountDescription">在学校窗口登录，授权后逐门读取课程页面、公告、课件文件和已公布成绩。</p>
             <div class="account-options"><label class="auto-sync-option"><input id="autoSyncToggle" type="checkbox" checked> <span id="autoSyncLabel">应用打开时自动同步（每 1 小时）</span></label><span id="accountStatus">首次连接后读取课程信息</span></div>
-            <p class="account-privacy">账号密码在学校页面输入；退出登录会删除这台电脑应用中该账号的学习资料和登录会话。</p>
+            <div class="remember-password-options"><label class="auto-sync-option"><input id="rememberPasswordToggle" type="checkbox"> <span>在本机记住账号和密码</span></label><span id="rememberPasswordStatus" role="status" aria-live="polite">未开启</span><button id="forgetPasswordButton" class="account-text-button" type="button" hidden>删除已保存密码并关闭</button></div>
+            <p class="account-privacy">在学校页面完成登录和验证。记住密码需主动同意，仅保存在本机；退出时可选择保留，课程资料和登录会话仍会删除。</p>
           </div>
           <div class="account-actions">
             <button id="loginButton" class="button button-primary" type="button">登录并授权 Canvas</button>
@@ -201,7 +202,7 @@
           <p class="section-note">只保留最近 200 条操作记录。退出登录会删除账号日志；登录前及本次退出结果仅在本次运行中显示。</p>
         </section>
     </div>
-    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v1.8.2</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
+    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v1.9.1</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
   </dialog>
 
   <dialog id="eventDialog" class="event-dialog" aria-labelledby="dialogTitle">

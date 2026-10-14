@@ -60,6 +60,8 @@ def main():
     if args.platform=="mac":
         if sys.platform!="darwin":raise RuntimeError("Mac content/native validation needs macOS")
         smoke=evidence("mac-smoke-evidence.json");gui=evidence("native-gui-evidence.json")
+        remember=evidence("remember-keychain-evidence.json")
+        assert remember["ok"] and remember["sourceHashes"] == hashes and remember["macosCredentialKeychainRoundTrip"]
         assert smoke["sourceHashes"]==hashes and gui["sourceHashes"]==hashes,"Native evidence is stale"
         assert smoke["loopbackEmptyFramework"] and smoke["appAndReaderArchitecture"]=="arm64"
         assert gui["productionNativeLifecycleValidated"] and gui["productionNativeAppLaunched"]
@@ -78,17 +80,18 @@ def main():
         update=evidence("mac-update-evidence.json")
         assert update["sourceHashes"]==hashes and len(update["scenarios"])==6
         platform_checks={"nativeUpdates":True,"nativeGUI":True,"backendRuntime":True,"dmgReadOnlyScan":True,
-                         "adHocSigned":True,"appleNotarized":False}
+                         "adHocSigned":True,"appleNotarized":False,"rememberPassword":True}
     else:
         if sys.platform!="win32":raise RuntimeError("Windows release validation requires Windows")
         native=evidence("windows-native-evidence.json");gui=evidence("windows-gui-evidence.json");installer=evidence("windows-installer-evidence.json")
         assert native["payloadManifestSHA256"]==manifest_digest and gui["payloadManifestSHA256"]==manifest_digest
         assert installer["payloadManifestSHA256"]==manifest_digest and installer["setupSHA256"]==sha(files[0])
-        assert native["dpapiRoundTrip"] and native["ownedBackendStopped"] and gui["webview2NativeGUI"]
+        assert native["dpapiRoundTrip"] and native["rememberedPasswordDpapi"] and native["ownedBackendStopped"] and gui["webview2NativeGUI"]
+        assert all(gui["rememberPassword"][key] for key in ("nativeCredentialFormFill", "nativeCredentialCandidateCapture", "manualSubmitOnly", "browserPasswordAutosaveDisabled"))
         assert installer["nativeInstallUninstall"] and installer["uninstallPreservesProfile"] and installer["installedGUIExecuted"] and installer["installedInventoryVerified"]
         update=evidence("windows-update-evidence.json")
         assert update["sourceHashes"]==hashes and update["payloadManifestSHA256"]==manifest_digest and len(update["scenarios"])==6
-        platform_checks={"nativeUpdates":True,"nativeGUI":True,"backendRuntime":True,"dpapi":True,"installUninstall":True,"authenticodeSigned":False}
+        platform_checks={"nativeUpdates":True,"nativeGUI":True,"backendRuntime":True,"dpapi":True,"installUninstall":True,"authenticodeSigned":False,"rememberPassword":True}
     report={"ok":True,"platform":args.platform,"version":VERSION,"sourceSHA":head,"sourceTreeClean":True,
             "artifacts":{f.name:{"sha256":sha(f),"bytes":f.stat().st_size} for f in files},
             "fileCount":count,"archivePrivacyScan":True,"platformChecks":platform_checks,"realCanvasValidated":False}

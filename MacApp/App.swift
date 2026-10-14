@@ -5,7 +5,7 @@ import CryptoKit
 import Sparkle
 
 let applicationName = "PolyU study控制台"
-let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8.2"
+let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.9.1"
 let canvasHost = "https://canvas.polyu.edu.hk"
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
@@ -23,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var diagnosticQueue: [[String: String]] = []
     var diagnosticSending = false
     var loginCompleted = false
+    var credentialAttempt: LoginCredentialAttempt?
+    var credentialVault: CredentialVault { CredentialVault(root: dataDirectory) }
     var readyTimer: Timer?
     var baseURL: URL?
     var nativeSecret = UUID().uuidString + UUID().uuidString
@@ -328,6 +330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     func applicationWillTerminate(_ notification: Notification) {
         terminating = true
+        credentialAttempt?.close()
         nativeSession.invalidateAndCancel()
         stopBackend()
     }
@@ -338,6 +341,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "canvasCredentials" {
+            receiveCredentials(message)
+            return
+        }
         if message.name == "canvasLogin" {
             guard message.frameInfo.isMainFrame, message.frameInfo.request.url?.host == "canvas.polyu.edu.hk",
                   let body = message.body as? [String: Any], body["authenticated"] as? Bool == true else { return }
@@ -350,6 +357,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         switch action {
         case "softwareUpdate":
             if let install = pendingUpdateInstall { prepareUpdateRestart(install) } else { checkSoftwareUpdates() }
+        case "rememberStatus": publishCredentialStatus()
+        case "rememberEnable": enableRememberedPassword()
+        case "rememberForget": forgetRememberedPassword()
         case "login": openLogin()
         case "logout": logout()
         case "dataFolder": openDataFolder()
@@ -368,9 +378,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         if let existing = loginWindow, existing.isVisible { existing.makeKeyAndOrderFront(nil); recordDiagnostic("login.open", "success"); return }
         loginCompleted = false
+        credentialAttempt?.close()
+        let attempt = LoginCredentialAttempt()
+        credentialAttempt = attempt
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = schoolDataStore()
         configuration.userContentController.add(self, name: "canvasLogin")
+        configuration.userContentController.add(self, name: "canvasCredentials")
+        if let script = credentialScript(attempt: attempt) {
+            configuration.userContentController.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
         let script = """
         (() => { if (location.origin !== '\(canvasHost)') return;
           const check = () => { try {
@@ -435,15 +452,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                 self.connecting = false
                 switch result {
                 case .success(let response):
-                    self.loginCompleted = true
                     self.recordDiagnostic("login.export", "success")
-                    self.loginWindow?.close()
-                    self.auxiliaryWindows.forEach { $0.close() }
-                    self.auxiliaryWindows.removeAll()
-                    self.notice(response["message"] as? String ?? "Canvas 已连接。", type: "success")
-                    self.reloadData()
-                    self.window.makeKeyAndOrderFront(nil)
+                    self.saveLoginCredential(response: response) {
+                        guard self.accountGeneration == generation, !self.resettingAccount, !self.terminating else { return }
+                        self.loginCompleted = true
+                        self.loginWindow?.close()
+                        self.auxiliaryWindows.forEach { $0.close() }
+                        self.auxiliaryWindows.removeAll()
+                        self.notice(response["message"] as? String ?? "Canvas 已连接。", type: "success")
+                        self.reloadData()
+                        self.publishCredentialStatus()
+                        self.window.makeKeyAndOrderFront(nil)
+                    }
                 case .failure(let error):
+                    self.credentialAttempt?.candidate = nil
                     let code = (error as NSError).code
                     self.recordDiagnostic("login.export", "failure", [400,403,409,500,502].contains(code) ? "HTTP_\(code)" : "NETWORK_ERROR")
                     self.loginAddress?.stringValue = error.localizedDescription
@@ -451,6 +473,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                 }
             }
         }
+    }
+
+
+    func credentialOwner() -> String? {
+        let file = dataDirectory.appendingPathComponent("account/config.json")
+        guard let data = try? Data(contentsOf: file), let config = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let user = config["user"] as? [String: Any], let id = user["id"] else { return nil }
+        return String(describing: id)
+    }
+    func publishCredentialStatus() {
+        guard dataDirectory != nil, console != nil, !resettingAccount else { return }
+        if let bytes = try? JSONSerialization.data(withJSONObject: credentialVault.status(owner: credentialOwner())), let text = String(data: bytes, encoding: .utf8) {
+            console.evaluateJavaScript("window.polyuRememberStatus?.(" + text + ")")
+        }
+    }
+    func enableRememberedPassword() {
+        guard !resettingAccount, currentAlert == nil else { publishCredentialStatus(); return }
+        let dialog = NSAlert(); dialog.messageText = "在本机记住账号和密码？"; dialog.informativeText = CredentialVault.consentText
+        dialog.addButton(withTitle: "同意并开启"); dialog.addButton(withTitle: "取消"); currentAlert = dialog
+        dialog.beginSheetModal(for: window) { [weak self] response in
+            guard let self = self else { return }; self.currentAlert = nil
+            if response == .alertFirstButtonReturn {
+                do {
+                    try self.credentialVault.enable()
+                    if let attempt = self.credentialAttempt, let script = self.credentialScript(attempt: attempt) {
+                        self.loginView?.evaluateJavaScript(script)
+                    }
+                } catch { self.notice(CredentialFailure.unavailable.localizedDescription, type: "error") }
+            }
+            self.publishCredentialStatus()
+        }
+    }
+    func forgetRememberedPassword() {
+        guard !resettingAccount else { return }
+        credentialAttempt?.close(); credentialAttempt = nil
+        loginWindow?.close()
+        auxiliaryWindows.forEach { $0.close() }; auxiliaryWindows.removeAll()
+        do { try credentialVault.forget(); notice("已删除本机保存的密码并关闭记住密码。", type: "success") }
+        catch { notice(CredentialFailure.unavailable.localizedDescription, type: "error") }
+        publishCredentialStatus()
+    }
+    func credentialScript(attempt: LoginCredentialAttempt) -> String? {
+        guard credentialVault.status()["enabled"] as? Bool == true,
+              let file = Bundle.main.resourceURL?.appendingPathComponent("console/assets/remember-login.js"),
+              let source = try? String(contentsOf: file, encoding: .utf8),
+              let data = try? JSONSerialization.data(withJSONObject: ["platform": "mac", "nonce": attempt.nonce, "enabled": true]),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        return source.replacingOccurrences(of: "__POLYU_REMEMBER_CONFIG__", with: json)
+    }
+    func receiveCredentials(_ message: WKScriptMessage) {
+        guard !resettingAccount, !terminating, message.webView === loginView, loginWindow?.isVisible == true,
+              let view = loginView, let attempt = credentialAttempt, message.frameInfo.isMainFrame,
+              LoginCredentialAttempt.schoolURL(message.frameInfo.request.url), let body = message.body as? [String: Any],
+              body["nonce"] as? String == attempt.nonce, body["type"] as? String == "polyuRemember",
+              attempt.receive(source: message.frameInfo.request.url, mainFrame: message.frameInfo.isMainFrame,
+                  body: body, enabled: credentialVault.status()["enabled"] as? Bool == true) else { return }
+        guard body["kind"] as? String == "ready", !attempt.filled else { return }
+        do {
+            guard let row = try credentialVault.record(), credentialOwner() == nil || credentialOwner() == row.verifiedUserId,
+                  LoginCredentialAttempt.schoolURL(view.url), let document = attempt.documentId else { return }
+            let value: [String: String] = ["nonce": attempt.nonce, "documentId": document, "username": row.username, "password": row.password]
+            let data = try JSONSerialization.data(withJSONObject: value)
+            guard let json = String(data: data, encoding: .utf8) else { return }
+            let script = "(() => { if (window !== window.top || location.origin !== 'https://adfs.polyu.edu.hk' || location.pathname !== '/adfs/ls/') return; window.polyuRememberFill?.(" + json + "); })();"
+            attempt.filled = true
+            view.evaluateJavaScript(script) { [weak self] _, error in
+                if error != nil { self?.notice("本机记住密码暂不可用，请在学校页面手动输入。") }
+            }
+        } catch { notice(CredentialFailure.unavailable.localizedDescription, type: "error") }
+    }
+    func saveLoginCredential(response: [String: Any], completion: @escaping () -> Void) {
+        guard let attempt = credentialAttempt, attempt.active, let candidate = attempt.candidate,
+              let id = response["verifiedUserId"] as? String, credentialVault.status()["enabled"] as? Bool == true else { completion(); return }
+        let commit = { [weak self] in
+            guard let self = self, self.credentialAttempt === attempt, attempt.active, !self.resettingAccount, !self.terminating else { completion(); return }
+            do { try self.credentialVault.saveVerified(username: candidate.username, password: candidate.password, userId: id) }
+            catch { self.alert("Canvas 已连接，但密码未能保存", CredentialFailure.unavailable.localizedDescription) }
+            attempt.candidate = nil
+            completion()
+        }
+        do {
+            if let old = try credentialVault.record(), old.verifiedUserId != id {
+                let dialog = NSAlert(); dialog.messageText = "替换本机记住的学校账号？"
+                dialog.informativeText = "这次登录的是另一账号。是否用本次成功登录的账号密码替换已保存的密码？"
+                dialog.addButton(withTitle: "替换已记住的密码"); dialog.addButton(withTitle: "保留原密码")
+                dialog.beginSheetModal(for: window) { result in
+                    if result == .alertFirstButtonReturn { commit() } else { attempt.candidate = nil; completion() }
+                }
+            } else { commit() }
+        } catch { attempt.candidate = nil; alert("Canvas 已连接，但密码未能保存", CredentialFailure.unavailable.localizedDescription); completion() }
     }
 
     @objc func runtimeStateChanged(_ notification: Notification? = nil) {
@@ -464,6 +576,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow else { return }
         if closing === loginWindow {
+            credentialAttempt?.close(); credentialAttempt = nil
+            loginView?.configuration.userContentController.removeScriptMessageHandler(forName: "canvasCredentials")
             if !loginCompleted && !resettingAccount { recordDiagnostic("login.close", "cancelled") }
             loginView?.evaluateJavaScript("window.polyuLoginStop?.()")
             loginView?.stopLoading()
@@ -579,6 +693,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let confirmation = NSAlert()
         confirmation.messageText = "退出登录并删除本账号的数据？"
         confirmation.informativeText = "这台 Mac 应用中的课程、成绩、考试安排、手动记录和登录会话会全部删除。再次登录后从 Canvas 重新采集。"
+        let retain = NSButton(checkboxWithTitle: "在本机保留已记住的账号密码（仅限个人电脑）", target: nil, action: nil)
+        retain.state = .off
+        retain.isEnabled = (try? credentialVault.state().activeRef) != nil
+        confirmation.accessoryView = retain
         confirmation.addButton(withTitle: "退出并删除")
         confirmation.addButton(withTitle: "取消")
         currentAlert = confirmation
@@ -586,8 +704,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             self?.currentAlert = nil
             guard let self = self else { return }
             guard response == .alertFirstButtonReturn else { self.recordDiagnostic("logout", "cancelled"); return }
-            self.pendingNotice = "已退出登录，账号数据已删除。请登录以建立自己的学习控制台。"
-            self.resetAccountStorage(message: "正在退出登录并删除账号数据…", logoutRequested: true)
+            let keep = retain.isEnabled && retain.state == .on
+            self.pendingNotice = keep ? "已退出登录，学习资料和会话已删除；本机已记住的密码保留。" : "已退出登录，学习资料、会话和已记住的密码已删除。"
+            self.resetAccountStorage(message: "正在退出登录并删除账号数据…", logoutRequested: true, keepRememberedPassword: keep)
         }
     }
 
@@ -628,8 +747,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
     }
 
-    func resetAccountStorage(message: String, logoutRequested: Bool = false) {
+    func resetAccountStorage(message: String, logoutRequested: Bool = false, keepRememberedPassword: Bool? = nil) {
         guard !resettingAccount else { return }
+        let keep = keepRememberedPassword ?? CredentialVault.logoutPolicy(dataDirectory)
         do {
             try testIsolation?.validate()
             let manager = FileManager.default
@@ -637,7 +757,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                 throw NSError(domain: "PolyUStudyConsole", code: 1, userInfo: [NSLocalizedDescriptionKey: "账号目录为链接，未开始清理。"])
             }
             try manager.createDirectory(at: dataDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            try Data("pending\n".utf8).write(to: dataDirectory.appendingPathComponent("logout-pending"), options: .atomic)
+            let policy: [String: Any] = ["version": 2, "keepRememberedPassword": keep]
+            try JSONSerialization.data(withJSONObject: policy).write(to: dataDirectory.appendingPathComponent("logout-pending"), options: .atomic)
         } catch {
             if logoutRequested { recordDiagnostic("logout.cleanup", "failure", "IO_ERROR") }
             showStartup("账号清理未开始")
@@ -645,6 +766,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             return
         }
         resettingAccount = true
+        credentialAttempt?.close(); credentialAttempt = nil
         accountGeneration = UUID()
         diagnosticQueue.removeAll()
         diagnosticSending = false
@@ -680,7 +802,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                 if child.isRunning { kill(-child.processIdentifier, SIGKILL); child.terminate() }
                 child.waitUntilExit()
             }
-            do { try self.clearSavedSession() }
+            do {
+                if !keep { try self.credentialVault.forget() }
+                try self.clearSavedSession()
+            }
             catch {
                 DispatchQueue.main.async {
                     self.resettingAccount = false
@@ -697,10 +822,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                         let marker = self.dataDirectory.appendingPathComponent("logout-pending")
                         // Keep recovery blocked until all account files are gone.
                         for item in try manager.contentsOfDirectory(at: self.dataDirectory, includingPropertiesForKeys: nil) {
-                            if item.lastPathComponent != "logout-pending" { try manager.removeItem(at: item) }
+                            if item.lastPathComponent != "logout-pending" && !(keep && item.lastPathComponent == "credentials") { try manager.removeItem(at: item) }
                         }
                         try manager.removeItem(at: marker)
-                        if manager.fileExists(atPath: self.dataDirectory.path) { try manager.removeItem(at: self.dataDirectory) }
+                        if !keep && manager.fileExists(atPath: self.dataDirectory.path) { try manager.removeItem(at: self.dataDirectory) }
                         try manager.createDirectory(at: self.dataDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
                         try Data("3\n".utf8).write(to: self.dataDirectory.appendingPathComponent("framework-version"), options: .atomic)
                         let configuration = URLSessionConfiguration.ephemeral
@@ -714,7 +839,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                         self.startBackend()
                     } catch {
                         if FileManager.default.fileExists(atPath: self.dataDirectory.path) {
-                            try? Data("pending\n".utf8).write(to: self.dataDirectory.appendingPathComponent("logout-pending"), options: .atomic)
+                            if let policy = try? JSONSerialization.data(withJSONObject: ["version": 2, "keepRememberedPassword": keep]) {
+                                try? policy.write(to: self.dataDirectory.appendingPathComponent("logout-pending"), options: .atomic)
+                            }
                         }
                         self.resettingAccount = false
                         if logoutRequested { self.recordDiagnostic("logout.cleanup", "failure", "IO_ERROR") }
@@ -739,6 +866,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         alert.beginSheetModal(for: window) { [weak self] _ in self?.currentAlert = nil }
     }
 
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        if webView === loginView { credentialAttempt?.candidate = nil }
+    }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        if webView === loginView { credentialAttempt?.candidate = nil }
+    }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         if webView === loginView, let url = webView.url {
             loginAddress?.stringValue = "当前登录网站：\(url.host ?? "") · 在学校页面完成登录和验证"
@@ -747,6 +880,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if webView === console, webView.url?.host == "127.0.0.1" {
             runtimeStateChanged()
+            publishCredentialStatus()
             acknowledgeUpdateWhenReady()
             if let text = pendingNotice {
                 pendingNotice = nil
@@ -779,7 +913,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             return nil
         }
         let handlers = WKUserContentController()
-        configuration.userContentController.userScripts.forEach { handlers.addUserScript($0) }
+        configuration.userContentController.userScripts.filter { !$0.source.contains("polyuRemember") }.forEach { handlers.addUserScript($0) }
         handlers.add(self, name:"canvasLogin")
         configuration.userContentController = handlers
         let popup = WKWebView(frame: .zero, configuration: configuration)

@@ -23,7 +23,7 @@ def main():
         subprocess.run([sys.executable,"-B",str(ROOT/"验证/benchmark.py"),"--root",str(root),"--reader",str(reader),"--output",str(folder/("final-"+label+"-performance.json"))],cwd=ROOT,check=True)
     if source_sha()!=head:raise RuntimeError("Source moved during independent measurement")
     report={"measuredCandidateCommit":head,"sourceHashes":source_hashes(),"checkedAt":dt.datetime.now(dt.timezone.utc).isoformat(),
-        "idleCPU":json.loads((ROOT/".build/idle-cpu-182.json").read_text()),
+        "idleCPU":json.loads((ROOT/".build/idle-cpu-191.json").read_text()),
         "syntheticSynchronization":{label:json.loads((folder/("final-"+label+"-performance.json")).read_text()) for label in ("baseline","candidate")}}
     body=canonical(report);path=folder/"final-performance-receipt.json";path.write_bytes(body);path.chmod(0o600)
     envelope=json.dumps({"body":base64.b64encode(body).decode(),"signature":run_sign(prepare("mac")/"bin/sign_update",path)})

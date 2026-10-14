@@ -213,7 +213,7 @@ function render(data) {
     state.documentSearch = ''; state.searchResults = null;
     $('#documentSearch').value = ''; $('#documentMatches').innerHTML = '';
   }
-  $('#appVersion').textContent = `v${data.version || '1.8.2'}`;
+  $('#appVersion').textContent = `v${data.version || '1.9.1'}`;
   const today = data.today;
   $('#todayLabel').textContent = hkDate(today, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   $('#syncCaption').textContent = data.lastSync
@@ -299,6 +299,19 @@ window.polyuPrepareUpdate = () => {
   return !(openForm && formDirty);
 };
 window.polyuNativeNotice = (message, type = 'info') => showNotice(message, type);
+window.polyuRememberStatus = value => {
+  if (!value || typeof value.enabled !== 'boolean') return;
+  const toggle = $('#rememberPasswordToggle'), status = $('#rememberPasswordStatus'), forget = $('#forgetPasswordButton');
+  if (!toggle || !status || !forget) return;
+  toggle.checked = value.enabled;
+  toggle.disabled = false;
+  const labels = {off: '未开启', pending: '等待保存 · 下次重新登录成功后保存', saved: '已保存', unavailable: '暂不可用 · 请检查系统权限后重试'};
+  status.textContent = (labels[value.state] || labels.unavailable) + (value.maskedUsername ? ' · ' + value.maskedUsername : '') + (value.differentAccount ? ' · 记住的是另一账号，请重新设置' : '');
+  forget.hidden = value.state === 'off';
+};
+const refreshRememberStatus = () => { if (window.webkit?.messageHandlers?.polyu || window.pywebview?.api?.native_action) nativeAction('rememberStatus'); };
+window.addEventListener('pywebviewready', refreshRememberStatus);
+
 let statusRequest, dataRequest, dataEtag, pollTimer, localRevision, nativeHidden = false, lowPower = false;
 window.polyuReload = async (force = false) => {
   if (dataRequest) return;
@@ -740,6 +753,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     finally { button.disabled = false; }
   });
   $('#loginButton').addEventListener('click', () => nativeAction('login'));
+  $('#rememberPasswordToggle').addEventListener('change', event => {
+    const enable = event.target.checked;
+    event.target.checked = !enable;
+    event.target.disabled = true;
+    nativeAction(enable ? 'rememberEnable' : 'rememberForget');
+  });
+  $('#forgetPasswordButton').addEventListener('click', () => nativeAction('rememberForget'));
+  refreshRememberStatus();
   $('#logoutButton').addEventListener('click', () => nativeAction('logout'));
   $('#dataFolderButton').addEventListener('click', () => nativeAction('dataFolder'));
   $('#documentFolderButton').addEventListener('click', () => nativeAction('filesFolder'));

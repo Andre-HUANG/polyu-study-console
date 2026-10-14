@@ -42,3 +42,11 @@ CI 的 Mac/Windows 开发解释器固定为 GitHub 官方清单提供的 Python 
 Windows 原生验收证据：[运行 38245736245 的 Windows job](https://github.com/Andre-HUANG/polyu-study-console/actions/runs/38245736245/job/114799348900)，源码 f0c8fff1aa76。160 项测试中 153 PASS、7 项 Mac 专用检查 SKIP（不计作 Windows PASS）；20 项 HTTP、DPAPI、PDF/表格、OCR 空图、解压后的 WebView2、安装后 GUI、卸载保留合成资料均通过。该次 Mac 搜索断言遇到刷新竞态，因此该次整体运行没有通过发布门禁；修正断言时序后，本机重新构建的三阶段原生 GUI（首开、重开、退出）已 PASS；最终发布仍只接受同一正式 Commit 的完整成功 CI。
 
 旧失败定位与修复：开发 Python 平台可用性、确定性 ZIP 元数据、Windows 路径分隔符、CLR 系统路径例外、PyWinRT OCR 方法、离线测试 socket、WebView2 空目录、验收 JSON 编码。后续只以同一正式 Commit 的完整成功 CI 作为发布依据。
+
+## 1.9.1 remembered password acceptance
+- `WindowsApp/test_remember_password.py`: opt-in, verification before commit, account replacement, interrupted logout, failed encryption/deletion, origin/nonce/document validation. A native DPAPI test is skipped on other operating systems.
+- `验证/test_remember_script.cjs`: production school script in a synthetic DOM; direct form.submit capture, manual submission, scoped origin/frame/form, special characters and teardown. This does not validate school SSO or a native browser.
+- `验证/verify_remember_password.py`: dedicated disposable macOS keychain; default off, verified writes, read-back, re-open, locked-write preservation, deletion and current-login-message policy. No real credentials are read.
+- Real school SSO, user-entered password capture/fill on each desktop platform, and cross-signature Keychain access require separate native acceptance. Preserve that distinction in every release statement.
+
+- Windows native GUI acceptance additionally intercepts an AD FS-shaped document before network access. The production WebView2 bridge fills a synthetic password, waits for a manual submit, captures its candidate and clears it on close. This verifies the SDK message/DOM path but does not authenticate to PolyU.

@@ -30,7 +30,7 @@ final class SmokeDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate
         view.navigationDelegate = self
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1250, height: 850),
                           styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "PolyU 1.8.2 · 隔离 GUI 组件检查（无真实账号）"
+        window.title = "PolyU 1.9.1 · 隔离 GUI 组件检查（无真实账号）"
         window.contentView = view
         window.isReleasedWhenClosed = false
         window.center()
@@ -87,7 +87,7 @@ final class SmokeDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate
             self.checking = false
             guard let data = result as? [String: Any], data["ready"] as? Bool == true else { return }
             self.timer?.invalidate()
-            guard data["version"] as? String == "v1.8.2", data["accountPanelVisible"] as? Bool == false,
+            guard data["version"] as? String == "v1.9.1", data["accountPanelVisible"] as? Bool == false,
                   data["settingsOpen"] as? Bool == false, data["navigationEntries"] as? Int == 4,
                   data["loginText"] as? String == "登录并授权 Canvas", data["logoutHidden"] as? Bool == true,
                   data["courseCards"] as? Int == 0, (data["errors"] as? [String] ?? ["unknown"]).isEmpty else {

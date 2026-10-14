@@ -40,7 +40,7 @@ def main():
   source.write_text('import AppKit\nlet pid=pid_t(CommandLine.arguments[1])!\nif let app=NSRunningApplication(processIdentifier:pid) { if CommandLine.arguments[2]=="hide" { app.hide() } else { app.unhide();app.activate(options:[.activateAllWindows,.activateIgnoringOtherApps]) } }')
   subprocess.run(["xcrun","swiftc","-module-cache-path",str(work/"modules"),str(source),"-o",str(work/"visibility")],check=True,capture_output=True)
   measurement_apps={}
-  for label,original in [("1.8.1",a.baseline),("1.8.2",a.candidate)]:
+  for label,original in [("1.8.2",a.baseline),("1.9.1",a.candidate)]:
    copy=work/("CPU-"+label+".app")
    subprocess.run(["ditto","--norsrc","--noextattr",str(original.resolve()),str(copy)],check=True,capture_output=True)
    metadata=copy/"Contents/Info.plist"
@@ -94,8 +94,8 @@ def main():
       if backend:
        try:os.killpg(backend,signal.SIGTERM)
        except ProcessLookupError:pass
-  medians={label:{state:statistics.median(r["cpuSeconds"] for r in rows if r["version"]==label and r["state"]==state) for state in ["visible","hidden"]} for label in ["1.8.1","1.8.2"]}
-  reduction={state:1-medians["1.8.2"][state]/medians["1.8.1"][state] if medians["1.8.1"][state] else None for state in ["visible","hidden"]}
- report={"machTimebase":{"numer":timebase.numer,"denom":timebase.denom},"platform":platform.platform(),"trials":rows,"mediansCPUSeconds":medians,"reduction":reduction,"scope":"Native AppKit app, Python backend and their verified descendants. Detached WebKit XPC processes are excluded because ownership cannot be established from parent IDs. Owned program copies use unique bundle IDs to avoid installed-app collisions; isolated offline synthetic account. Visibility requested via app-owned NSRunningApplication. Same host, sequential alternating versions; OS background workload not controlled. CPU seconds and wakeups, no physical energy meter.","realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"binaries":{label:hashlib.sha256((app/"Contents/MacOS/PolyUConsole").read_bytes()).hexdigest() for label,app in [("1.8.1",a.baseline),("1.8.2",a.candidate)]}}
+  medians={label:{state:statistics.median(r["cpuSeconds"] for r in rows if r["version"]==label and r["state"]==state) for state in ["visible","hidden"]} for label in ["1.8.2","1.9.1"]}
+  reduction={state:1-medians["1.9.1"][state]/medians["1.8.2"][state] if medians["1.8.2"][state] else None for state in ["visible","hidden"]}
+ report={"machTimebase":{"numer":timebase.numer,"denom":timebase.denom},"platform":platform.platform(),"trials":rows,"mediansCPUSeconds":medians,"reduction":reduction,"scope":"Native AppKit app, Python backend and their verified descendants. Detached WebKit XPC processes are excluded because ownership cannot be established from parent IDs. Owned program copies use unique bundle IDs to avoid installed-app collisions; isolated offline synthetic account. Visibility requested via app-owned NSRunningApplication. Same host, sequential alternating versions; OS background workload not controlled. CPU seconds and wakeups, no physical energy meter.","realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"binaries":{label:hashlib.sha256((app/"Contents/MacOS/PolyUConsole").read_bytes()).hexdigest() for label,app in [("1.8.2",a.baseline),("1.9.1",a.candidate)]}}
  out=ROOT/".build/idle-cpu-182.json";out.write_text(json.dumps(report,indent=2));print("CPU comparison written: "+str(out),flush=True)
 if __name__=="__main__":main()

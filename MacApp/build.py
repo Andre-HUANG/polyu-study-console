@@ -98,7 +98,7 @@ def main():
     shutil.copy2(updater_source / "LICENSE", licenses / "Sparkle-LICENSE.txt")
     shutil.copy2(ROOT / "updater-lock.json", licenses / "Updater-dependency-lock.json")
     for arch in RUNTIMES:
-        run("xcrun", "swiftc", "-parse-as-library", "-module-cache-path", WORK / "module-cache", "-O", "-file-prefix-map", str(ROOT) + "=/src/polyu-study-console", "-target", f"{arch}-apple-macos13.0", SOURCE / "App.swift", SOURCE / "TestIsolation.swift", SOURCE / "NativeGUISmoke.swift", SOURCE / "SoftwareUpdate.swift", SOURCE / "UpdateRecovery.swift", "-F", frameworks, "-framework", "Sparkle", "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks", "-o", WORK / f"PolyUConsole-{arch}")
+        run("xcrun", "swiftc", "-parse-as-library", "-module-cache-path", WORK / "module-cache", "-O", "-file-prefix-map", str(ROOT) + "=/src/polyu-study-console", "-target", f"{arch}-apple-macos13.0", SOURCE / "App.swift", SOURCE / "CredentialVault.swift", SOURCE / "TestIsolation.swift", SOURCE / "NativeGUISmoke.swift", SOURCE / "SoftwareUpdate.swift", SOURCE / "UpdateRecovery.swift", "-F", frameworks, "-framework", "Sparkle", "-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks", "-o", WORK / f"PolyUConsole-{arch}")
     shutil.copy2(WORK / "PolyUConsole-arm64", CONTENTS / "MacOS/PolyUConsole")
     read_tools = RESOURCES / "read-tools"
     read_tools.mkdir()
@@ -203,7 +203,7 @@ def package(create_archives=True):
     gui_file = ROOT / "验证/native-gui-evidence.json"
     if gui_file.is_file():
         gui = json.loads(gui_file.read_text(encoding="utf-8"))
-        gui_inputs = ["MacApp/App.swift", "MacApp/TestIsolation.swift", "MacApp/NativeGUISmoke.swift"]
+        gui_inputs = ["MacApp/CredentialVault.swift", "学习控制台/assets/remember-login.js", "MacApp/App.swift", "MacApp/TestIsolation.swift", "MacApp/NativeGUISmoke.swift"]
         gui_inputs += ["学习控制台/" + name for name in CONSOLE_FILES]
         matches = all(gui.get("sourceHashes", {}).get(name) == evidence["sourceHashes"][name] for name in gui_inputs)
         if gui.get("ok") and matches and gui.get("candidateExecutableSHA256") == binary_digest:

@@ -33,7 +33,7 @@ EPOCH = 1791244800  # 2026-10-06 00:00:00 UTC
 sys.path.insert(0, str(ROOT))
 from release_build import ASSETS, CONSOLE, CONSOLE_FILES, NAME, VERSION, source_hashes, verify_bundle
 
-SHELL_FILES = ("main.py", "desktop.py", "windows_process.py", "native_verify.py", "gui_smoke.py", "updater.py", "update_transaction.py")
+SHELL_FILES = ("credential_gui_smoke.py", "credential_store.py", "login_credentials.py", "native_dialogs.py", "main.py", "desktop.py", "windows_process.py", "native_verify.py", "gui_smoke.py", "updater.py", "update_transaction.py")
 SYSTEM_DLLS = {"advapi32.dll", "bcrypt.dll", "bcryptprimitives.dll", "cabinet.dll", "combase.dll", "comctl32.dll", "crypt32.dll", "dwmapi.dll", "gdi32.dll", "imm32.dll", "iphlpapi.dll", "kernel32.dll", "mscoree.dll", "msi.dll", "msvcrt.dll", "netapi32.dll", "ntdll.dll", "ole32.dll", "oleaut32.dll", "pathcch.dll", "powrprof.dll", "psapi.dll", "rpcrt4.dll", "secur32.dll", "setupapi.dll", "shell32.dll", "shlwapi.dll", "user32.dll", "userenv.dll", "version.dll", "winmm.dll", "ws2_32.dll", "wtsapi32.dll"}
 SYSTEM_DLLS.update({"wininet.dll","uxtheme.dll"})  # Official Windows network/theme APIs.
 SYSTEM_DLLS.add("msimg32.dll")  # Windows GDI transparency, used by WinSparkle wxWidgets.
@@ -398,8 +398,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--download", action="store_true", help="retrieve missing files from the official URLs in the SHA256 locks")
     arguments = parser.parse_args()
-    if VERSION != "1.8.2":
-        raise SystemExit("This assembly script is locked to 1.8.2")
+    if VERSION != "1.9.1":
+        raise SystemExit("This assembly script is locked to 1.9.1")
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     lock = json.loads((SOURCE / "runtime-lock.json").read_text(encoding="utf-8"))
     tools = json.loads((SOURCE / "build-tools-lock.json").read_text(encoding="utf-8"))

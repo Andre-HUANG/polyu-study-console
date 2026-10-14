@@ -38,6 +38,7 @@ def validated_paths(paths,bundle,dotnet=None):
 def main():
     if sys.platform != 'win32': raise SystemExit('Native checks require Windows')
     from platform_support import dpapi, helper_command
+    from credential_store import RememberedCredentials
     from desktop import Backend, delete_account, windows_prerequisites
     from windows_document import read
     from winrt.windows.media.ocr import OcrEngine
@@ -63,6 +64,18 @@ def main():
     if private_runtime.is_file():
         assert validated_paths(sys.path,bundle,dotnet), 'Python path includes an unapproved external directory'
     manifest_digest=hashlib.sha256((bundle/'payload-sha256.json').read_bytes()).hexdigest()
+    with tempfile.TemporaryDirectory(prefix='polyu-remember-dpapi-') as temporary:
+        credential_root = Path(temporary) / 'synthetic-app'
+        store = RememberedCredentials(credential_root)
+        assert store.status()['state'] == 'off'
+        store.enable()
+        secret = 'synthetic-only-' + chr(34) + chr(39) + '\\换行\n $() </script>'
+        store.save_verified('synthetic-netid', secret, '123')
+        assert secret.encode('utf-8') not in store.file.read_bytes()
+        assert RememberedCredentials(credential_root).record()['password'] == secret
+        assert store.status('456')['differentAccount']
+        store.forget()
+        assert store.status()['state'] == 'off' and not store.file.exists()
     synthetic = b'PolyU synthetic session verification'
     assert dpapi(dpapi(synthetic), decrypt=True) == synthetic
     with tempfile.TemporaryDirectory(prefix='polyu-native-check-') as temporary:
@@ -100,7 +113,7 @@ def main():
         finally: backend.stop()
         delete_account(root / 'synthetic-app', backend)
         assert not (root / 'synthetic-app').exists()
-    print(json.dumps({'ok':True, 'platform':platform.platform(), 'dpapiRoundTrip':True, 'payloadManifestSHA256':manifest_digest,
+    print(json.dumps({'ok':True, 'platform':platform.platform(), 'dpapiRoundTrip':True, 'rememberedPasswordDpapi':True, 'payloadManifestSHA256':manifest_digest,
         'pdfTextAndFrozenTables':True, 'blankImageProcessed':True,
         'ocrLanguages':len(OcrEngine.available_recognizer_languages), 'ownedBackendStopped':True,
         'syntheticProfileDeleted':True, 'systemPrerequisites':prerequisites,

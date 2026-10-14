@@ -79,3 +79,9 @@ dist/
 验证/gui-component/
 
 MacApp/runtime-cache
+
+# Native remembered-password state must never be committed.
+**/credentials/
+**/consent.json
+**/protected.bin
+验证/remember-keychain-evidence.json

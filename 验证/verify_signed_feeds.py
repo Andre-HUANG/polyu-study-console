@@ -20,7 +20,7 @@ def main():
                 (folder/("PolyUStudyConsole-"+release_updates.VERSION+suffix)).write_bytes(("synthetic "+suffix).encode())
             release_updates.generate(folder,"a"*40);release_updates.sign(folder)
             assert release_updates.verify(folder)
-            feed=folder/"appcast-macos.xml";original=feed.read_bytes();feed.write_bytes(original.replace(b"1.8.2",b"1.8.3",1))
+            feed=folder/"appcast-macos.xml";original=feed.read_bytes();feed.write_bytes(original.replace(release_updates.VERSION.encode(),b"0.0.0",1))
             try:release_updates.verify(folder)
             except Exception:pass
             else:raise AssertionError("Altered signed feed was accepted")

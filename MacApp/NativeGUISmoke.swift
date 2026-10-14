@@ -61,15 +61,16 @@ final class NativeGUISmoke {
                 version:document.getElementById('appVersion')?.textContent,
                 panel:document.getElementById('accountSection')?.hidden===true,
                 settingsClosed:document.getElementById('settingsDialog')?.open===false,
+                rememberDefaultOff:document.getElementById('rememberPasswordToggle')?.checked===false && document.getElementById('rememberPasswordStatus')?.textContent==='未开启' && document.getElementById('forgetPasswordButton')?.hidden===true,
                 navigationCount:document.querySelectorAll('.side-nav a').length,
                 logoutHidden:document.getElementById('logoutButton')?.hidden===true,
                 courseCards:document.querySelectorAll('.course-card').length}))()
                 """) { value, _ in
                 guard !self.done else { return }
                 if let value = value as? [String: Any], value["ready"] as? Bool == true,
-                   value["version"] as? String == "v1.8.2", value["panel"] as? Bool == true,
+                   value["version"] as? String == "v" + applicationVersion, value["panel"] as? Bool == true,
                    value["logoutHidden"] as? Bool == true, value["courseCards"] as? Int == 0,
-                   value["settingsClosed"] as? Bool == true, value["navigationCount"] as? Int == 4,
+                   value["rememberDefaultOff"] as? Bool == true, value["settingsClosed"] as? Bool == true, value["navigationCount"] as? Int == 4,
                    !self.app.resettingAccount, !self.app.console.isLoading {
                     self.report["emptyDashboard"] = value
                     action()
@@ -130,7 +131,7 @@ final class NativeGUISmoke {
                     (view as? NSTextField).map { [$0.stringValue] } ?? view.subviews.flatMap { strings($0) }
                 }
                 let text = panels.flatMap { $0.contentView.map { strings($0) } ?? [] }.joined(separator: "\n")
-                guard text.contains("1.8.2") else { self.fail("Native About panel did not show 1.8.2: " + text); return }
+                guard text.contains(applicationVersion) else { self.fail("Native About panel did not show candidate version"); return }
                 self.report["nativeAboutVersion"] = text
                 panels.forEach { $0.close() }
                 self.settingsChecks {

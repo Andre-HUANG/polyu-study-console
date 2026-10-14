@@ -913,7 +913,10 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 return self.send_json({"error": "操作不存在"}, HTTPStatus.NOT_FOUND)
             runtime_cache.clear()
-            self.send_json({"message": message, "data": cached_dashboard("dashboard")})
+            response = {"message": message, "data": cached_dashboard("dashboard")}
+            if trusted_native and path == "/api/native/session":
+                response["verifiedUserId"] = str(load_json(PROFILE / "login.json", {})["user_id"])
+            self.send_json(response)
             if sync_after:
                 # Launch only after releasing the connection/setup mutation lock.
                 threading.Timer(0.1, start_sync).start()

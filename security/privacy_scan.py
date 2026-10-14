@@ -21,11 +21,11 @@ CREDENTIALS = {
     "private-key": re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[\r\n]+[A-Za-z0-9+/=\r\n]{32,}"),
     "session-value": re.compile(rb"(?i)[\"']?(?:_?canvas_session|access_token|refresh_token|session_token)[\"']?\s*[:=]\s*[\"'][A-Za-z0-9_./+\-=]{20,}[\"']"),
 }
-PRIVATE_NAMES = {"canvas-cookies.json", "login.json", "snapshot.json", "grading_schemes.json",
+PRIVATE_NAMES = {"consent.json", "protected.bin", "remember-keychain-evidence.json", "canvas-cookies.json", "login.json", "snapshot.json", "grading_schemes.json",
                  "canvas-course-grades.json", "canvas-grading-settings.json", "managed-deadlines.json",
                  "native-gui-evidence.json", "gui-smoke-evidence.json", "mac-smoke-evidence.json",
                  "release-artifacts-evidence.json", "test-evidence.json", "publication-checks.json"}
-PRIVATE_DIRS = {"account", ".jiujiastudy", "documents", "raw", "diagnostics", "webview", "browser", ".security-local", ".build", "native-gui", "gui-component"}
+PRIVATE_DIRS = {"credentials", "account", ".jiujiastudy", "documents", "raw", "diagnostics", "webview", "browser", ".security-local", ".build", "native-gui", "gui-component"}
 ALLOWED_EMAIL_SUFFIX = (b"@users.noreply.github.com", b"@example.com", b"@example.org", b"@example.invalid")
 PUBLIC_EMAILS = {b"noreply@github.com"}
 OWNER_EMAILS = None

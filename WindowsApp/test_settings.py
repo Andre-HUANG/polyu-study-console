@@ -322,8 +322,8 @@ class SettingsChecks(unittest.TestCase):
         app.login_window = None; webview.create_window.side_effect = OSError('private details')
         with self.assertRaises(OSError): app.login()
         self.assertEqual(app.backend.record.call_args.args, ('login.open', 'failure', 'IO_ERROR'))
-        app.console.create_confirmation_dialog.return_value = False
-        app.logout()
+        with patch.object(desktop, 'native_confirm', return_value=(False, False)):
+            app.logout()
         self.assertEqual(app.backend.record.call_args.args, ('logout', 'cancelled'))
         self.assertFalse(app.stopping)
 

@@ -18,8 +18,11 @@ def main():
         root = Path(temporary) / "synthetic-app"
         app = Desktop(root, webview)
         create = webview.create_window
+        credential_checks = {}
 
         def make(*args, **kwargs):
+            if args[0] != APP_NAME and len(args) > 1 and args[1] == 'https://canvas.polyu.edu.hk':
+                args = (args[0], 'about:blank', *args[2:])
             window = create(*args, **kwargs)
             if args[0] == APP_NAME:
                 def loaded():
@@ -33,7 +36,11 @@ def main():
                         assert "bootstrap=" not in window.get_current_url()
                         window.evaluate_js("window.openSettings()")
                         assert window.evaluate_js("document.getElementById('settingsDialog').open")
-                        results.extend(["authenticatedEmptyDashboard", "bootstrapFragmentRemoved", "settingsOpened"])
+                        assert window.evaluate_js("document.getElementById('rememberPasswordToggle')?.checked === false && document.getElementById('rememberPasswordStatus')?.textContent === '未开启' && document.getElementById('forgetPasswordButton')?.hidden === true")
+                        results.extend(["authenticatedEmptyDashboard", "bootstrapFragmentRemoved", "settingsOpened", "rememberPasswordDefaultOff"])
+                        from credential_gui_smoke import verify
+                        credential_checks.update(verify(app))
+                        results.append("nativeRememberedPasswordSyntheticFlow")
                     except Exception as error:
                         errors.append(type(error).__name__)
                     finally:
@@ -51,7 +58,7 @@ def main():
     manifest_digest=hashlib.sha256((Path(sys.executable).resolve().parent.parent/"payload-sha256.json").read_bytes()).hexdigest()
     report = {"ok":True, "payloadManifestSHA256":manifest_digest, "checks":results, "productionWindowsShell":True,
         "webview2NativeGUI":True, "backendClosed":True, "syntheticProfileDeleted":True,
-        "realCanvasValidated":False, "realAccountAccessed":False}
+        "realCanvasValidated":False, "realAccountAccessed":False, "rememberPassword":credential_checks}
     target = os.environ.get("POLYU_GUI_EVIDENCE")
     if target: Path(target).write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report))

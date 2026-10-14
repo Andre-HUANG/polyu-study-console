@@ -1,1 +1,1 @@
-{"name": "PolyU study控制台", "version": "1.8.2", "build": "182", "status": "candidate", "targets": ["macOS-arm64", "Windows-x64"]}
+{"name": "PolyU study控制台", "version": "1.9.1", "build": "191", "status": "candidate", "targets": ["macOS-arm64", "Windows-x64"]}

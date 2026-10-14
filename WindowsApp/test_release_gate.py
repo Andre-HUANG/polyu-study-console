@@ -27,12 +27,16 @@ class ReleaseGateTests(unittest.TestCase):
                 artifacts[name]={"sha256":hashlib.sha256(content).hexdigest(),"bytes":len(content)}
             self.reports[platform]={"ok":True,"platform":platform,"version":publishing.VERSION,"sourceSHA":self.head,
                 "sourceTreeClean":True,"archivePrivacyScan":True,"artifacts":artifacts,
-                "platformChecks":dict.fromkeys(["nativeGUI","backendRuntime","dmgReadOnlyScan","adHocSigned","dpapi","installUninstall","nativeUpdates"],True)}
+                "platformChecks":dict.fromkeys(["nativeGUI","backendRuntime","dmgReadOnlyScan","adHocSigned","dpapi","installUninstall","nativeUpdates","rememberPassword"],True)}
         self.save()
         self.mock=patch.object(publishing,"source_sha",return_value=self.head)
         self.mock.start()
+        (self.root / "release").mkdir()
+        for name in publishing.REPORT_FILES: (self.root / "release" / name).write_text("synthetic test report")
+        self.report_root = patch.object(publishing, "ROOT", self.root)
+        self.report_root.start()
     def tearDown(self):
-        self.mock.stop();self.temp.cleanup()
+        self.report_root.stop();self.mock.stop();self.temp.cleanup()
     def save(self):
         for platform,report in self.reports.items():
             (self.root/(platform+"-validation.json")).write_text(json.dumps(report))
@@ -47,6 +51,11 @@ class ReleaseGateTests(unittest.TestCase):
     def test_missing_native_installation_blocks(self):
         self.reports["windows"]["platformChecks"]["installUninstall"]=False;self.save()
         with self.assertRaises(RuntimeError):self.collect()
+    def test_missing_remember_password_native_acceptance_blocks(self):
+        for platform in ("mac", "windows"):
+            self.reports[platform]["platformChecks"]["rememberPassword"] = False; self.save()
+            with self.assertRaises(RuntimeError): self.collect()
+            self.reports[platform]["platformChecks"]["rememberPassword"] = True
     def test_missing_native_updater_rehearsal_blocks(self):
         for platform in ("mac","windows"):
             self.reports[platform]["platformChecks"]["nativeUpdates"]=False;self.save()
@@ -106,8 +115,8 @@ class ReleaseGateTests(unittest.TestCase):
         (self.root/"updater-lock.json").write_text(json.dumps({"publicKey":public}))
         import release_build
         report={"measuredCandidateCommit":self.head,"sourceHashes":{},"checkedAt":dt.datetime.now(dt.timezone.utc).isoformat(),
-            "idleCPU":{"realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"trials":[{"trial":t,"version":v,"state":state,"seconds":60,"cpuSeconds":.1,"wakeups":10} for t in range(1,4) for v in ("1.8.1","1.8.2") for state in ("visible","hidden")]},
-            "syntheticSynchronization":{label:{"version":version,"trials":[{"trial":t,"condition":condition,"files":46,"pages":102,"indexWrites":1} for t in range(1,4) for condition in ("cold","warm")]} for label,version in (("baseline","1.8.1"),("candidate","1.8.2"))}}
+            "idleCPU":{"realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"trials":[{"trial":t,"version":v,"state":state,"seconds":60,"cpuSeconds":.1,"wakeups":10} for t in range(1,4) for v in ("1.8.2","1.9.1") for state in ("visible","hidden")]},
+            "syntheticSynchronization":{label:{"version":version,"trials":[{"trial":t,"condition":condition,"files":46,"pages":102,"indexWrites":1} for t in range(1,4) for condition in ("cold","warm")]} for label,version in (("baseline","1.8.2"),("candidate","1.9.1"))}}
         def signed(value):
             body=perf.canonical(value)
             return json.dumps({"body":base64.b64encode(body).decode(),"signature":base64.b64encode(key.sign(body)).decode()})

@@ -191,11 +191,17 @@ class Backend:
         self.ready.unlink(missing_ok=True)
 
 
-def mark_logout(root):
+def mark_logout(root, keep_remembered_password=False):
     root = Path(root)
     marker = root / "logout-pending"
     if is_link(root) or is_link(marker): raise RuntimeError("账号清理路径无效，未写入链接目标")
-    marker.write_text("pending\n", encoding="utf-8")
+    temporary = root / (".logout-" + secrets.token_hex(16))
+    try:
+        with temporary.open("x", encoding="utf-8") as stream:
+            json.dump({"version": 2, "keepRememberedPassword": bool(keep_remembered_password)}, stream)
+            stream.flush(); os.fsync(stream.fileno())
+        os.replace(temporary, marker)
+    finally: temporary.unlink(missing_ok=True)
     return marker
 
 
@@ -204,22 +210,30 @@ def delete_account(root, backend):
     root = Path(root)
     if is_link(root): raise RuntimeError("账号目录路径无效，未删除链接目标")
     if not root.exists(): return
-    marker = mark_logout(root)
+    keep = read_logout_policy(root)
+    marker = mark_logout(root, keep)
+    if not keep and (root / "credentials").exists(): RememberedCredentials(root).forget()
     for attempt in range(12):
         try:
             # Retain the recovery marker until every account/cache file is gone.
             for child in root.iterdir():
-                if child == marker: continue
+                if child == marker or (keep and child.name == "credentials"):
+                    if child.name == "credentials" and is_link(child): raise RuntimeError("密码目录无效，未保留链接目标")
+                    continue
                 if child.is_dir() and not is_link(child): shutil.rmtree(child)
                 elif getattr(child, "is_junction", lambda: False)(): child.rmdir()
                 else: child.unlink()
             marker.unlink()
-            root.rmdir()
+            if not keep: root.rmdir()
             return
         except OSError:
-            if root.exists(): mark_logout(root)
+            if root.exists(): mark_logout(root, keep)
             if attempt == 11: raise RuntimeError("账号文件仍被占用；应用已关闭，请重新打开以完成退出清理") from None
             time.sleep(.25)
+
+
+from credential_store import RememberedCredentials, LoginAttempt, CONSENT, FAILURE, read_logout_policy
+from native_dialogs import confirm as native_confirm
 
 
 class Bridge:
@@ -229,7 +243,10 @@ class Bridge:
         app = self._app
         if not app.console or not console_url(app.console.get_current_url(), app.backend.url) or app.stopping:
             raise ValueError("仅允许控制台窗口调用本机操作")
-        if action == "login": app.login()
+        if action == "rememberStatus": app.publish_credentials()
+        elif action == "rememberEnable": app.enable_credentials()
+        elif action == "rememberForget": app.forget_credentials()
+        elif action == "login": app.login()
         elif action == "logout": app.logout()
         elif action == "softwareUpdate":
             if not app.updater: raise ValueError("更新组件未启动")
@@ -258,6 +275,10 @@ class Desktop:
         self.stopping = self.logged_out = False
         self.connecting = threading.Lock()
         self.login_completed = False
+        self.credentials = RememberedCredentials(self.root)
+        self.login_attempt = None
+        self.credential_bridge = None
+        self.pending_credential_notice = None
 
     def notice(self, message):
         if self.console and not self.stopping:
@@ -271,6 +292,8 @@ class Desktop:
             return
         # School pages receive no Python API and no native secret.
         self.login_completed = False
+        if self.login_attempt: self.login_attempt.close()
+        self.login_attempt = LoginAttempt()
         try:
             window = self.login_window = self.webview.create_window("PolyU Canvas · 学校登录", HOST,
                                                                    width=1000, height=760)
@@ -279,14 +302,20 @@ class Desktop:
             raise
         window.events.loaded += self._try_login
         window.events.closed += self._login_closed
+        window.events.shown += self._attach_credential_bridge
         self.backend.record('login.open', 'success')
 
     def _login_closed(self):
+        if self.credential_bridge: self.credential_bridge.close()
+        self.credential_bridge = None
+        if self.login_attempt: self.login_attempt.close()
+        self.login_attempt = None
         if not self.login_completed and not self.stopping: self.backend.record('login.close', 'cancelled')
         self.login_window = None
 
     def _try_login(self):
         window = self.login_window
+        attempt = self.login_attempt
         if self.stopping or not window or not school_url(window.get_current_url()): return
         if urlsplit(window.get_current_url()).path.startswith("/login"): return
         if not self.connecting.acquire(blocking=False): return
@@ -297,28 +326,100 @@ class Desktop:
             # The backend verifies a signed-in Canvas page before persisting.
             result = self.backend.request("session", {"cookies":cookies})
             if not self.stopping:
-                self.login_completed = True
                 self.backend.record('login.export', 'success')
+                self._save_login_credential(result, window, attempt)
+                if self.stopping or self.login_window is not window: return
+                self.login_completed = True
                 self.notice(result.get("message") or "Canvas 已连接")
                 window.destroy()
                 self.console.load_url(self.backend.bootstrap_url())
         except Exception as error:
+            if attempt: attempt.candidate = None
             if not self.stopping: self.backend.record('login.export', 'failure', error_code(error))
             if not self.stopping: self.notice(str(error))
         finally:
             self.connecting.release()
 
+
+    def account_owner(self):
+        try:
+            value = json.loads((self.root / "account/config.json").read_text(encoding="utf-8"))
+            return str(value["user"]["id"])
+        except (ValueError, OSError, KeyError, TypeError): return None
+
+    def publish_credentials(self):
+        if not self.console or self.stopping: return
+        value = self.credentials.status(self.account_owner())
+        self.console.run_js("window.polyuRememberStatus?.(" + json.dumps(value, ensure_ascii=True) + ");")
+        if self.pending_credential_notice:
+            self.notice(self.pending_credential_notice)
+            self.pending_credential_notice = None
+
+    def enable_credentials(self):
+        try:
+            accepted, _ = native_confirm(self.console, "在本机记住账号和密码？", CONSENT)
+            if accepted and not self.stopping:
+                self.credentials.enable()
+                if self.credential_bridge: self.credential_bridge.loaded()
+        except Exception: self.notice(FAILURE)
+        self.publish_credentials()
+
+    def forget_credentials(self):
+        if self.login_attempt: self.login_attempt.close()
+        if self.login_window: self.login_window.destroy()
+        try:
+            self.credentials.forget()
+            self.notice("已删除本机保存的密码并关闭记住密码。")
+        except Exception: self.notice(FAILURE)
+        self.publish_credentials()
+
+    def _attach_credential_bridge(self):
+        window = self.login_window
+        if self.stopping or not window: return
+        from System import Action
+        from login_credentials import SchoolCredentialBridge
+        resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+        def attach():
+            if self.login_window is not window or self.stopping: return
+            self.credential_bridge = SchoolCredentialBridge(self, window, resources)
+        try:
+            window.native.Invoke(Action(attach))
+            if self.credential_bridge:
+                threading.Thread(target=self.credential_bridge.loaded, daemon=True).start()
+        except Exception:
+            if self.login_attempt: self.login_attempt.close()
+            self.notice("本机记住密码暂不可用，请在学校页面手动输入。")
+
+    def _save_login_credential(self, result, window, attempt):
+        if (not attempt or not attempt.active or self.login_attempt is not attempt or self.stopping or
+            self.login_window is not window or not attempt.candidate or not self.credentials.status()["enabled"]): return
+        user_id = result.get("verifiedUserId")
+        if not isinstance(user_id, str) or not user_id.isdigit():
+            attempt.candidate = None; return
+        try:
+            previous = self.credentials.record()
+            if previous and previous["verifiedUserId"] != user_id:
+                accepted, _ = native_confirm(self.console, "替换本机记住的学校账号？", "这次登录的是另一账号。是否用本次成功登录的账号密码替换已保存的密码？", ok="替换已记住的密码")
+                if not accepted: return
+            if attempt.active and self.login_attempt is attempt and not self.stopping and self.login_window is window:
+                username, password = attempt.candidate
+                self.credentials.save_verified(username, password, user_id)
+        except Exception: self.pending_credential_notice = "Canvas 已连接，但密码未能保存。" + FAILURE
+        finally: attempt.candidate = None
+
     def logout(self):
         if self.stopping: return
         self.backend.record('logout', 'attempt')
-        if not self.console.create_confirmation_dialog("退出登录", "将删除本应用的账号资料、缓存与登录会话。是否继续？"):
+        accepted, keep = native_confirm(self.console, "退出登录", "将删除本应用的学习资料、缓存和登录会话。未勾选保留时，也会删除已记住的密码。", ok="退出并删除", checkbox=self.credentials.file.exists())
+        if not accepted:
             self.backend.record('logout', 'cancelled')
             return
-        try: mark_logout(self.root)
+        try: mark_logout(self.root, keep)
         except Exception as error:
             self.backend.record('logout.cleanup', 'failure', error_code(error))
             raise
         self.stopping = self.logged_out = True
+        if self.login_attempt: self.login_attempt.close()
         # Deletion waits until WebView2 has closed; stop writers before closing it.
         self.backend.stop()
         self.backend.diagnostic_pending.clear()
@@ -366,7 +467,7 @@ class Desktop:
             try:
                 from updater import Updater
                 if not self.updater: self.updater = Updater(self)
-            except Exception: self.notice("更新组件暂不可用，请重新安装完整的 1.8.2。")
+            except Exception: self.notice("更新组件暂不可用，请重新安装完整的 1.9.1。")
             acknowledgement = os.environ.pop("POLYU_UPDATE_ACK", "")
             if acknowledgement:
                 target=Path(acknowledgement)
@@ -378,6 +479,7 @@ class Desktop:
                         threading.Event().wait(.25)
         self.console.events.loaded += initialize_update
         self.console.events.closing += self._close_login
+        self.console.events.loaded += self.publish_credentials
         self.console.events.minimized += lambda: self.runtime_state(True)
         self.console.events.restored += lambda: self.runtime_state(False)
         try:
@@ -407,6 +509,7 @@ class Desktop:
 
     def _close_login(self):
         self.stopping = True
+        if self.login_attempt: self.login_attempt.close()
         if self.login_window: self.login_window.destroy()
 
 

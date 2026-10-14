@@ -53,7 +53,7 @@ if __name__ == "__main__":
             import ctypes
             message = (str(error) + "\n\n需要 Windows x64、.NET Framework 4.8 或更新版本，以及 Microsoft Edge WebView2 Runtime。"
                        "\n如缺少运行环境，请使用安装与使用说明中的微软官方链接。本应用不会自动安装系统组件。")
-            ctypes.windll.user32.MessageBoxW(None, message, "PolyU study控制台 · 1.8.2", 0x10)
+            ctypes.windll.user32.MessageBoxW(None, message, "PolyU study控制台 · 1.9.1", 0x10)
             raise SystemExit(1)
         else:
             raise
