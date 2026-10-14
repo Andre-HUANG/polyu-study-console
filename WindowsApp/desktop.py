@@ -213,7 +213,7 @@ def delete_account(root, backend):
     keep = read_logout_policy(root)
     marker = mark_logout(root, keep)
     if not keep and (root / "credentials").exists(): RememberedCredentials(root).forget()
-    for attempt in range(12):
+    for attempt in range(60):
         try:
             # Retain the recovery marker until every account/cache file is gone.
             for child in root.iterdir():
@@ -228,7 +228,7 @@ def delete_account(root, backend):
             return
         except OSError:
             if root.exists(): mark_logout(root, keep)
-            if attempt == 11: raise RuntimeError("账号文件仍被占用；应用已关闭，请重新打开以完成退出清理") from None
+            if attempt == 59: raise RuntimeError("账号文件仍被占用；应用已关闭，请重新打开以完成退出清理") from None
             time.sleep(.25)
 
 
@@ -302,6 +302,10 @@ class Desktop:
             raise
         window.events.loaded += self._try_login
         window.events.closed += self._login_closed
+        def closing():
+            if self.login_window is window and self.credential_bridge:
+                self.credential_bridge.close()
+        window.events.closing += closing
         # create_window can finish showing a child before it returns. Waiting on
         # the latched event covers both an already-shown and a future window.
         threading.Thread(target=self._attach_credential_bridge,

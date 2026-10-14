@@ -236,7 +236,7 @@ class NativeBridgeBoundaryTests(unittest.TestCase):
             shown, finished = threading.Event(), threading.Event()
             shown.set()  # Actual pywebview child creation may fire before return.
             window = Mock()
-            window.events = SimpleNamespace(shown=shown, loaded=MagicMock(), closed=MagicMock())
+            window.events = SimpleNamespace(shown=shown, loaded=MagicMock(), closed=MagicMock(), closing=MagicMock())
             window.native.Invoke.side_effect = lambda action: action()
             app.webview.create_window.return_value = window
             bridge = Mock(); bridge.loaded.side_effect = finished.set
@@ -270,6 +270,23 @@ class NativeBridgeBoundaryTests(unittest.TestCase):
                     self.assertIsNone(app.credential_bridge)
                 finally:
                     shown.set(); worker.join(2)
+
+    def test_school_close_releases_native_controller_on_owner_thread_once(self):
+        from login_credentials import SchoolCredentialBridge
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        app = Mock(); app.login_attempt = LoginAttempt(); window = MagicMock()
+        app.login_window = window; app.stopping = False
+        control = window.native.browser.webview
+        control.IsDisposed = False
+        window.native.Invoke.side_effect = lambda action: action()
+        with patch.dict(sys.modules, {'System':SimpleNamespace(Action=lambda action:action)}):
+            bridge = SchoolCredentialBridge(app, window, ROOT)
+            bridge.close(); bridge.close()
+        self.assertFalse(app.login_attempt.active)
+        window.native.Invoke.assert_called_once()
+        control.CoreWebView2.Stop.assert_called_once()
+        control.Dispose.assert_called_once()
 
     def test_school_bridge_removes_generic_handler_and_browser_autosave(self):
         from login_credentials import SchoolCredentialBridge

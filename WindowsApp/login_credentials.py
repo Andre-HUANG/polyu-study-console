@@ -15,6 +15,7 @@ class SchoolCredentialBridge:
     def __init__(self, app, window, resources):
         self.app, self.window, self.resources = app, window, resources
         self.attempt = app.login_attempt
+        self.closed = False
         self.browser = window.native.browser
         self.control = self.browser.webview
         self.control.WebMessageReceived -= self.browser.on_script_notify
@@ -68,9 +69,25 @@ class SchoolCredentialBridge:
 
     def close(self):
         self.attempt.close()
-        try:
-            self.control.WebMessageReceived -= self.receive
-            self.control.CoreWebView2InitializationCompleted -= self.initialized
-            self.control.NavigationCompleted -= self.navigation_completed
-            self.window.events.loaded -= self.loaded
+        if self.closed: return
+        self.closed = True
+        try: self.window.events.loaded -= self.loaded
         except Exception: pass
+        # pywebview closes child forms without waiting for the shared browser.
+        # Release this login controller on its owning UI thread before teardown.
+        def dispose():
+            for event, handler in (("WebMessageReceived", self.receive),
+                                   ("CoreWebView2InitializationCompleted", self.initialized),
+                                   ("NavigationCompleted", self.navigation_completed)):
+                try:
+                    hook = getattr(self.control, event)
+                    hook -= handler
+                    setattr(self.control, event, hook)
+                except Exception: pass
+            if not self.control.IsDisposed:
+                if self.control.CoreWebView2 is not None: self.control.CoreWebView2.Stop()
+                self.control.Dispose()
+        try:
+            from System import Action
+            self.window.native.Invoke(Action(dispose))
+        except Exception: pass  # The owning form may already have disposed it.
