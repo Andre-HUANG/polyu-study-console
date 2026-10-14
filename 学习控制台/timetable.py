@@ -315,19 +315,19 @@ def query(profile,config,date,view="day",course=None):
         for rule in active:
             if rule.get("cancelled") or course and str(rule.get("courseId"))!=str(course) or not _matches(rule,day,calendar): continue
             cancelled=rule["id"] in cancelled_targets[day]
-            occurrences.append({**rule,"date":day,"cancelled":cancelled,"calendarHints":academic_calendar.hints(day,profile),"overlaps":[]})
+            occurrences.append({**rule,"date":day,"occurrenceCancelled":cancelled,"calendarHints":academic_calendar.hints(day,profile),"overlaps":[]})
     occurrences.sort(key=lambda r:(r["date"],r.get("time") or "99:99",r["course"],r["title"]))
     for i,a in enumerate(occurrences):
-        if a.get("cancelled") or not a.get("time") or not a.get("endTime"): continue
+        if a.get("occurrenceCancelled") or not a.get("time") or not a.get("endTime"): continue
         for b in occurrences[i+1:]:
-            if not b.get("cancelled") and a["date"]==b["date"] and b.get("time") and b.get("endTime") and a["time"]<b["endTime"] and b["time"]<a["endTime"]:
+            if not b.get("occurrenceCancelled") and a["date"]==b["date"] and b.get("time") and b.get("endTime") and a["time"]<b["endTime"] and b["time"]<a["endTime"]:
                 a["overlaps"].append(b["id"]);b["overlaps"].append(a["id"])
     if course: pending=[r for r in pending if str(r.get("courseId"))==str(course)]
     return {"date":date,"view":view,"days":days,"events":occurrences,"pending":pending,"conflicts":conflicts,"groups":saved["groups"],"coverage":generated.get("coverage",{}),"issues":generated.get("issues",[]),"checkedAt":generated.get("checkedAt")}
 
 def compact_summary(value):
     """Bound dashboard transfers; original evidence is loaded when requested."""
-    fields={"id","courseId","course","title","kind","group","time","endTime","location","manual","manualDecision","date","digest","cancelled","makeup","confidence","issues","overlaps","calendarHints"}
+    fields={"id","courseId","course","title","kind","group","time","endTime","location","manual","manualDecision","date","digest","cancelled","occurrenceCancelled","makeup","confidence","issues","overlaps","calendarHints"}
     result={k:v for k,v in value.items() if k not in {"events","pending","conflicts"}}
     def row(item):
         data={k:v for k,v in item.items() if k in fields}

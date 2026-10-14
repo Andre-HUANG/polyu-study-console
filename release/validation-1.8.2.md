@@ -2,7 +2,7 @@
 
 正式发布要求源码干净、主分支同一提交的安全检查、Python 回归、Mac 原生验收、Windows 原生验收及发布校验全部成功。validation.json 与 GitHub Actions 保存相同源码提交和安装包哈希；未通过门禁的产物不能发布为正式版。
 
-本次 Mac 离线回归为 215 项，网络访问尝试为零；31 项实际回环 HTTP 检查覆盖授权、Origin、CSRF、账号隔离、完整／精简响应及 ETag。Windows 按平台跳过 Mac 专用测试，具体数量由该平台日志记录。
+本次 Mac 离线回归为 216 项，网络访问尝试为零；31 项实际回环 HTTP 检查覆盖授权、Origin、CSRF、账号隔离、完整／精简响应及 ETag。Windows 按平台跳过 Mac 专用测试，具体数量由该平台日志记录。
 
 原生验收运行真正的 AppKit／WebKit 和 WebView2 程序，检查宽窄布局、设置、版本、原生桥接、重启、关闭及隔离账号退出清理。Mac Keychain 与 Windows DPAPI 分别验收。隔离测试不访问真实账号。
 

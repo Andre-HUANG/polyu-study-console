@@ -140,13 +140,13 @@ class CalendarAndTimetableChecks(unittest.TestCase):
             timetable.mutate(self.profile,self.config,self.row(action="save",kind=kind,title=title,time=time,endTime=end))
         timetable.mutate(self.profile,self.config,self.row(action="save",kind="lab",title="Lab cancelled",time="12:00",endTime="14:00",cancelled=True))
         result=timetable.query(self.profile,self.config,"2026-10-13")
-        self.assertEqual([r["kind"] for r in result["events"] if r["cancelled"]],["lab"])
+        self.assertEqual([r["kind"] for r in result["events"] if r["occurrenceCancelled"]],["lab"])
     def test_ambiguous_cancellation_remains_pending(self):
         for time,end in [("09:00","11:00"),("13:00","15:00")]:
             timetable.mutate(self.profile,self.config,self.row(action="save",kind="lab",title="Lab",time=time,endTime=end))
         timetable.mutate(self.profile,self.config,self.row(action="save",kind="lab",title="Lab cancelled",time="",endTime="",cancelled=True))
         result=timetable.query(self.profile,self.config,"2026-10-13")
-        self.assertTrue(all(not r["cancelled"] for r in result["events"]));self.assertEqual(len(result["pending"]),1)
+        self.assertTrue(all(not r["occurrenceCancelled"] for r in result["events"]));self.assertEqual(len(result["pending"]),1)
     def test_dashboard_summary_bounds_rows_and_defers_original_sources(self):
         row={"id":"candidate","sources":[{"quote":"large original excerpt "*1000}],"dates":["2026-10-13"],"kind":"exam"}
         value={"events":[copy.deepcopy(row) for _ in range(100)],"pending":[copy.deepcopy(row) for _ in range(1000)],"conflicts":[]}
@@ -207,6 +207,16 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         self.assertEqual(len(value["events"]),1)
         self.assertEqual(len(value["conflicts"]),1)
 
+    def test_editing_cancelled_occurrence_preserves_other_recurring_classes(self):
+        repeat={"start":"2026-10-01","end":"2026-10-31","weekdays":[1],"parity":"all","weeks":[],"basis":"anchor","anchor":"2026-10-06"}
+        timetable.mutate(self.profile,self.config,self.row(action="save",date=None,dates=[],repeat=repeat))
+        timetable.mutate(self.profile,self.config,self.row(action="save",title="Lecture cancelled",cancelled=True))
+        occurrence=timetable.query(self.profile,self.config,"2026-10-13")["events"][0]
+        self.assertTrue(occurrence["occurrenceCancelled"]);self.assertFalse(occurrence["cancelled"])
+        timetable.mutate(self.profile,self.config,{**occurrence,"action":"save"})
+        following=timetable.query(self.profile,self.config,"2026-10-20")["events"]
+        self.assertEqual(len(following),1);self.assertFalse(following[0]["occurrenceCancelled"])
+
     def test_manual_exam_without_time_stays_untimed(self):
         timetable.mutate(self.profile,self.config,self.row(action="save",kind="exam",time="",endTime=""))
         event=timetable.query(self.profile,self.config,"2026-10-13")["events"][0]
@@ -218,8 +228,8 @@ class CalendarAndTimetableChecks(unittest.TestCase):
         self.assertTrue(all(r["overlaps"] for r in rows))
         timetable.mutate(self.profile,self.config,self.row(action="save",title="No class",cancelled=True))
         rows=timetable.query(self.profile,self.config,"2026-10-13")["events"]
-        self.assertEqual([r["kind"] for r in rows if r["cancelled"]],["lecture"])
-        self.assertFalse(next(r for r in rows if r["kind"]=="lab")["cancelled"])
+        self.assertEqual([r["kind"] for r in rows if r["occurrenceCancelled"]],["lecture"])
+        self.assertFalse(next(r for r in rows if r["kind"]=="lab")["occurrenceCancelled"])
     def test_manual_recurring_exception_and_makeup(self):
         row=self.row(action="save",repeat={"start":"2026-10-01","end":"2026-10-31","weekdays":[1],"parity":"all"},exceptions=["2026-10-13"])
         row.pop("date");timetable.mutate(self.profile,self.config,row)

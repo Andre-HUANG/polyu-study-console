@@ -142,6 +142,7 @@ def run_helper(spec):
     target=safe_program(spec["target"])
     if root.parent!=target.parent or not root.name.startswith("PolyU-program-update-"):raise ValueError("更新暂存位置无效")
     (root/"cleanup-owner.json").write_text(json.dumps({"schema":1,"target":str(target),"helperPID":os.getpid()}))
+    original_exited=False;relaunch_required=False;old_version=None
     try:
         # The original UI/backend must finish before program files are replaced.
         import ctypes
@@ -158,6 +159,7 @@ def run_helper(spec):
             try:
                 if kernel.WaitForSingleObject(handle,60000)!=0: raise RuntimeError("旧版程序仍在运行")
             finally: kernel.CloseHandle(handle)
+        original_exited=True;relaunch_required=True
         old_version=json.loads((target/"console/release.json").read_text())["version"]
         verify_payload(target,old_version,installed=spec["mode"]=="installed")
         backup=target.with_name(target.name+".previous-"+metadata["version"])
@@ -190,14 +192,21 @@ def run_helper(spec):
         while time.monotonic()<limit and not ready.exists() and process.poll() is None: time.sleep(.25)
         if ready.exists() and ready.read_text()==metadata["version"]:
             # Keep one program backup through this successful launch, then clean it.
+            relaunch_required=False
             shutil.rmtree(backup)
             return
         if process.poll() is None:
             subprocess.run(["taskkill","/PID",str(process.pid),"/T","/F"],capture_output=True)
         restore(target,backup)
         subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])
+        relaunch_required=False
         raise RuntimeError("新版未能启动，已恢复上一版程序；账号资料保持原样")
     finally:
+        if original_exited and relaunch_required and old_version:
+            try:
+                verify_payload(target,old_version,installed=spec["mode"]=="installed")
+                subprocess.Popen([str(target/"runtime/pythonw.exe"),"-I","-B","-X","utf8",str(target/"WindowsApp/main.py")])
+            except Exception:pass  # Never launch an incomplete or unverified payload.
         try:schedule_cleanup(root,target)
         except Exception:pass  # Preserve a recovery stage when ownership cannot be verified.
 

@@ -38,7 +38,7 @@ def markdown(report):
     rows=report["idleCPU"]["trials"]
     med=lambda version,state,key:statistics.median(r[key] for r in rows if r["version"]==version and r["state"]==state)
     lines=["# 1.8.2 最终性能实测","", "测量源码："+report["measuredCandidateCommit"],"检查时间："+report["checkedAt"],"",
-        "同一台 Apple Silicon Mac，1.8.1 / 1.8.2 交替各三轮；使用独立的空白合成账号和唯一应用标识。包含原生窗口、后端和新建 WebKit 进程，前台每轮 60 秒、隐藏每轮 30 秒。","",
+        "同一台 Apple Silicon Mac，1.8.1 / 1.8.2 交替各三轮；使用独立的空白合成账号和唯一应用标识。包含原生窗口、后端及确认的子进程；不计无法确认归属的独立 WebKit XPC 进程，前台每轮 60 秒、隐藏每轮 30 秒。","",
         "| 状态 | 1.8.1 CPU 秒中位数 | 1.8.2 CPU 秒中位数 | 变化 |","|---|---:|---:|---:|"]
     for state,label in (("visible","请求前台"),("hidden","隐藏")):
         a,b=med("1.8.1",state,"cpuSeconds"),med("1.8.2",state,"cpuSeconds")
