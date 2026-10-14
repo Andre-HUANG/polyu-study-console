@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from release_build import CONSOLE, CONSOLE_FILES, ASSETS, NAME, VERSION, verify_bundle
+from release_build import CONSOLE, CONSOLE_FILES, ASSETS, NAME, VERSION, BUILD, verify_bundle
 
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -29,7 +29,7 @@ def main():
                 if folder == 'Mac发布':
                     prefix = NAME + '.app/Contents/Resources/console/'
                     info = plistlib.loads(archive.read(NAME+'.app/Contents/Info.plist'))
-                    assert info['CFBundleShortVersionString'] == VERSION
+                    assert info['CFBundleShortVersionString'] == VERSION and info['CFBundleVersion'] == BUILD
                 else:
                     prefix = 'PolyUStudyConsole-' + VERSION + '-windows-x64/console/'
                     manifest = json.loads(archive.read(prefix.removesuffix('console/')+'payload-sha256.json'))
@@ -43,7 +43,7 @@ def main():
                 for name in ASSETS:
                     assert archive.read(prefix+'assets/'+name) == (CONSOLE/'assets'/name).read_bytes(), name
     if sys.platform == 'darwin':
-        image = ROOT/'Mac发布'/(NAME+'-'+VERSION+'-arm64.dmg')
+        image = ROOT/'Mac发布'/('PolyUStudyConsole-'+VERSION+'-arm64.dmg')
         with tempfile.TemporaryDirectory(prefix='polyu-release-verify-') as tmp:
             mount = Path(tmp)/'volume'; mount.mkdir()
             subprocess.run(['hdiutil','attach','-readonly','-nobrowse','-mountpoint',str(mount),str(image)],check=True,capture_output=True)
@@ -51,7 +51,7 @@ def main():
                 app = mount/(NAME+'.app')
                 subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True,capture_output=True)
                 info = plistlib.loads((app/'Contents/Info.plist').read_bytes())
-                assert info['CFBundleShortVersionString'] == VERSION
+                assert info['CFBundleShortVersionString'] == VERSION and info['CFBundleVersion'] == BUILD
                 resources = app/'Contents/Resources'
                 verify_bundle(resources)
                 for name in CONSOLE_FILES: assert (resources/'console'/name).read_bytes() == (CONSOLE/name).read_bytes(), name

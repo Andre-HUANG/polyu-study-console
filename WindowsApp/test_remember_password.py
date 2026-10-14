@@ -226,6 +226,51 @@ class SchoolMessageTests(unittest.TestCase):
         self.assertIsNone(self.attempt.candidate)
 
 class NativeBridgeBoundaryTests(unittest.TestCase):
+    def test_already_shown_child_still_attaches_credential_channel(self):
+        import threading
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory() as temporary:
+            app = desktop.Desktop(pathlib.Path(temporary), Mock())
+            app.backend = Mock(); app.console = Mock()
+            shown, finished = threading.Event(), threading.Event()
+            shown.set()  # Actual pywebview child creation may fire before return.
+            window = Mock()
+            window.events = SimpleNamespace(shown=shown, loaded=MagicMock(), closed=MagicMock())
+            window.native.Invoke.side_effect = lambda action: action()
+            app.webview.create_window.return_value = window
+            bridge = Mock(); bridge.loaded.side_effect = finished.set
+            with patch.dict(sys.modules, {'System':SimpleNamespace(Action=lambda action:action)}), patch('login_credentials.SchoolCredentialBridge', return_value=bridge) as factory:
+                app.login()
+                self.assertTrue(finished.wait(2), 'Already-shown login never attached')
+                factory.assert_called_once()
+            self.assertIs(app.credential_bridge, bridge)
+            self.assertTrue(app.login_attempt.active)
+
+    def test_old_window_ready_cannot_attach_to_replaced_login(self):
+        import threading
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temporary:
+            app = desktop.Desktop(pathlib.Path(temporary), Mock())
+            window = Mock(); shown = threading.Event(); started = threading.Event()
+            def wait(timeout):
+                started.set(); return shown.wait(timeout)
+            window.events = SimpleNamespace(shown=SimpleNamespace(wait=wait))
+            old = LoginAttempt(); app.login_window = window; app.login_attempt = old
+            worker = threading.Thread(target=app._attach_credential_bridge, args=(window, old))
+            with patch('login_credentials.SchoolCredentialBridge') as factory:
+                worker.start()
+                try:
+                    self.assertTrue(started.wait(2))
+                    current = app.login_attempt = LoginAttempt()
+                    shown.set(); worker.join(2)
+                    self.assertFalse(worker.is_alive())
+                    factory.assert_not_called()
+                    self.assertTrue(current.active)
+                    self.assertIsNone(app.credential_bridge)
+                finally:
+                    shown.set(); worker.join(2)
+
     def test_school_bridge_removes_generic_handler_and_browser_autosave(self):
         from login_credentials import SchoolCredentialBridge
         from unittest.mock import MagicMock

@@ -302,7 +302,10 @@ class Desktop:
             raise
         window.events.loaded += self._try_login
         window.events.closed += self._login_closed
-        window.events.shown += self._attach_credential_bridge
+        # create_window can finish showing a child before it returns. Waiting on
+        # the latched event covers both an already-shown and a future window.
+        threading.Thread(target=self._attach_credential_bridge,
+                         args=(window, self.login_attempt), daemon=True).start()
         self.backend.record('login.open', 'success')
 
     def _login_closed(self):
@@ -373,22 +376,29 @@ class Desktop:
         except Exception: self.notice(FAILURE)
         self.publish_credentials()
 
-    def _attach_credential_bridge(self):
-        window = self.login_window
-        if self.stopping or not window: return
-        from System import Action
-        from login_credentials import SchoolCredentialBridge
-        resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
-        def attach():
-            if self.login_window is not window or self.stopping: return
-            self.credential_bridge = SchoolCredentialBridge(self, window, resources)
+    def _attach_credential_bridge(self, window, attempt):
+        def current():
+            return (not self.stopping and self.login_window is window and
+                    self.login_attempt is attempt and attempt.active)
+        if not current(): return
         try:
+            if not window.events.shown.wait(20): raise RuntimeError("School window unavailable")
+            if not current(): return
+            from System import Action
+            from login_credentials import SchoolCredentialBridge
+            resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+            attached = []
+            def attach():
+                if not current() or self.credential_bridge is not None: return
+                bridge = SchoolCredentialBridge(self, window, resources)
+                self.credential_bridge = bridge
+                attached.append(bridge)
             window.native.Invoke(Action(attach))
-            if self.credential_bridge:
-                threading.Thread(target=self.credential_bridge.loaded, daemon=True).start()
+            if attached: attached[0].loaded()
         except Exception:
-            if self.login_attempt: self.login_attempt.close()
-            self.notice("本机记住密码暂不可用，请在学校页面手动输入。")
+            if current():
+                attempt.close()
+                self.notice("本机记住密码暂不可用，请在学校页面手动输入。")
 
     def _save_login_credential(self, result, window, attempt):
         if (not attempt or not attempt.active or self.login_attempt is not attempt or self.stopping or
