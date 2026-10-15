@@ -32,3 +32,7 @@
 - Capture/fill only the main school login window at the exact HTTPS AD FS origin and /adfs/ls/ form, with a current attempt nonce and document id. Do not submit automatically or collect MFA, reset-password fields, subframes, or popup credentials.
 - Save only after /api/native/session returns the verified Canvas user id. Wrong-account replacement needs explicit confirmation. Failed saves preserve the prior protected record, failed deletion disables fill, and credential cleanup/retention policy survives interrupted logout.
 - Package and source hashes include the new native code and login script; credentials directories and protected records must never enter a build. Synthetic Keychain/DPAPI checks do not prove real school SSO.
+
+## Release asset retention
+- Retain the complete installers, SHA256SUMS.txt, source tags and version-specific release notes for v1.8.1 and v1.9.1 side by side. Keep v1.9.1 as the current latest release.
+- Future publishing and cleanup must not remove assets from these two Releases without an explicit new user instruction. Restore v1.8.1 only from its original accepted source/CI artifacts with the original published SHA256 values; never substitute a later local candidate.

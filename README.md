@@ -2,7 +2,16 @@
 
 连接香港理工大学 Canvas，集中查看考试与作业、成绩、课程变化和文档证据。学生制作的工具，非学校官方应用。首次启动为空框架，没有默认课程、预设评分比例或随包账号资料。
 
-当前版本：**1.9.1（构建 191）**，以 1.8.2 为基线，新增用户主动开启的本机记住密码。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。GitHub 仅保留最新版安装包；旧版本源码、标签与发布记录保留。
+当前版本：**1.9.1（构建 191）**，以 1.8.2 为基线，新增用户主动开启的本机记住密码。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。GitHub 同时保留 v1.8.1 历史隐私安全修复版和 v1.9.1（1.9 系列当前正式版）的完整安装包、SHA256 与各自说明。v1.9.1 继续作为最新版；后续发布不得自动删除这两个 Release 的安装包。
+
+## 可下载版本
+
+| 版本 | 功能与适用范围 | 下载与对应说明 |
+| --- | --- | --- |
+| v1.8.1 | 历史隐私安全修复版：本地 API 认证、Mac Keychain、Windows DPAPI 与跨平台打包修复；保留原始发布文件及哈希 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.8.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.8.1) |
+| v1.9.1（1.9 系列） | 当前正式版：包含 1.8.2 的课程表、性能优化和签名更新，以及默认关闭、用户主动开启的本机记住密码 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.9.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.9.1) |
+
+每个版本均提供 Mac ARM64 DMG/ZIP、Windows x64 Setup/Portable ZIP。请使用同一版本的 SHA256SUMS.txt 校验。签名状态、系统要求、真实学校登录的验证边界分别见对应 Release。
 
 ## 安装
 
