@@ -69,12 +69,12 @@ def component_data(spec, rows, safe_url, allow_weight, raw_assignment_meta):
         complete = False
     if expected:
         complete = complete and len(matches) == expected
-    allow_weight = allow_weight and not spec.get("conflict")
+    allow_weight = allow_weight and not spec.get("conflict") and not spec.get("complex")
     weighted = round(weight * score / points, 3) if (
         allow_weight and complete and weight is not None and score is not None and points
     ) else None
     assessed_weight = weight if weighted is not None else None
-    if allow_weight and spec.get("equalItems") and expected and len(matches) <= expected and weight is not None and graded:
+    if allow_weight and mode == "group_all" and not spec.get("complex") and spec.get("equalItems") and expected and len(matches) <= expected and weight is not None and graded:
         weighted = round(sum(item["score"] / item["points"] * weight / expected for item in graded), 3)
         assessed_weight = weight / expected * len(graded)
     submitted = any(row.get("sub_state") in {"submitted", "pending_review"} for _, row in matches)

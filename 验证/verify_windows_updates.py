@@ -18,7 +18,7 @@ def child(case,scenario):
  def progress(stage,extra=None):(case/"driver-progress.json").write_text(json.dumps({"stage":stage,"extra":extra},ensure_ascii=False))
  progress("before SDK initialization")
  class Backend:
-  version="1.8.2"
+  version=settings["baselineVersion"]
   def request(self,*args):return {"ok":True}
   def stop(self):pass
  class Console:
@@ -89,7 +89,7 @@ def main():
  if sys.platform!="win32" or os.environ.get("GITHUB_ACTIONS")!="true":raise SystemExit("Native update checks require a disposable Windows CI runner")
  if len(sys.argv)>1:
   assert sys.argv[1]=="--driver";child(sys.argv[2],sys.argv[3]);return
- sys.path.insert(0,str(ROOT));from release_build import VERSION,NAME,source_hashes
+ sys.path.insert(0,str(ROOT));from release_build import VERSION,BUILD,BASELINE_VERSION,BASELINE_BUILD,NAME,source_hashes
  from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
  from cryptography.hazmat.primitives import serialization
  bundle=ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")
@@ -105,7 +105,7 @@ def main():
    if mode=="installed":
     run(setup,"/S",timeout=180);target=real_install;profile=real_profile
    else:target=case/"program";shutil.copytree(bundle,target);profile=case/"local"/NAME
-   release=target/"console/release.json";value=json.loads(release.read_text());value["version"]="1.8.2";value["build"]="182";release.write_text(json.dumps(value))
+   release=target/"console/release.json";value=json.loads(release.read_text());value["version"]=BASELINE_VERSION;value["build"]=BASELINE_BUILD;release.write_text(json.dumps(value))
    key=Ed25519PrivateKey.generate();pub=base64.b64encode(key.public_key().public_bytes(serialization.Encoding.Raw,serialization.PublicFormat.Raw)).decode()
    lock_path=target/"updater-lock.json";lock=json.loads(lock_path.read_text());lock["publicKey"]=pub;lock_path.write_text(json.dumps(lock))
    (target/"obsolete-program.py").write_text("# Synthetic old-only packaged module")
@@ -124,7 +124,7 @@ def main():
       if p.is_file():z.write(p,p.relative_to(fresh.parent).as_posix())
    else:shutil.copy2(setup if mode=="installed" else portable,package)
    good=package.read_bytes()
-   metadata={"schema":1,"repository":"Andre-HUANG/polyu-study-console","version":VERSION,"build":182,"sourceSHA":"a"*40,"draft":False,"prerelease":False,"artifacts":{name:{"sha256":hashlib.sha256(good).hexdigest(),"bytes":len(good),"url":"https://github.com/Andre-HUANG/polyu-study-console/releases/download/v"+VERSION+"/"+name,"platform":"windows","architecture":"x64"}}}
+   metadata={"schema":1,"repository":"Andre-HUANG/polyu-study-console","version":VERSION,"build":int(BUILD),"sourceSHA":"a"*40,"draft":False,"prerelease":False,"artifacts":{name:{"sha256":hashlib.sha256(good).hexdigest(),"bytes":len(good),"url":"https://github.com/Andre-HUANG/polyu-study-console/releases/download/v"+VERSION+"/"+name,"platform":"windows","architecture":"x64"}}}
    body=json.dumps(metadata,sort_keys=True).encode();(public/"updates.json").write_bytes(body);(public/"updates.json.sig").write_bytes(base64.b64encode(key.sign(body)))
    signature=base64.b64encode(key.sign(good)).decode()
    if scenario=="wrong-signature":signature=base64.b64encode(Ed25519PrivateKey.generate().sign(good)).decode()
@@ -136,9 +136,9 @@ def main():
      super().do_GET()
    http=ThreadingHTTPServer(("127.0.0.1",0),functools.partial(Handler,directory=str(public)));thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start()
    feed=f"http://127.0.0.1:{http.server_port}/"
-   xml=f'<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><title>Isolated updater</title><item><title>1.8.2</title><description>Synthetic rehearsal</description><enclosure url="{feed+name}" length="{len(good)}" type="application/octet-stream" sparkle:version="{VERSION}" sparkle:shortVersionString="{VERSION}" sparkle:edSignature="{signature}"/></item></channel></rss>'
+   xml=f'<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><title>Isolated updater</title><item><title>{VERSION}</title><description>Synthetic rehearsal</description><enclosure url="{feed+name}" length="{len(good)}" type="application/octet-stream" sparkle:version="{VERSION}" sparkle:shortVersionString="{VERSION}" sparkle:edSignature="{signature}"/></item></channel></rss>'
    (public/("appcast-windows-setup.xml" if mode=="installed" else "appcast-windows-portable.xml")).write_text(xml)
-   (case/"driver.json").write_text(json.dumps({"target":str(target),"feed":feed}))
+   (case/"driver.json").write_text(json.dumps({"target":str(target),"feed":feed,"baselineVersion":BASELINE_VERSION}))
    env=os.environ.copy()
    if mode=="portable":env["LOCALAPPDATA"]=str(case/"local")
    process=None;helper=None;newpid=None
@@ -157,7 +157,7 @@ def main():
       try:current=json.loads((target/"console/release.json").read_text())["version"]
       except (OSError,ValueError):time.sleep(.2);continue
       if scenario=="upgrade" and (stage/"new-version-ready").exists() and not target.with_name(target.name+".previous-"+VERSION).exists():break
-      if scenario=="rollback" and current=="1.8.2" and not target.with_name(target.name+".previous-"+VERSION).exists():break
+      if scenario=="rollback" and current==BASELINE_VERSION and not target.with_name(target.name+".previous-"+VERSION).exists():break
       time.sleep(.2)
      else:raise AssertionError({"scenario":scenario,"currentVersion":current,"stage":str(stage)})
      p=case/"new-pid.json"
@@ -172,7 +172,7 @@ def main():
      assert not stage.exists(),"Program update staging was not released"
      report["updateStageRemoved"]=True
     current=json.loads((target/"console/release.json").read_text())["version"]
-    assert current==(VERSION if scenario=="upgrade" else "1.8.2")
+    assert current==(VERSION if scenario=="upgrade" else BASELINE_VERSION)
     assert sentinel.read_text()=="synthetic-update-preserved"
     assert (target/"obsolete-program.py").exists() == (scenario!="upgrade")
     report["oldOnlyProgramFilesRemoved"]=scenario=="upgrade"

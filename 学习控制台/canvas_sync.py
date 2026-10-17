@@ -71,7 +71,20 @@ def collect(api, profile, me, cancelled=lambda: None, progress=lambda stage: Non
     old_snapshot = read_json(profile / "snapshot.json", {})
     old_meta = read_json(profile / "assignment-meta.json", {})
     old_announcements = read_json(profile / "announcements.json", [])
+    previous_id = (old_config.get("user") or {}).get("id")
+    if previous_id is not None and str(previous_id) != str(me["id"]):
+        raise RuntimeError("Canvas 登录账号与本机档案不一致，请先退出登录。")
     courses = current_courses(api)
+    roster_incomplete = any(c.get("rosterIncomplete") for c in courses)
+    retained_course_count = 0
+    if roster_incomplete and previous_id is not None and str(previous_id) == str(me["id"]):
+        # Dashboard cards are only a subset. A failed All Courses read cannot
+        # establish that a previously verified course was removed.
+        observed = {str(c["id"]) for c in courses}
+        retained_courses = [{**c, "rosterIncomplete": True, "rosterCached": True}
+                            for c in old_config.get("courses") or [] if str(c.get("id")) not in observed]
+        courses += retained_courses
+        retained_course_count = len(retained_courses)
     if not courses and old_config.get("courses"):
         raise RuntimeError("Canvas 当前课程列表为空；沿用已保存的课程并在下次同步重试。")
     terms = [row["term"] for row in courses if row["term"]]
@@ -83,14 +96,14 @@ def collect(api, profile, me, cancelled=lambda: None, progress=lambda stage: Non
               "term": {"name": term_name, "start": min(starts) if starts else None,
                        "end": max(ends) if ends else None},
               "courses": courses}
-    previous_id = (old_config.get("user") or {}).get("id")
-    if previous_id is not None and str(previous_id) != str(me["id"]):
-        raise RuntimeError("Canvas 登录账号与本机档案不一致，请先退出登录。")
     save_private(profile / "config.json", config)
     assignments, metadata, announcements, warnings = {}, {}, [], []
     if any(c.get("rosterIncomplete") for c in courses):
-        warnings.append("全部课程页面尚未完整读取；当前仅含已发现的课程")
+        warnings.append("全部课程页面尚未完整读取；" + (
+            f"已保留本账号上次确认的 {retained_course_count} 门课程，标记为缓存名单，待完整同步核对。"
+            if retained_course_count else "当前仅含已发现的课程，完整名单待后续同步核对。"))
     old_assignments = old_snapshot.get("assignments") or {}
+    old_codes = {str(c.get("id")): c.get("code") for c in old_config.get("courses") or []}
     for course in courses:
         cancelled()
         cid, code = str(course["id"]), course["code"]
@@ -103,16 +116,18 @@ def collect(api, profile, me, cancelled=lambda: None, progress=lambda stage: Non
                 if not isinstance(row, dict) or row.get("id") is None:
                     continue
                 aid = str(row["id"])
-                submission = row.get("submission") or {}
+                submission = row.get("submission") if isinstance(row.get("submission"), dict) else {}
                 status = submission.get("workflow_state") or ""
                 visible_grade = status == "graded" and not submission.get("grade_hidden") and submission.get("score") is not None
-                sub_state = "graded" if visible_grade else "submitted" if status in {"submitted", "graded", "pending_review"} or submission.get("submitted_at") else "unsubmitted"
-                assignments[aid] = {"course": code, "name": row.get("name") or "未命名作业",
+                sub_state = ("graded" if visible_grade else "submitted" if status in {"submitted", "graded", "pending_review"} or submission.get("submitted_at")
+                             else "unsubmitted" if status == "unsubmitted" else "unknown")
+                assignments[aid] = {"course": code, "courseId": cid, "cached": False, "name": row.get("name") or "未命名作业",
                     "html_url": row.get("html_url") or HOST + f"/courses/{cid}/assignments/{aid}",
                     "due_at": row.get("due_at"), "lock_at": row.get("lock_at"),
                     "unlock_at": row.get("unlock_at"), "updated_at": row.get("updated_at"),
                     "is_quiz": bool(row.get("quiz_id")), "points": row.get("points_possible"),
-                    "weight": "—", "sub_state": sub_state, "score": submission.get("score") if visible_grade else None,
+                    "weight": "—", "sub_state": sub_state, "submission_state_observed": sub_state != "unknown",
+                    "score": submission.get("score") if visible_grade else None,
                     "submitted_at": submission.get("submitted_at"),
                     "graded_at": submission.get("graded_at") if visible_grade else None,
                     "posted_at": submission.get("posted_at") if visible_grade else None}
@@ -121,8 +136,12 @@ def collect(api, profile, me, cancelled=lambda: None, progress=lambda stage: Non
                     "excused": bool(submission.get("excused"))}
         except Exception as error:
             warnings.append(f"{code} 作业暂未完整同步：{error}")
-            assignments.update({aid: row for aid, row in old_assignments.items() if row.get("course") == code})
-            metadata.update({aid: row for aid, row in old_meta.items() if aid in assignments})
+            retained = {aid: {**row, "course": code, "courseId": cid, "cached": True}
+                        for aid, row in old_assignments.items()
+                        if (str(row.get("courseId")) == cid if row.get("courseId") is not None
+                            else row.get("course") == old_codes.get(cid, code))}
+            assignments.update(retained)
+            metadata.update({aid: row for aid, row in old_meta.items() if aid in retained})
         try:
             items = api.get(f"/api/v1/announcements?context_codes[]=course_{quote(cid)}&per_page=100")
             if not isinstance(items, list):

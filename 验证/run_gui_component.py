@@ -64,7 +64,7 @@ def main():
         with (app / 'Contents/Info.plist').open('wb') as stream:
             plistlib.dump({'CFBundleIdentifier': 'local.polyu.guicomponent.' + root.name,
                 'CFBundleExecutable': executable.name, 'CFBundlePackageType': 'APPL',
-                'CFBundleName': 'PolyU isolated GUI component check',
+                'CFBundleName': 'PolyU isolated GUI component check', 'CFBundleShortVersionString': VERSION,
                 'LSMinimumSystemVersion': '13.0', 'NSAppTransportSecurity': {'NSAllowsLocalNetworking': True}}, stream)
         subprocess.run(['xcrun', 'swiftc', '-O', '-target', 'arm64-apple-macos13.0',
             '-module-cache-path', str(root / 'module-cache'), str(ROOT / '验证/NativeDashboardSmoke.swift'),

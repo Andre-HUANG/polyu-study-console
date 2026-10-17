@@ -81,7 +81,8 @@ def main():
         if args.build=="windows":command+=["--download"]
         if args.build != "windows": run(*command)
         if args.build=="mac":
-            run(sys.executable,"-B","验证/verify_mac_bundle.py");run(sys.executable,"-B","验证/run_native_gui.py")
+            run(sys.executable,"-B","验证/verify_mac_bundle.py");run(sys.executable,"-B","验证/verify_remember_password.py")
+            run(sys.executable,"-B","验证/run_native_gui.py");run(sys.executable,"-B","验证/verify_mac_updates.py")
             run(sys.executable,"-B","MacApp/build.py","--verify-release")
         else:
             if sys.platform!="win32":raise RuntimeError("Windows binary assembly is static only; native release validation must run on Windows")
@@ -90,7 +91,9 @@ def main():
             native=run(*worker,"--platform-check",capture=True)
             (ROOT/"验证/windows-native-evidence.json").write_text(native,encoding="utf-8")
             os.environ["POLYU_GUI_EVIDENCE"]=str(ROOT/"验证/windows-gui-evidence.json")
-            run(*worker,"--gui-smoke");run(sys.executable,"-B","WindowsApp/installer_verify.py")
+            run(*worker,"--gui-smoke")
+            run(str(bundle/"runtime/python.exe"),"-I","-B","-X","utf8","验证/verify_windows_updates.py")
+            run(sys.executable,"-B","WindowsApp/installer_verify.py")
         run(sys.executable,"-B","security/validate_platform.py",args.build)
     elif args.validate:
         collect(args.validate,args.output)

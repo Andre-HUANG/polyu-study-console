@@ -115,8 +115,8 @@ class ReleaseGateTests(unittest.TestCase):
         (self.root/"updater-lock.json").write_text(json.dumps({"publicKey":public}))
         import release_build
         report={"measuredCandidateCommit":self.head,"sourceHashes":{},"checkedAt":dt.datetime.now(dt.timezone.utc).isoformat(),
-            "idleCPU":{"realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"trials":[{"trial":t,"version":v,"state":state,"seconds":60,"cpuSeconds":.1,"wakeups":10} for t in range(1,4) for v in ("1.8.2","1.9.1") for state in ("visible","hidden")]},
-            "syntheticSynchronization":{label:{"version":version,"trials":[{"trial":t,"condition":condition,"files":46,"pages":102,"indexWrites":1} for t in range(1,4) for condition in ("cold","warm")]} for label,version in (("baseline","1.8.2"),("candidate","1.9.1"))}}
+            "idleCPU":{"realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"trials":[{"trial":t,"version":v,"state":state,"seconds":60,"cpuSeconds":.1,"wakeups":10} for t in range(1,4) for v in (perf.BASELINE_VERSION,perf.VERSION) for state in ("visible","hidden")]},
+            "syntheticSynchronization":{label:{"version":version,"trials":[{"trial":t,"condition":condition,"files":46,"pages":102,"indexWrites":1,"totalSeconds":1.0,"importSeconds":0.5} for t in range(1,4) for condition in ("cold","warm")]} for label,version in (("baseline",perf.BASELINE_VERSION),("candidate",perf.VERSION))}}
         def signed(value):
             body=perf.canonical(value)
             return json.dumps({"body":base64.b64encode(body).decode(),"signature":base64.b64encode(key.sign(body)).decode()})
@@ -127,6 +127,19 @@ class ReleaseGateTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):perf.validate(signed(bad),self.head)
             bad=copy.deepcopy(report);bad["syntheticSynchronization"]["candidate"]["trials"][-1]["indexWrites"]=4
             with self.assertRaises(RuntimeError):perf.validate(signed(bad),self.head)
+
+            bad=copy.deepcopy(report);bad["syntheticSynchronization"]["candidate"]["version"]=perf.BASELINE_VERSION
+            with self.assertRaises(RuntimeError):perf.validate(signed(bad),self.head)
+            for metric,value in (("totalSeconds",float("nan")),("importSeconds",-1),("indexWrites",-1)):
+                bad=copy.deepcopy(report);bad["syntheticSynchronization"]["candidate"]["trials"][-1][metric]=value
+                with self.subTest(metric=metric),self.assertRaises(RuntimeError):perf.validate(signed(bad),self.head)
+            old=copy.deepcopy(report);old["checkedAt"]=(dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=2)).isoformat()
+            with self.assertRaises(RuntimeError):perf.validate(signed(old),self.head)
+            for suffix in ("json","md"):
+                self.assertFalse((self.root/("performance-"+perf.VERSION+"."+suffix)).exists())
+            perf.write_reports(self.root,signed(report),self.head)
+            self.assertEqual(json.loads((self.root/("performance-"+perf.VERSION+".json")).read_text()),report)
+            self.assertIn(perf.VERSION,(self.root/("performance-"+perf.VERSION+".md")).read_text())
             with self.assertRaises(RuntimeError):perf.validate("",self.head)
 
     def test_real_receipt_rejects_failed_calendar_or_unread_documents(self):

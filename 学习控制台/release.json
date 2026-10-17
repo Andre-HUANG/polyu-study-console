@@ -1,1 +1,13 @@
-{"name": "PolyU study控制台", "version": "1.9.1", "build": "191", "status": "candidate", "targets": ["macOS-arm64", "Windows-x64"]}
+{
+  "name": "PolyU study控制台",
+  "version": "2.0.0",
+  "build": "200",
+  "status": "candidate",
+  "targets": [
+    "macOS-arm64",
+    "Windows-x64"
+  ],
+  "baselineVersion": "1.9.1",
+  "baselineBuild": "191",
+  "updateDescription": "2.0：清晰的学习总览、资料快捷搜索、安排搜索与日期筛选、独立过期核对视图、校历个人安排和更明确的失败恢复。"
+}

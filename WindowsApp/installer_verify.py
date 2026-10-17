@@ -24,6 +24,12 @@ def main():
     sentinel.parent.mkdir(parents=True);sentinel.write_text("synthetic-owned-by-CI",encoding="utf-8")
     try:
         subprocess.run([str(setup),"/S"],check=True,timeout=180)
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Uninstall\PolyUStudyConsole",
+                0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as key:
+            if winreg.QueryValueEx(key, "DisplayVersion")[0] != VERSION:
+                raise RuntimeError("Installed Windows version differs from release identity")
         for name,digest in manifest.items():
             if not (install/name).is_file():
                 raise AssertionError({"missingPackageFile":name, "installedRootNames":sorted(p.name for p in install.iterdir())})
@@ -45,7 +51,7 @@ def main():
         if profile.exists():shutil.rmtree(profile)
     manifest_file=ROOT/".build/windows-assembly"/("PolyUStudyConsole-"+VERSION+"-windows-x64")/"payload-sha256.json"
     report={"ok":True,"payloadManifestSHA256":hashlib.sha256(manifest_file.read_bytes()).hexdigest(),"setupSHA256":hashlib.sha256(setup.read_bytes()).hexdigest(),"installedPayloadHashesVerified":len(manifest),"installedInventoryVerified":True,"installedRuntimeExecuted":True,"installedGUIExecuted":True,
-            "nativeInstallUninstall":True,"uninstallPreservesProfile":True,"realAccountAccessed":False}
+            "installedVersionVerified":True,"nativeInstallUninstall":True,"uninstallPreservesProfile":True,"realAccountAccessed":False}
     (ROOT/"验证/windows-installer-evidence.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report))
 

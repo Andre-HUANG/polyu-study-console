@@ -88,7 +88,7 @@ def main():
         assert installer["payloadManifestSHA256"]==manifest_digest and installer["setupSHA256"]==sha(files[0])
         assert native["dpapiRoundTrip"] and native["rememberedPasswordDpapi"] and native["ownedBackendStopped"] and gui["webview2NativeGUI"]
         assert all(gui["rememberPassword"][key] for key in ("nativeCredentialFormFill", "nativeCredentialCandidateCapture", "manualSubmitOnly", "browserPasswordAutosaveDisabled"))
-        assert installer["nativeInstallUninstall"] and installer["uninstallPreservesProfile"] and installer["installedGUIExecuted"] and installer["installedInventoryVerified"]
+        assert installer["installedVersionVerified"] and installer["nativeInstallUninstall"] and installer["uninstallPreservesProfile"] and installer["installedGUIExecuted"] and installer["installedInventoryVerified"]
         update=evidence("windows-update-evidence.json")
         assert update["sourceHashes"]==hashes and update["payloadManifestSHA256"]==manifest_digest and len(update["scenarios"])==6
         platform_checks={"nativeUpdates":True,"nativeGUI":True,"backendRuntime":True,"dpapi":True,"installUninstall":True,"authenticodeSigned":False,"rememberPassword":True}

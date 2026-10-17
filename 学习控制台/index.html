@@ -13,12 +13,13 @@
   <script src="/academic-ui.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#mainContent">跳到学习内容</a>
   <div class="app-shell">
     <aside class="sidebar" aria-label="主导航">
       <a class="brand" href="#top" aria-label="PolyU 学习控制台首页">
         <img src="/assets/polyu-logo.png" alt="香港理工大学 The Hong Kong Polytechnic University" class="official-logo">
       </a>
-      <div class="brand-caption">study 控制台</div>
+      <div class="brand-caption">study 控制台 <span>2.0</span></div>
       <div class="side-label">工作区</div>
       <nav class="side-nav">
         <a class="active" href="#top"><span class="nav-icon" aria-hidden="true">▦</span> 学习总览</a>
@@ -35,13 +36,17 @@
     <main id="top" class="main">
       <header class="topbar">
         <div class="breadcrumb">MY POLYU <span>/</span> 学习总览</div>
-        <div class="topbar-tools"><div id="todayLabel" class="topbar-date">正在读取日期…</div><button id="refreshButton" class="button button-primary" type="button"><span class="refresh-mark" aria-hidden="true">↻</span> 更新 Canvas</button><button id="settingsButton" class="button button-outline" type="button" aria-haspopup="dialog" aria-controls="settingsDialog" aria-expanded="false">设置</button></div>
+        <div class="topbar-tools"><button id="searchButton" class="button button-light search-launch" type="button" aria-haspopup="dialog" aria-controls="settingsDialog">搜索资料 <kbd>⌘ / Ctrl K</kbd></button><div id="todayLabel" class="topbar-date">正在读取日期…</div><button id="refreshButton" class="button button-primary" type="button"><span class="refresh-mark" aria-hidden="true">↻</span> 更新 Canvas</button><button id="settingsButton" class="button button-outline" type="button" aria-haspopup="dialog" aria-controls="settingsDialog" aria-expanded="false">设置</button></div>
       </header>
 
-      <div class="content">
+      <div id="mainContent" class="content" tabindex="-1">
         <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
 
 
+        <section id="workspaceWelcome" class="workspace-welcome" aria-labelledby="welcomeTitle">
+          <div class="welcome-copy"><p class="section-kicker">YOUR STUDY, IN FOCUS</p><h2 id="welcomeTitle">让每一项安排，都有清楚的下一步。</h2><p id="welcomeDescription">正在读取你的学习工作区…</p><div id="attentionLinks" class="attention-links" hidden><button id="pendingShortcut" type="button" hidden></button><button id="overdueShortcut" type="button" hidden></button></div></div>
+          <div class="welcome-actions"><button id="welcomeAction" type="button" class="button button-primary" data-action="account">连接 Canvas</button><button id="welcomeDocuments" type="button" class="button button-light">查看资料与识别进度</button></div>
+        </section>
         <div class="academic-overview">
           <section class="overview-summary panel">
         <section class="page-heading" aria-labelledby="pageTitle">
@@ -53,13 +58,14 @@
         </section>
 
         <section class="metrics" aria-label="学习数据概览">
-          <div class="metric metric-week"><span class="metric-kicker">NEXT 7 DAYS</span><strong id="metricWeek">—</strong><span class="metric-foot" id="metricWeekRange">未来 7 天待处理安排</span></div>
+          <div class="metric metric-week"><span class="metric-kicker">NEXT 7 DAYS</span><strong id="metricWeek">—</strong><span class="metric-foot" id="metricWeekRange">未来 7 天内的安排</span></div>
           <div class="metric"><span class="metric-kicker">NEXT EXAM</span><strong id="metricExam">—</strong><span class="metric-foot" id="metricExamFoot">最近考试</span></div>
-          <div class="metric"><span class="metric-kicker">UPCOMING</span><strong id="metricUpcoming">—</strong><span class="metric-foot">未来 30 天有日期的安排</span></div>
+          <div class="metric"><span class="metric-kicker">UPCOMING</span><strong id="metricUpcoming">—</strong><span class="metric-foot">未来 30 天内的安排</span></div>
           <div class="metric"><span class="metric-kicker">COURSES</span><strong id="metricCourses">—</strong><span class="metric-foot">Canvas 已同步课程</span></div>
         </section>
 
 </section>
+          <div class="daily-column">
           <section id="timetablePanel" class="panel timetable-panel" aria-labelledby="timetableTitle">
             <div class="panel-heading"><div><p class="section-kicker">CLASSES & EXAMS</p><h2 id="timetableTitle">课程表</h2></div><button id="addClassButton" class="text-link" type="button">＋ 添加</button></div>
             <div class="class-toolbar"><div class="segmented" role="tablist" aria-label="课程表视图"><button type="button" data-class-view="day" class="selected" role="tab" aria-selected="true">本日</button><button type="button" data-class-view="week" role="tab" aria-selected="false">本周</button></div><select id="timetableCourse" aria-label="课程筛选"><option value="">全部课程</option></select></div>
@@ -67,15 +73,6 @@
             <div class="class-scroll"><div id="timetableBody" class="class-day"><p class="class-empty">正在读取课程表…</p></div></div>
             <details id="timetablePending" class="class-pending" hidden></details><p id="timetableStatus" class="section-note" role="status"></p>
           </section>
-          <section class="panel academic-calendar" aria-labelledby="calendarTitle">
-            <div class="panel-heading"><div><p class="section-kicker">POLYU CALENDAR</p><h2 id="calendarTitle">校历</h2></div><select id="calendarYear" aria-label="校历学年"></select></div>
-            <p id="calendarWeek" class="calendar-week"></p><div class="class-date-nav"><button type="button" data-calendar-nav="-1" aria-label="上个月">‹</button><strong id="calendarMonth"></strong><button type="button" data-calendar-nav="1" aria-label="下个月">›</button></div>
-            <div class="calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="calendarDays" class="calendar-days"></div>
-            <details class="calendar-important"><summary id="calendarDatesTitle">本月重要日期</summary><ul id="calendarEvents" class="calendar-events"></ul></details>
-            <div class="calendar-footer"><a href="https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en" target="_blank" rel="noopener noreferrer" class="text-link">PolyU 官方校历 ↗</a><button id="calendarRefresh" class="text-link" type="button">刷新</button></div><p id="calendarStatus" class="section-note" role="status"></p>
-          </section>
-        </div>
-        <div class="overview-grid recent-row">
           <section class="focus-card" aria-labelledby="focusTitle">
             <div class="focus-top"><span class="focus-tag">最近安排</span><span id="focusCourse" class="focus-course">—</span></div>
             <h2 id="focusTitle">正在载入近期安排</h2>
@@ -84,10 +81,19 @@
             <a id="focusLink" class="focus-link" target="_blank" rel="noopener" hidden>查看课程来源 <span aria-hidden="true">↗</span></a>
             <div class="focus-pattern" aria-hidden="true"></div>
           </section>
-
-
+          </div>
+          <section class="panel academic-calendar" aria-labelledby="calendarTitle">
+            <div class="panel-heading"><div><p class="section-kicker">POLYU CALENDAR</p><h2 id="calendarTitle">校历</h2></div><select id="calendarYear" aria-label="校历学年"></select></div>
+            <p id="calendarWeek" class="calendar-week"></p><div class="class-date-nav"><button type="button" data-calendar-nav="-1" aria-label="上个月">‹</button><strong id="calendarMonth"></strong><button type="button" data-calendar-nav="1" aria-label="下个月">›</button></div>
+            <div class="calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div id="calendarDays" class="calendar-days" role="group" aria-label="选择日期"></div>
+            <p class="calendar-legend"><span>● 个人安排</span><span>底色 / 下划线：官方校历</span></p><section class="calendar-agenda" aria-labelledby="selectedDateTitle"><h3 id="selectedDateTitle">当天安排</h3><div id="selectedDateEvents"></div></section>
+            <details class="calendar-important"><summary id="calendarDatesTitle">本月重要日期</summary><ul id="calendarEvents" class="calendar-events"></ul></details>
+            <div class="calendar-footer"><a href="https://www.polyu.edu.hk/ar/students-in-taught-programmes/academic-calendar/?sc_lang=en" target="_blank" rel="noopener noreferrer" class="text-link">PolyU 官方校历 ↗</a><button id="calendarRefresh" class="text-link" type="button">刷新</button></div><p id="calendarStatus" class="section-note" role="status"></p>
+          </section>
+        </div>
+        <div class="overview-grid recent-row">
           <section class="up-next panel" aria-labelledby="upNextTitle">
-            <div class="panel-heading"><div><p class="section-kicker">ON THE HORIZON</p><h2 id="upNextTitle">即将到来</h2></div><a href="#schedule" class="text-link">查看全部</a></div>
+            <div class="panel-heading"><div><p class="section-kicker">ON THE HORIZON</p><h2 id="upNextTitle">接下来的安排</h2></div><a href="#schedule" class="text-link">查看全部</a></div>
             <div id="upNextList" class="up-next-list"><p class="loading-text">正在读取近期安排…</p></div>
           </section>
         </div>
@@ -95,7 +101,7 @@
         <section class="canvas-update panel" aria-labelledby="canvasUpdateTitle">
           <div class="canvas-update-head">
             <div><p class="section-kicker">CANVAS PULSE</p><h2 id="canvasUpdateTitle">Canvas 更新</h2></div>
-            <span class="canvas-update-live"><i aria-hidden="true"></i> 本机连接</span>
+            <span id="canvasConnectionState" class="canvas-update-live">正在读取状态…</span>
           </div>
           <div class="canvas-update-grid">
             <div class="canvas-update-cell">
@@ -129,7 +135,9 @@
             </div>
             <label class="select-wrap"><span class="sr-only">按课程筛选</span><select id="courseFilter"><option value="all">全部课程</option></select></label>
           </div>
-          <div id="eventList" class="event-list"><p class="loading-text">正在读取安排…</p></div>
+          <div class="schedule-search"><label class="schedule-query"><span class="sr-only">搜索安排</span><input id="eventSearch" type="search" maxlength="120" placeholder="搜索名称、课程、地点或备注…"></label><label class="schedule-range"><span class="sr-only">安排日期范围</span><select id="eventRange"><option value="upcoming">全部未来安排</option><option value="7">未来 7 天</option><option value="30">未来 30 天</option><option value="overdue">已过截止日期</option></select></label><button id="clearEventFilters" class="button button-light" type="button" hidden>清除筛选</button></div>
+          <p id="eventResults" class="event-results" role="status" aria-live="polite"></p>
+          <div id="eventList" class="event-list" aria-label="筛选后的安排"><p class="loading-text">正在读取安排…</p></div>
           <details class="undated-details" data-preserve="undated"><summary><span>日期待核对的事项 <b id="undatedCount">0</b></span><span class="summary-hint">含文件中的考试提及与日期冲突</span></summary><div id="undatedList" class="undated-list"></div></details>
         </section>
 
@@ -180,6 +188,7 @@
         <section id="documents" class="document-section panel" data-settings-panel="documents" role="tabpanel" aria-labelledby="settings-documents-tab" hidden>
           <div class="panel-heading"><div><p class="section-kicker">INSIGHTS FROM YOUR DOCUMENTS</p><h2 id="documentsTitle">课程文档自动识别</h2><p class="section-note">从每门课的课件、提纲、日程和公告中提取考试、作业及评分细则。自动关联分散的日期、时间和地点，结果附原文与页码。</p></div><span id="documentStatus" class="document-status">等待登录</span></div>
           <div class="document-metrics"><div><strong id="documentDownloadCount">—</strong><span>已下载附件 / 模块所列</span></div><div><strong id="documentFileCount">—</strong><span>已识别文件 / 已发现</span></div><div><strong id="documentPageCount">—</strong><span>已处理页 / 位置</span></div><div><strong id="documentFindingCount">—</strong><span>已提取考核信息</span></div><div><strong id="documentReviewCount">—</strong><span>来源冲突 / 识别歧义</span></div></div>
+          <div id="documentLoadError" class="document-load-error" hidden><p id="documentLoadMessage" role="alert"></p><button id="documentRetry" class="button button-outline" type="button">重新读取</button></div>
           <p id="documentDownloadReport" class="document-progress" role="status" aria-live="polite">登录后先下载课程模块中的附件，再开始识别。</p>
           <button id="documentFolderButton" class="account-text-button" type="button">打开下载文件夹 ↗</button>
           <p id="documentProgress" class="document-progress" role="status" aria-live="polite">登录后自动扫描你的课程资料。</p>
@@ -202,13 +211,14 @@
           <p class="section-note">只保留最近 200 条操作记录。退出登录会删除账号日志；登录前及本次退出结果仅在本次运行中显示。</p>
         </section>
     </div>
-    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v1.9.1</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
+    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v2.0.0</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
   </dialog>
 
   <dialog id="eventDialog" class="event-dialog" aria-labelledby="dialogTitle">
     <form id="eventForm" novalidate>
       <div class="dialog-head"><div><p class="section-kicker">PERSONAL SCHEDULE</p><h2 id="dialogTitle">添加安排</h2></div><button id="closeDialog" type="button" class="icon-button" aria-label="关闭">×</button></div>
       <p class="dialog-note">请根据 Canvas 原文登记，并附来源链接。安排保存到当前账号，并显示在考试与作业列表。</p>
+      <p id="eventFormError" class="form-error" role="alert" tabindex="-1" hidden></p>
       <div class="form-grid">
         <label class="field"><span>课程</span><select name="course" required></select></label>
         <label class="field"><span>日期</span><input name="date" type="date" required></label>

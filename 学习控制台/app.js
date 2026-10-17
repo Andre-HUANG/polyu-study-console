@@ -1,5 +1,5 @@
 let csrf = document.querySelector('meta[name="csrf-token"]').content;
-const state = { data: null, filter: 'all', course: 'all', busy: false, editOriginal: null, documentFilter: 'all', documentSearch: '', searchResults: null, settingsTab: 'account', logs: null, logFilter: 'all' };
+const state = { data: null, filter: 'all', course: 'all', eventSearch: '', eventRange: 'upcoming', busy: false, editOriginal: null, documentFilter: 'all', documentSearch: '', searchResults: null, settingsTab: 'account', logs: null, logFilter: 'all' };
 let searchTimer, searchRequest;
 const dateFormats = new Map();
 function dateFormatter(locale, options) { const key = JSON.stringify([locale, options]); if (!dateFormats.has(key)) (() => { if (dateFormats.size >= 24) dateFormats.delete(dateFormats.keys().next().value); dateFormats.set(key, new Intl.DateTimeFormat(locale, options)); })(); return dateFormats.get(key); }
@@ -49,6 +49,7 @@ function freshnessText(data) {
 }
 
 function relative(days) {
+  if (days < 0) return `已过 ${Math.abs(days)} 天`;
   if (days === 0) return '今天';
   if (days === 1) return '明天';
   return `${days} 天后`;
@@ -104,7 +105,9 @@ function setBusy(busy) {
 function updateActiveNav() {
   const target = $('#settingsDialog').open && state.settingsTab === 'courses' ? '#courses' : location.hash || '#top';
   document.querySelectorAll('.side-nav a').forEach((link) => {
-    link.classList.toggle('active', link.getAttribute('href') === target);
+    const active = link.getAttribute('href') === target;
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   });
 }
 
@@ -121,15 +124,27 @@ function selectSettingsTab(tab, focus = false) {
   });
   if (state.data && tab === 'documents') {
     const revision = dataEtag || localRevision;
-    if (documentsRevision === revision && state.data.documents?.records) renderDocuments(state.data);
+    if (documentsRevision === revision && state.data.documents?.records) { $('#documentLoadError').hidden = true; renderDocuments(state.data); }
     else {
       documentsRequest?.abort();
       const request = documentsRequest = new AbortController(), current = state.data;
-      fetch('/api/documents', { cache: 'no-store', signal: request.signal }).then(r => r.ok ? r.json() : {}).then(documents => {
+      $('#documentRetry').disabled = true;
+      $('#documentLoadError').hidden = true;
+      if (!current.documents?.records) $('#documentProgress').textContent = '正在读取本账号的资料与识别进度…';
+      fetch('/api/documents', { cache: 'no-store', signal: request.signal }).then(async response => {
+        if (!response.ok) throw new Error('资料暂时无法读取，请重试。已有的本机资料不会被删除。');
+        return response.json();
+      }).then(documents => {
         if (request === documentsRequest && current === state.data && pageVisible() && $('#settingsDialog').open && state.settingsTab === 'documents') {
           state.data.documents = documents; documentsRevision = revision; renderDocuments(state.data);
         }
-      }).catch(() => {});
+      }).catch(error => {
+        if (error.name !== 'AbortError' && request === documentsRequest && $('#settingsDialog').open && state.settingsTab === 'documents') {
+          $('#documentLoadError').hidden = false;
+          $('#documentLoadMessage').textContent = error.message || '资料读取未完成，请重试。';
+          $('#documentProgress').textContent = current.documents?.records ? '以下保留上次读取的结果。' : '资料读取未完成，当前不能判断资料数量。';
+        }
+      }).finally(() => { if (request === documentsRequest) $('#documentRetry').disabled = false; });
     }
   }
   if (state.data && tab === 'courses') renderCourses(state.data);
@@ -153,10 +168,12 @@ function openSettings(tab = state.settingsTab, trigger = document.activeElement)
 }
 
 function settingsClosed() {
+  // A queued close event may arrive after a quick reopen; keep the new session intact.
+  if ($('#settingsDialog').open) return;
   document.body.classList.remove('settings-open');
   $('#settingsButton').setAttribute('aria-expanded', 'false');
   document.querySelectorAll('[data-settings-panel]').forEach((panel) => { panel.hidden = true; });
-  logRequest?.abort(); searchRequest?.abort(); clearTimeout(searchTimer);
+  logRequest?.abort(); searchRequest?.abort(); documentsRequest?.abort(); clearTimeout(searchTimer);
   updateActiveNav();
   if (settingsTrigger?.isConnected) settingsTrigger.focus();
 }
@@ -199,9 +216,9 @@ async function api(path, payload) {
 }
 
 function render(data) {
-  const contentKey = JSON.stringify([data.today, data.version, data.courses, data.events, data.undated, data.recent, data.grades, data.lastSync, data.freshness, data.recentChanges, data.latestCanvasChange]);
+  const contentKey = JSON.stringify([data.today, data.version, data.courses, data.events, data.overdue, data.undated, data.recent, data.grades, data.lastSync, data.freshness, data.recentChanges, data.latestCanvasChange]);
   if (state.contentKey === contentKey) {
-    state.data = data; renderConnection(data); window.academicUI?.render(data);
+    state.data = data; renderConnection(data); renderWorkspace(data); window.academicUI?.render(data);
     if ($('#settingsDialog').open && state.settingsTab === 'documents') selectSettingsTab('documents');
     schedulePoll(); return;
   }
@@ -211,9 +228,12 @@ function render(data) {
   if (data.connection?.native && !data.connection.authorized) {
     searchRequest?.abort(); documentsRequest?.abort(); documentsRevision = null; clearTimeout(searchTimer);
     state.documentSearch = ''; state.searchResults = null;
+    state.eventSearch = ''; state.eventRange = 'upcoming'; state.course = 'all'; state.filter = 'all';
+    $('#eventSearch').value = ''; $('#eventRange').value = 'upcoming';
+    document.querySelectorAll('[data-filter]').forEach(button => { const active = button.dataset.filter === 'all'; button.classList.toggle('selected', active); button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; });
     $('#documentSearch').value = ''; $('#documentMatches').innerHTML = '';
   }
-  $('#appVersion').textContent = `v${data.version || '1.9.1'}`;
+  $('#appVersion').textContent = `v${data.version || '2.0.0'}`;
   const today = data.today;
   $('#todayLabel').textContent = hkDate(today, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   $('#syncCaption').textContent = data.lastSync
@@ -229,9 +249,9 @@ function render(data) {
   $('#latestContentTime').textContent = change ? hkLongMoment(change.at) : '暂无记录';
   $('#latestContentDetail').innerHTML = change
     ? `${escapeHtml(change.type)} · ${escapeHtml(change.course || 'Canvas')} · ${anchor(change.url, change.title)}`
-    : 'Canvas 暂未提供可读取内容的更新时间';
+    : '暂未获取课程内容的更新时间';
   $('#metricWeek').textContent = String(data.events.filter((event) => event.daysLeft <= 7).length);
-  $('#metricWeekRange').textContent = '未来 7 天待处理安排';
+  $('#metricWeekRange').textContent = '未来 7 天内的安排';
   $('#metricCourses').textContent = String(data.courseCount);
   $('#metricUpcoming').textContent = String(data.events.filter((event) => event.daysLeft <= 30).length);
   const exam = data.events.find((event) => ['midterm', 'final', 'test'].includes(event.kind));
@@ -243,6 +263,7 @@ function render(data) {
   renderCoursesFilter(data);
   renderEvents(data);
   renderConnection(data);
+  renderWorkspace(data);
   if ($('#settingsDialog').open) {
     if (state.settingsTab === 'documents') selectSettingsTab('documents');
     if (state.settingsTab === 'courses') renderCourses(data);
@@ -254,6 +275,64 @@ function render(data) {
   document.querySelectorAll('details[data-preserve]').forEach((item) => { if (expanded.has(item.dataset.preserve)) item.open = expanded.get(item.dataset.preserve); });
   window.academicUI?.render(data);
   schedulePoll();
+}
+
+
+function openDocumentSearch() {
+  openSettings('documents', document.activeElement);
+  const ledger = $('#documentSearch').closest('details');
+  if (ledger) ledger.open = true;
+  $('#documentSearch').focus();
+}
+
+function renderWorkspace(data) {
+  const connection = data.connection || {}, signedOut = connection.native && !connection.authorized;
+  const waiting = (data.undated || []).length, overdue = (data.overdue || []).length;
+  const pendingClasses = data.timetable?.pendingTotal ?? data.timetable?.pending?.length ?? 0;
+  let title = '今天，从这里开始。', description = '查看近期安排、核对原文，把重要日期放在眼前。', action = 'schedule', label = '查看考试与作业', tone = 'ready';
+  if (connection.needsLogin) {
+    title = '重新连接，继续你的学习安排。'; description = 'Canvas 会话已失效。已有资料可供参考，重新登录后再核对最新变动。'; action = 'login'; label = '重新登录 Canvas'; tone = 'attention';
+  } else if (signedOut) {
+    title = '你的课程，从连接 Canvas 开始。'; description = '使用学校登录窗口连接账号，课程、安排和已公布成绩会显示在这里。资料保存在本机。'; action = 'login'; label = '连接 Canvas'; tone = 'welcome';
+  } else if (connection.busy) {
+    title = data.courseCount ? '正在更新，已读取的内容可以先看。' : '正在建立你的学习工作区。'; description = connection.stage || '正在采集课程并识别可访问的资料，完成情况会逐步显示。'; action = 'documents'; label = '查看读取进度'; tone = 'working';
+  } else if (connection.lastError || data.freshness?.state === 'partial') {
+    title = '部分资料仍待更新。'; description = connection.lastError || '本轮同步未能全部完成；下方保留可用结果，请核对来源和同步时间。'; action = 'refresh'; label = '重试更新'; tone = 'attention';
+  } else if (!data.lastSync) {
+    title = '准备好，开始第一次同步。'; description = '更新 Canvas 后，近期安排和课程资料会逐步出现。'; action = 'refresh'; label = '更新 Canvas'; tone = 'welcome';
+  } else if (data.freshness?.state === 'stale') {
+    title = '更新资料，再安排下一步。'; description = '当前资料已超过 24 小时。更新 Canvas，核对课程与文件中的最新变动。'; action = 'refresh'; label = '更新 Canvas'; tone = 'attention';
+  } else if (waiting || pendingClasses) {
+    description = `有 ${[waiting ? `${waiting} 项日期` : '', pendingClasses ? `${pendingClasses} 项课表安排` : ''].filter(Boolean).join('、')}待核对。打开来源确认后，再作安排。`;
+  } else if (!(data.events || []).length) {
+    description = '近期暂无已确认日期的安排。你可以查看课程资料，或根据原文添加安排。';
+  }
+  $('#workspaceWelcome').dataset.tone = tone;
+  $('#welcomeTitle').textContent = title; $('#welcomeDescription').textContent = description;
+  $('#welcomeAction').textContent = label; $('#welcomeAction').dataset.action = action;
+  $('#welcomeDocuments').hidden = Boolean(signedOut);
+  $('#pendingShortcut').hidden = !waiting; $('#pendingShortcut').textContent = `${waiting} 项日期待核对 →`;
+  $('#overdueShortcut').hidden = !overdue; $('#overdueShortcut').textContent = `${overdue} 项已过截止日期 →`;
+  $('#attentionLinks').hidden = !waiting && !overdue;
+  const status = $('#canvasConnectionState');
+  status.textContent = connection.needsLogin ? '需要重新登录' : signedOut ? '尚未连接' : connection.busy ? '正在同步' : connection.lastError || data.freshness?.state === 'partial' ? '部分未完成' : data.lastSync ? '已连接 · 本机资料' : '等待同步';
+  status.dataset.tone = tone;
+}
+
+function initSegmentedKeyboard() {
+  document.querySelectorAll('.segmented[role="tablist"]').forEach(group => {
+    const buttons = [...group.querySelectorAll('[role="tab"]')];
+    const update = () => buttons.forEach(button => { button.tabIndex = button.getAttribute('aria-selected') === 'true' ? 0 : -1; });
+    update();
+    group.addEventListener('click', update);
+    group.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      const current = buttons.indexOf(event.target); if (current < 0) return;
+      event.preventDefault();
+      const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[index].click(); buttons[index].focus(); update();
+    });
+  });
 }
 
 function nativeAction(action) {
@@ -357,7 +436,7 @@ async function poll() {
         await window.polyuReload();
       } else if (state.data) {
         state.data.connection = { ...state.data.connection, ...status.connection };
-        renderConnection(state.data);
+        renderConnection(state.data); renderWorkspace(state.data);
       }
       if (state.data) $('#syncAge').textContent = freshnessText(state.data);
       window.academicUI?.tick();
@@ -450,7 +529,7 @@ function gradeCourseMarkup(course) {
 
 function renderGrades(data) {
   const grades = data.grades || { recent: [], courses: [] };
-  $('#gradeSyncNote').textContent = data.lastSync ? `${data.snapshotComplete ? 'Canvas 资料采集于' : '本轮采集未完整完成，部分结果沿用旧资料；尝试时间'} ${hkLongMoment(data.lastSync)}` : '尚未同步 Canvas 成绩';
+  $('#gradeSyncNote').textContent = data.lastSync ? `${data.snapshotComplete ? 'Canvas 资料采集于' : '本轮同步未能全部完成，部分结果沿用旧资料；尝试时间'} ${hkLongMoment(data.lastSync)}` : '尚未同步 Canvas 成绩';
   $('#gradeRecentCount').textContent = `最近 ${Math.min(grades.recent.length, 6)} 项`;
   $('#gradeRecentList').innerHTML = grades.recent.length
     ? grades.recent.slice(0, 6).map((item) => `<div class="grade-recent-row">
@@ -492,11 +571,12 @@ function renderFocus(data) {
 
 function renderUpNext(data) {
   const list = $('#upNextList');
-  if (!data.events.length) {
-    list.innerHTML = '<p class="empty-state">近期没有有日期的未完成安排。</p>';
+  const following = data.events.slice(1, 5);
+  if (!following.length) {
+    list.innerHTML = data.events.length ? '<p class="empty-state">暂无更多已确认的近期安排。</p>' : '<p class="empty-state">暂无已确认的近期安排。</p>';
     return;
   }
-  list.innerHTML = data.events.slice(0, 4).map((event) => `
+  list.innerHTML = following.map((event) => `
     <div class="up-next-row">
       <div class="date-tile"><strong>${escapeHtml(event.date.slice(8, 10))}</strong><span>${escapeHtml(hkDate(event.date, { month: 'short' }))}</span></div>
       <div class="up-next-content"><span class="eyeline">${escapeHtml(event.course)} <b>·</b> ${escapeHtml(kindLabel(event.kind))}</span>
@@ -521,16 +601,19 @@ function renderCoursesFilter(data) {
 
 function eventMarkup(event) {
   const className = `kind-${event.kind}`;
+  const elapsed = Boolean(event.overdueState);
+  const remaining = elapsed ? event.daysLeft < 0 ? relative(event.daysLeft) : '今天已截止' : relative(event.daysLeft);
   const dateLabel = `${hkDate(event.date)}${event.timeText && event.time ? ` · ${event.timeText}` : event.time ? ` · ${event.time}` : ''}`;
   const source = event.sourceLabel || 'Canvas';
   const weight = !event.weight || event.weight === '—' ? '' : /^\d/.test(event.weight)
     ? ` · 占比 ${escapeHtml(event.weight)}` : ` · 权重${escapeHtml(event.weight)}`;
   const warnings = (event.warnings || []).filter((line) => line !== historicalNotice);
   const context = `<p class="event-source">${escapeHtml(source)}${weight}</p>` + (event.warnings || []).filter((line) => line === historicalNotice).map((line) => `<p class="event-note">${escapeHtml(line)}</p>`).join('');
-  return `<article class="event-row ${event.pending ? 'pending-event' : ''}">
+  return `<article class="event-row ${event.pending ? 'pending-event' : ''} ${elapsed ? 'elapsed-event' : ''}">
     <div class="event-date"><strong>${escapeHtml(event.date.slice(8, 10))}</strong><span>${escapeHtml(hkDate(event.date, { month: 'short' }))}</span></div>
     <div class="event-main"><div class="event-meta"><span class="kind-badge ${className}">${escapeHtml(kindLabel(event.kind))}</span><span>${escapeHtml(event.course)}</span><span class="meta-divider">·</span><span>${escapeHtml(dateLabel)}</span></div>
       <h3>${anchor(event.url, event.title)}</h3>
+      ${elapsed ? `<p class="event-status">${escapeHtml(event.overdueLabel || (event.overdueState === 'canvas_unsubmitted' ? 'Canvas 上次同步显示未提交' : '已过日期，提交状态待核对'))}</p>` : ''}
       ${event.note ? `<p class="event-note">${escapeHtml(event.note)}</p>` : ''}
       ${event.location ? `<p class="event-location">地点：${escapeHtml(event.location)}</p>` : ''}
       ${event.coverage?.length ? `<p class="event-note">范围：${escapeHtml(event.coverage.join('；'))}</p>` : ''}
@@ -539,24 +622,39 @@ function eventMarkup(event) {
       ${event.timeText && !event.time ? `<p class="event-note">${escapeHtml(event.timeText)}</p>` : ''}
       ${sourcesMarkup(event.sources, `event:${event.id}`, context)}
     </div>
-    <div class="event-right"><span class="event-remaining">${escapeHtml(relative(event.daysLeft))}</span>
+    <div class="event-right"><span class="event-remaining">${escapeHtml(remaining)}</span>
       ${event.editable ? `<div class="row-actions"><button type="button" data-action="edit" data-id="${escapeHtml(event.id)}">编辑</button><button type="button" data-action="delete" data-id="${escapeHtml(event.id)}">删除</button></div>` : '<span class="canvas-source">CANVAS</span>'}
     </div>
   </article>`;
 }
 
 function renderEvents(data) {
-  const rows = data.events.filter((event) =>
-    (state.filter === 'all' || event.kind === state.filter) &&
-    (state.course === 'all' || event.course === state.course));
-  $('#eventList').innerHTML = rows.length
-    ? rows.map(eventMarkup).join('')
-    : '<div class="empty-state roomy">这个筛选下暂无近期安排。</div>';
-  const pendingRows = data.undated.filter((event) => (state.filter === 'all' || event.kind === state.filter) && (state.course === 'all' || event.course === state.course));
+  if (!data) return;
+  const query = state.eventSearch.trim().toLocaleLowerCase();
+  const matches = event => (state.filter === 'all' || event.kind === state.filter) &&
+    (state.course === 'all' || event.course === state.course) &&
+    (!query || [event.title, event.course, event.note, event.location, event.reason].filter(Boolean).join(' ').toLocaleLowerCase().includes(query));
+  const elapsed = state.eventRange === 'overdue';
+  const all = elapsed ? (data.overdue || []) : data.events;
+  const rows = all.filter(event => matches(event) && (!['7', '30'].includes(state.eventRange) || event.daysLeft <= Number(state.eventRange)));
+  const filtered = Boolean(query) || state.filter !== 'all' || state.course !== 'all' || state.eventRange !== 'upcoming';
+  $('#clearEventFilters').hidden = !filtered;
+  $('#eventResults').textContent = `${rows.length} 项${elapsed ? '已过截止日期的作业' : '安排'}${filtered ? ' · 已应用筛选' : ''}${elapsed ? '。提交状态以 Canvas 或原文核对结果为准。' : ' · 时间以香港时间显示。'}`;
+  const loggedOut = data.connection?.native && !data.connection.authorized;
+  const empty = loggedOut ? '连接 Canvas 后，这里显示你的考试与作业。' : filtered ? '没有匹配的安排。试试其他关键词，或清除筛选。' : '暂无已确认日期的近期安排。你可以查看待核对事项，或根据原文添加安排。';
+  $('#eventList').innerHTML = rows.length ? rows.map(eventMarkup).join('') : `<div class="empty-state roomy">${empty}</div>`;
+  const pendingRows = data.undated.filter(matches);
   $('#undatedCount').textContent = String(pendingRows.length);
   $('#undatedList').innerHTML = pendingRows.length
     ? pendingRows.map((event) => `<div class="undated-row"><span>${escapeHtml(event.course)}</span><div class="pending-copy">${anchor(event.url, event.title)}${event.reason ? `<p>${escapeHtml(event.reason)}</p>` : ''}${sourcesMarkup(event.sources, `pending:${event.id}`)}</div></div>`).join('')
-    : '<p class="empty-state">没有待确认日期的事项。</p>';
+    : '<p class="empty-state">当前筛选下没有待核对日期的事项。</p>';
+}
+
+function clearEventFilters() {
+  state.filter = 'all'; state.course = 'all'; state.eventSearch = ''; state.eventRange = 'upcoming';
+  $('#eventSearch').value = ''; $('#eventRange').value = 'upcoming'; $('#courseFilter').value = 'all';
+  document.querySelectorAll('[data-filter]').forEach(button => { const active = button.dataset.filter === 'all'; button.classList.toggle('selected', active); button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; });
+  renderEvents(state.data);
 }
 
 function renderDocuments(data) {
@@ -651,6 +749,8 @@ function openEventDialog(event = null) {
   if (state.busy || !state.data) return;
   const form = $('#eventForm');
   form.reset();
+  $('#eventFormError').hidden = true; $('#eventFormError').textContent = '';
+  form.querySelectorAll('[aria-invalid]').forEach(field => { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); });
   state.editOriginal = event ? { course: event.course, title: event.rawTitle } : null;
   $('#dialogTitle').textContent = event ? '编辑安排' : '添加安排';
   form.elements.course.disabled = !!event;
@@ -671,10 +771,17 @@ function openEventDialog(event = null) {
   (event ? form.elements.date : form.elements.course).focus();
 }
 
+function eventFormError(message, field) {
+  const error = $('#eventFormError'); error.hidden = false; error.textContent = message;
+  if (field) { field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', 'eventFormError'); field.focus(); } else error.focus();
+}
+
 async function submitEvent(event) {
   event.preventDefault();
   if (state.busy) return;
   const form = event.currentTarget;
+  $('#eventFormError').hidden = true;
+  form.querySelectorAll('[aria-invalid]').forEach(field => { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); });
   const payload = {
     course: form.elements.course.value, title: form.elements.title.value.trim(), date: form.elements.date.value,
     time: form.elements.time.value, weight: form.elements.weight.value.trim(),
@@ -682,18 +789,20 @@ async function submitEvent(event) {
     url: form.elements.url.value.trim(), note: form.elements.note.value.trim(), original: state.editOriginal
   };
   if (!payload.course || !payload.title || !payload.date) {
-    showNotice('请填写课程、事项名称和日期。', 'error'); return;
+    eventFormError('请填写课程、事项名称和日期。', !payload.course ? form.elements.course : !payload.title ? form.elements.title : form.elements.date); return;
   }
-  if (state.data?.connection?.native && !validLink(payload.url)) { showNotice('请填写这项安排的 Canvas 来源链接。', 'error'); return; }
+  if (state.data?.connection?.native && !validLink(payload.url)) { eventFormError('请填写这项安排的 Canvas 来源链接（https://canvas.polyu.edu.hk/…）。', form.elements.url); return; }
   setBusy(true);
-  showNotice('正在保存安排…', 'info');
+  const saveButton = form.querySelector('button[type="submit"]');
+  const saveLabel = saveButton.textContent;
+  saveButton.textContent = '正在保存…'; form.setAttribute('aria-busy', 'true');
   try {
     const result = await api('/api/event/save', payload);
     $('#eventDialog').close();
     showNotice(result.message, 'success');
   } catch (error) {
-    showNotice(error.message, 'error');
-  } finally { setBusy(false); }
+    eventFormError(error.message);
+  } finally { saveButton.textContent = saveLabel; form.removeAttribute('aria-busy'); setBusy(false); }
 }
 
 async function refresh() {
@@ -730,6 +839,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
   $('#refreshButton').addEventListener('click', refresh);
+  $('#searchButton').addEventListener('click', openDocumentSearch);
+  document.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && !event.altKey && !event.isComposing && !$('#eventDialog').open && !$('#classDialog').open) { event.preventDefault(); openDocumentSearch(); }
+  });
+  $('#welcomeAction').addEventListener('click', event => {
+    const action = event.currentTarget.dataset.action;
+    if (action === 'login') nativeAction('login');
+    else if (action === 'refresh') refresh();
+    else if (action === 'documents') openSettings('documents', event.currentTarget);
+    else if (action === 'schedule') { location.hash = '#schedule'; $('#eventSearch').focus({ preventScroll: true }); }
+    else openSettings('account', event.currentTarget);
+  });
+  $('#welcomeDocuments').addEventListener('click', event => openSettings('documents', event.currentTarget));
+  $('#pendingShortcut').addEventListener('click', () => { clearEventFilters(); location.hash = '#schedule'; const details = $('.undated-details'); details.open = true; details.scrollIntoView({ block: 'center' }); details.querySelector('summary').focus({ preventScroll: true }); });
+  $('#overdueShortcut').addEventListener('click', () => { clearEventFilters(); state.eventRange = 'overdue'; $('#eventRange').value = 'overdue'; renderEvents(state.data); location.hash = '#schedule'; $('#eventRange').focus({ preventScroll: true }); });
+  $('#eventSearch').addEventListener('input', event => { state.eventSearch = event.target.value; renderEvents(state.data); });
+  $('#eventRange').addEventListener('change', event => { state.eventRange = event.target.value; renderEvents(state.data); });
+  $('#clearEventFilters').addEventListener('click', () => { clearEventFilters(); $('#eventSearch').focus(); });
+  $('#documentRetry').addEventListener('click', () => { documentsRevision = null; selectSettingsTab('documents'); });
+  initSegmentedKeyboard();
   $('#settingsButton').addEventListener('click', (event) => openSettings(state.settingsTab, event.currentTarget));
   $('#coursesNav').addEventListener('click', (event) => { event.preventDefault(); openSettings('courses', event.currentTarget); });
   $('#closeSettingsButton').addEventListener('click', () => $('#settingsDialog').close());
@@ -775,7 +904,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#courseFilter').addEventListener('change', (event) => { state.course = event.target.value; renderEvents(state.data); });
   $('#documentSearch').addEventListener('input', (event) => {
     state.documentSearch = event.target.value; renderDocumentList();
-    searchRequest?.abort(); documentsRequest?.abort(); documentsRevision = null; clearTimeout(searchTimer);
+    searchRequest?.abort(); clearTimeout(searchTimer);
     searchTimer = setTimeout(searchDocumentText, 250);
   });
   $('#documentFilter').addEventListener('change', (event) => { state.documentFilter = event.target.value; renderDocumentList(); });
@@ -790,7 +919,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#eventList').addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
-    const item = state.data.events.find((row) => row.id === button.dataset.id);
+    const item = [...state.data.events, ...(state.data.overdue || [])].find((row) => row.id === button.dataset.id);
     if (!item) return;
     if (button.dataset.action === 'edit') openEventDialog(item);
     if (button.dataset.action === 'delete') deleteEvent(item);

@@ -1,10 +1,10 @@
-PolyU study控制台 · 1.9.1 · Windows x64
+PolyU study控制台 · 2.0.0 · Windows x64
 
 安装
 1. 适用于 AMD / Intel x64、Windows 10 2004（build 19041）或更新版本。
-2. 双击“PolyUStudyConsole-1.9.1-windows-x64-setup.exe”。安装到当前用户的 %LOCALAPPDATA%\Programs\PolyUStudyConsole，不要求管理员权限。
+2. 双击“PolyUStudyConsole-2.0.0-windows-x64-setup.exe”。安装到当前用户的 %LOCALAPPDATA%\Programs\PolyUStudyConsole，不要求管理员权限。
 3. 从开始菜单打开“PolyU study控制台”。已包含独立 Python 3.12.15 运行时，无需另装 Python、Codex 或自行构建。
-4. 便携版可完整解压“PolyUStudyConsole-1.9.1-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
+4. 便携版可完整解压“PolyUStudyConsole-2.0.0-windows-x64.zip”到固定文件夹，双击 PolyUStudyConsole.exe。保留 runtime、console、WindowsApp 和 Licenses 完整目录。
 
 安装包使用哈希锁定的官方 Windows 二进制输入，并检查 PE 架构及静态 DLL 依赖/加载目录。Mac 组装只提供静态结果；GitHub Actions 在 Windows 原生环境执行验收，实际结果见同版 Release 和 SECURITY_TESTS.md。安装程序和启动器采用官方 NSIS 32 位 Unicode 引导程序，Python、PYD 和原生 DLL 为 x64，托管库为 AnyCPU。静态检查不能替代 Windows 原生验证。
 包未进行 Authenticode 签名。可对照同版 Release 的 SHA256SUMS.txt 核对来源和文件完整性；遇 Windows 安全提示时保留系统安全设置。
@@ -60,3 +60,7 @@ Windows OCR 不提供逐行数值置信度，标记“置信度未提供”；�
 在「设置 → Canvas 账号」手动开启并同意说明，成功完成学校登录后保存；以后只填入一次账号密码，登录按钮和学校验证仍由你完成。此功能默认关闭。
 密码只由本机原生窗口和系统保护存储管理。正常关闭或会话到期保留密码；主动退出默认删除，也可当次主动勾选保留。无论是否保留密码，主动退出均删除学习资料和登录会话。
 「删除已保存密码并关闭」不影响当前已连接的账号资料。保护或删除失败会显示未完成，禁止回退明文。
+
+
+2.0 学习总览与快速查找
+首页显示当前连接或同步状态和下一步入口。顶栏搜索资料，或按 Cmd/Ctrl K；安排可搜索名称、课程、地点和备注，并筛选7天、30天或已过日期。已过日期不自动代表未提交，请打开来源核对。校历可查看个人安排与选中日清单。错误在对应弹窗显示，资料加载失败可重试。

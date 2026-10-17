@@ -11,7 +11,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from email.utils import formatdate
 from prepare_updater import prepare,LOCK
-from release_build import VERSION,BUILD
+from release_build import VERSION,BUILD,UPDATE_DESCRIPTION
 REPOSITORY=LOCK["repository"]
 NS="http://www.andymatuschak.org/xml-namespaces/sparkle"
 ET.register_namespace("sparkle",NS)
@@ -53,7 +53,7 @@ def sign(folder):
         channel=ET.SubElement(rss,"channel");ET.SubElement(channel,"title").text="PolyU Study Console"
         item=ET.SubElement(channel,"item");ET.SubElement(item,"title").text="PolyU Study Console "+VERSION
         ET.SubElement(item,"pubDate").text=formatdate(usegmt=True)
-        ET.SubElement(item,"description").text="1.9.1：经用户明确同意后在本机记住学校账号密码；重新登录时填入，仍由用户手动提交并完成学校验证。"
+        ET.SubElement(item,"description").text=UPDATE_DESCRIPTION
         ET.SubElement(item,"{"+NS+"}minimumSystemVersion").text="13.0" if platform=="macos" else "10.0.19041"
         attrs={"url":asset["url"],"length":str(asset["bytes"]),"type":"application/octet-stream","{"+NS+"}version":BUILD if platform=="macos" else VERSION,"{"+NS+"}shortVersionString":VERSION,"{"+NS+"}os":platform,"{"+NS+"}edSignature":asset_signature}
         ET.SubElement(item,"enclosure",attrs)

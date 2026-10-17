@@ -2,14 +2,15 @@
 
 连接香港理工大学 Canvas，集中查看考试与作业、成绩、课程变化和文档证据。学生制作的工具，非学校官方应用。首次启动为空框架，没有默认课程、预设评分比例或随包账号资料。
 
-当前版本：**1.9.1（构建 191）**，以 1.8.2 为基线，新增用户主动开启的本机记住密码。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。GitHub 同时保留 v1.8.1 历史隐私安全修复版和 v1.9.1（1.9 系列当前正式版）的完整安装包、SHA256 与各自说明。v1.9.1 继续作为最新版；后续发布不得自动删除这两个 Release 的安装包。
+当前版本：**2.0.0（构建 200）**，以 1.9.1 为基线，改进学习总览、资料搜索、安排筛选与失败恢复。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。只有正式 Release 中的文件代表已发布版本；本仓库候选源码仍需通过下述发布门禁。所有历史 Release、标签和既有下载资产继续保留。
 
 ## 可下载版本
 
 | 版本 | 功能与适用范围 | 下载与对应说明 |
 | --- | --- | --- |
+| v2.0.0 | 学习总览与快捷资料搜索、安排搜索和日期范围、过期核对视图、校历个人安排、交互与安装器修复 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v2.0.0) · [验收范围](release/validation-2.0.0.md) |
 | v1.8.1 | 历史隐私安全修复版：本地 API 认证、Mac Keychain、Windows DPAPI 与跨平台打包修复；保留原始发布文件及哈希 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.8.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.8.1) |
-| v1.9.1（1.9 系列） | 当前正式版：包含 1.8.2 的课程表、性能优化和签名更新，以及默认关闭、用户主动开启的本机记住密码 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.9.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.9.1) |
+| v1.9.1（1.9 系列） | 历史版本：包含 1.8.2 的课程表、性能优化和签名更新，以及默认关闭、用户主动开启的本机记住密码 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.9.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.9.1) |
 
 每个版本均提供 Mac ARM64 DMG/ZIP、Windows x64 Setup/Portable ZIP。请使用同一版本的 SHA256SUMS.txt 校验。签名状态、系统要求、真实学校登录的验证边界分别见对应 Release。
 
@@ -17,12 +18,20 @@
 
 | 平台 | 安装包 | 系统与签名 |
 | --- | --- | --- |
-| Apple Silicon Mac | PolyUStudyConsole-1.9.1-arm64.dmg、.zip | macOS 13+，arm64；ad-hoc 签名，**未 Apple 公证** |
-| AMD / Intel Windows | PolyUStudyConsole-1.9.1-windows-x64-setup.exe、.zip | Windows 10 2004+、.NET Framework 4.8、WebView2 Runtime；未 Authenticode 签名 |
+| Apple Silicon Mac | PolyUStudyConsole-2.0.0-arm64.dmg、.zip | macOS 13+，arm64；ad-hoc 签名，**未 Apple 公证** |
+| AMD / Intel Windows | PolyUStudyConsole-2.0.0-windows-x64-setup.exe、.zip | Windows 10 2004+、.NET Framework 4.8、WebView2 Runtime；未 Authenticode 签名 |
 
 下载后对照同一 Release 的 SHA256SUMS.txt 校验。Mac 将完整 app 复制到应用程序目录；Windows 使用 Setup 或完整解压 Portable ZIP。应用自带 Python。安装说明见 [Mac](MacApp/安装与使用.txt) 与 [Windows](WindowsApp/安装与使用.txt)。只有正式 Release 中出现的文件才是已发布下载；CI 候选包不代表完成真实 Canvas SSO 验证。
 
 打开「设置 → Canvas 账号 → 登录并授权 Canvas」，在学校网页完成验证。可主动开启「在本机记住账号和密码」，同意说明后，本次或下次成功登录才会保存；以后打开学校登录窗口自动填入一次，仍需手动点击登录和完成学校验证。默认每小时同步，可手动更新。正式个人考试安排以学校 eStudent 信息为准。
+
+## 2.0 日常使用
+
+- 首页按未连接、会话失效、同步中和部分失败显示当前状态与下一步入口。
+- 顶栏「搜索资料」或 Cmd/Ctrl K 打开已有资料全文检索；结果保留来源、页码和原文。
+- 考试与作业支持按名称、课程、地点与备注搜索，并筛选未来 7 天、30 天或查看已过日期。文档和手动安排的日期已过仅表示需要核对；只有 Canvas 明确返回未提交时才显示未提交。
+- 校历展示个人安排标记和选中日期的清单；学校考试期不能代替个人考试时间。
+- 弹窗内直接显示错误，资料加载失败可重试；键盘导航、焦点、字号和窄窗口布局一并改进。隐藏窗口时继续暂停前端请求。
 
 ## 隐私与数据
 
@@ -43,7 +52,7 @@ Mac 数据：~/Library/Application Support/PolyU study控制台/account/。Windo
 
 当前账号可见课程、作业、Quiz、公告、已公布成绩及附件；PDF 表格、Word 正文、本机 OCR 与全文检索；来源、页码、原文、未公布日期和冲突状态均保留。评分方案不明确或匹配不可靠时保持空白。Canvas 当前成绩单独显示。
 
-[SECURITY_TESTS.md](SECURITY_TESTS.md) 区分合成回归、真实本机运行、未执行及环境阻塞。真实 Canvas SSO、当前真实课表与成绩、不同 ad-hoc 签名 helper 更新未被离线测试验证。[Actions](https://github.com/Andre-HUANG/polyu-study-console/actions) 是远程 CI 实际结果的来源。
+[SECURITY_TESTS.md](SECURITY_TESTS.md) 区分合成回归、真实本机运行、未执行及环境阻塞。真实学校登录/MFA、个人课表准确性、不同 ad-hoc 签名 helper 更新均不由离线测试证明；独立现有会话只读验收范围与最终测试状态见 [2.0 验收说明](release/validation-2.0.0.md)。[Actions](https://github.com/Andre-HUANG/polyu-study-console/actions) 是远程 CI 实际结果的来源。
 
 ## 开发与发布
 
@@ -72,6 +81,6 @@ git config --local core.hooksPath security
 python3 security/privacy_scan.py --staged
 ~~~
 
-统一流程：本地检查 → Commit → Push/PR → 安全与两平台 CI → 合并 main → 验证同一 main Commit 的产物 → Release。发布工作流只接受成功的可信 main 验证运行，检查四个安装文件、原生证据、SHA256、版本和 Commit；默认 Draft，显式选择发布后才正式发布。不覆盖已有 Tag/Release。详见 [SECURITY.md](SECURITY.md)。
+统一流程：本地检查 → Commit → Push/PR → 安全与两平台 CI → 合并 main → 验证同一 main Commit 的产物 → Release。发布工作流只接受成功的可信 main 验证运行，检查四个安装文件、原生证据、SHA256、版本和 Commit；默认 Draft，显式选择发布后才正式发布。不覆盖已有 Tag/Release。最终提交还须取得 24 小时内的签名真实服务与性能收据，沿用现有更新公钥。发布后核对远程 Tag/Commit、下载 SHA256 与历史资产保留情况。详见 [SECURITY.md](SECURITY.md)。
 
 学校素材保持官方原始比例与颜色，来源见 [SOURCES.txt](学习控制台/assets/SOURCES.txt)。依赖说明见 [NOTICE.md](NOTICE.md)。源码尚未指定开放源代码许可证。

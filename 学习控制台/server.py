@@ -513,6 +513,38 @@ def raw_assignment_meta(snapshot, courses):
     return load_json(PROFILE / "assignment-meta.json", {})
 
 
+def event_due_time(row):
+    due = local_time(row.get("dueAt"))
+    if due is None and re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", row.get("time") or ""):
+        due = datetime.fromisoformat(row["date"] + "T" + row["time"]).replace(tzinfo=HK)
+    return due
+
+
+def split_deadline_events(events, now):
+    """Keep source uncertainty separate from a date that has passed."""
+    completed = SUBMITTED | {"done", "completed", "已完成", "已提交", "已评分", "已交"}
+    upcoming, overdue = [], []
+    for original in events:
+        row = dict(original)
+        if row.get("status") in completed or row.get("submissionState") in SUBMITTED:
+            continue
+        past = row["daysLeft"] < 0
+        due = event_due_time(row)
+        if due is not None:
+            past = due <= now
+        candidate = (past and row.get("kind") == "assignment" and not row.get("pending")
+                     and row.get("status") not in completed and row.get("submissionState") not in SUBMITTED)
+        if candidate:
+            canvas_unsubmitted = (row.get("source") == "canvas" and row.get("submissionState") == "unsubmitted"
+                                  and row.get("submissionStateObserved") is True)
+            row["overdueState"] = "canvas_unsubmitted" if canvas_unsubmitted else "date_passed"
+            row["overdueLabel"] = ("Canvas 上次同步显示未提交" if canvas_unsubmitted else "已过日期，提交状态待核对")
+            overdue.append(row)
+        elif row["daysLeft"] >= 0:
+            upcoming.append(row)
+    return upcoming, overdue
+
+
 def dashboard_data():
     config = load_json(PROFILE / "config.json", {})
     state = load_json(PROFILE / "state.json", {})
@@ -521,7 +553,8 @@ def dashboard_data():
     if not signed_in:
         # Never reveal residual data before the current account is authorized.
         config, state, snapshot = {}, {}, {}
-    today = datetime.now(HK).date()
+    now = datetime.now(HK)
+    today = now.date()
     courses = config.get("courses") or []
     course_names = {row.get("code"): row.get("name") for row in courses}
     documents = public_summary(PROFILE) if signed_in else {}
@@ -547,6 +580,10 @@ def dashboard_data():
             kind = document_event['kind']
             covered_document_ids.add(document_event['id'])
         sources = (document_event or {}).get("sources") or []
+        linked_assignment = (snapshot.get("assignments") or {}).get(str(row.get("assignment_id")), {})
+        if not linked_assignment and row.get("url"):
+            linked_assignment = next((a for a in (snapshot.get("assignments") or {}).values()
+                                      if a.get("html_url") == row["url"]), {})
         events.append({
             "id": f"manual:{i}", "source": "documents" if document_event else "manual", "course": row.get("course"),
             "courseName": course_names.get(row.get("course"), ""),
@@ -559,6 +596,7 @@ def dashboard_data():
             "sourceLabel": "Canvas 课程文件 · 自动识别" if document_event else row.get("source") or "手动记录", "editable": not (row.get("source") or "").startswith(DOCUMENT_DEADLINE_PREFIX),
             "sources": sources,
             "pending": bool(row.get("pending")),
+            "submissionState": linked_assignment.get("sub_state"),
         })
 
     for aid, row in (snapshot.get("assignments") or {}).items():
@@ -576,10 +614,12 @@ def dashboard_data():
             "courseName": course_names.get(row.get("course"), ""),
             "title": title, "rawTitle": title, "date": due.date().isoformat(),
             "time": document_event.get('time') or due.strftime("%H:%M"), "timeText": document_event.get('timeText') or "",
+            "dueAt": due.isoformat(), "submissionState": row.get("sub_state"),
+            "submissionStateObserved": row.get("submission_state_observed") is True, "cached": bool(row.get("cached")),
             "endTime": document_event.get('endTime') or '', 'location': document_event.get('location') or '',
             'instructions': document_event.get('instructions') or [], 'coverage': document_event.get('coverage') or [], 'warnings': document_event.get('warnings') or [],
             "kind": document_event.get('kind') or classify(title),
-            "weight": row.get("weight") or "—", "status": "未交",
+            "weight": row.get("weight") or "—", "status": "未交" if row.get("sub_state") == "unsubmitted" and row.get("submission_state_observed") is True else "待核对",
             "url": safe_url(row.get("html_url")), "note": (evidence.get("assignmentConflicts") or {}).get(str(aid)) or "", "sourceLabel": "Canvas 作业与课程文件" if document_event else "Canvas 作业",
             "sources": (evidence.get("assignmentSources") or {}).get(str(aid)) or document_event.get('sources') or [],
             "editable": False, "pending": str(aid) in (evidence.get("assignmentConflicts") or {}),
@@ -589,6 +629,8 @@ def dashboard_data():
     # and image pages are still being processed in the background.
     for event in evidence.get("deadlines") or []:
         if event['id'] in covered_document_ids: continue
+        linked_assignment = (snapshot.get("assignments") or {}).get(str(event.get("canvasAssignmentId")), {})
+        if linked_assignment.get("sub_state") in SUBMITTED: continue
         if any(row.get("course") == event["course"] and row.get("date") == event["date"] and re.search(event["pattern"], row.get("rawTitle") or "", re.I) for row in events): continue
         sources = event.get("sources") or []
         events.append({**event, "id": "document:" + event["id"], "source": "documents", "rawTitle": event["title"], "courseName": course_names.get(event["course"], ""),
@@ -597,7 +639,7 @@ def dashboard_data():
     for row in events:
         row["daysLeft"] = (datetime.fromisoformat(row["date"]).date() - today).days
     events.sort(key=lambda x: (x["date"], x["time"] or "00:00", x["course"] or ""))
-    upcoming = [row for row in events if row["daysLeft"] >= 0]
+    upcoming, overdue = split_deadline_events(events, now)
 
     undated = []
     for aid, row in (snapshot.get("assignments") or {}).items():
@@ -650,17 +692,25 @@ def dashboard_data():
                                raw_assignment_meta(snapshot, courses), PROFILE / "grading_schemes.json",
                                load_json(PROFILE / "canvas-course-grades.json", {}) if signed_in else None),
         "courseCount": len(courses), "courses": courses,
-        "events": upcoming, "undated": undated, "recent": recent[:10],
+        "events": upcoming, "overdue": overdue, "undated": undated, "recent": recent[:10],
         "snapshotComplete": bool(snapshot.get("complete", False)),
         "connection": connection_data(),
     }
 
 
 DASHBOARD_CACHE = {}
+DEADLINE_REVISION = 0
 def status_data():
+    global DEADLINE_REVISION
+    now = datetime.now(HK)
+    with runtime_cache.LOCK:
+        boundary = DASHBOARD_CACHE.get("validUntil")
+        if boundary is not None and now >= boundary:
+            DASHBOARD_CACHE.clear()
+            DEADLINE_REVISION += 1
     with runtime_cache.snapshot():
         connection = connection_data()
-    return {"calendarBusy": CALENDAR_JOB["busy"], "revision": runtime_cache.revision(PROFILE, ACCESS.token + str(academic_calendar.REVISION), datetime.now(HK).date().isoformat()),
+    return {"calendarBusy": CALENDAR_JOB["busy"], "revision": runtime_cache.revision(PROFILE, ACCESS.token + str(academic_calendar.REVISION) + ":" + str(DEADLINE_REVISION), now.date().isoformat()),
             "connection": {k: connection.get(k) for k in ("native", "authorized", "busy", "stage", "lastError", "needsLogin", "autoSync", "syncIntervalSeconds")}}
 
 def cached_dashboard(view="full"):
@@ -669,7 +719,11 @@ def cached_dashboard(view="full"):
         if DASHBOARD_CACHE.get("key") != key:
             with runtime_cache.snapshot(): value = dashboard_data()
             DASHBOARD_CACHE.clear()
-            DASHBOARD_CACHE.update(key=key, data=value)
+            # Keep a boundary crossed during construction so the next status poll
+            # invalidates this snapshot. Uncertain rows cannot transition to overdue.
+            boundaries = [due for row in value.get("events", []) if row.get("kind") == "assignment" and not row.get("pending")
+                          and (due := event_due_time(row)) is not None]
+            DASHBOARD_CACHE.update(key=key, data=value, validUntil=min(boundaries, default=None))
         value = {**DASHBOARD_CACHE["data"],"revision":key}
     with runtime_cache.snapshot(): value["connection"] = connection_data()
     import hashlib

@@ -95,3 +95,35 @@ class WindowsPayloadStructureChecks(unittest.TestCase):
                     assembly.compile_nsis(Path("synthetic-makensis"),Path("synthetic.nsi"),{},"synthetic-build.txt")
                 command=run.call_args.args[0]
                 self.assertEqual(command[command.index(prefix+"INPUTCHARSET")+1],"UTF8")
+
+
+class WindowsVersionResourceChecks(unittest.TestCase):
+    def resource(self, version, fixed_version=None):
+        from types import SimpleNamespace
+        parts = tuple(map(int, (fixed_version or version).split('.'))) + (0,)
+        fixed = SimpleNamespace(FileVersionMS=(parts[0] << 16) | parts[1],
+            FileVersionLS=(parts[2] << 16) | parts[3],
+            ProductVersionMS=(parts[0] << 16) | parts[1], ProductVersionLS=(parts[2] << 16) | parts[3])
+        table = SimpleNamespace(entries={b'ProductVersion': version.encode(), b'FileVersion': version.encode()})
+        return SimpleNamespace(FileInfo=[[SimpleNamespace(StringTable=[table])]], VS_FIXEDFILEINFO=[fixed])
+
+    def test_current_installer_and_launcher_version_resources_pass(self):
+        self.assertTrue(assembly.verify_pe_version(self.resource(assembly.VERSION), assembly.VERSION))
+
+    def test_stale_installer_version_is_rejected_even_with_current_payload(self):
+        with self.assertRaisesRegex(RuntimeError, 'version resource'):
+            assembly.verify_pe_version(self.resource('1.8.2'), assembly.VERSION)
+
+    def test_stale_fixed_version_is_rejected_even_with_current_display_version(self):
+        with self.assertRaisesRegex(RuntimeError, 'fixed version'):
+            assembly.verify_pe_version(self.resource(assembly.VERSION, '1.8.2'), assembly.VERSION)
+
+    def test_missing_and_conflicting_version_resources_are_rejected(self):
+        pe = self.resource(assembly.VERSION)
+        pe.VS_FIXEDFILEINFO = []
+        with self.assertRaisesRegex(RuntimeError, 'Missing'):
+            assembly.verify_pe_version(pe, assembly.VERSION)
+        pe = self.resource(assembly.VERSION)
+        pe.FileInfo += self.resource('1.8.2').FileInfo
+        with self.assertRaisesRegex(RuntimeError, 'Conflicting'):
+            assembly.verify_pe_version(pe, assembly.VERSION)

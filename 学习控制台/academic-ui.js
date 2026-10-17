@@ -34,9 +34,10 @@
   function renderTimetable() {
     const value = ui.timetable || {};
     $('#timetableDate').textContent = ui.view === 'week' && value.days?.length ? hkDate(value.days[0]) + ' — ' + hkDate(value.days[6]) : hkDate(ui.date);
-    document.querySelectorAll('[data-class-view]').forEach(b => { const on = b.dataset.classView === ui.view; b.classList.toggle('selected', on); b.setAttribute('aria-selected', String(on)); });
+    document.querySelectorAll('[data-class-view]').forEach(b => { const on = b.dataset.classView === ui.view; b.classList.toggle('selected', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
     const events = value.events || [];
     $('#timetableBody').className = ui.view === 'week' ? 'class-week' : 'class-day';
+    $('#timetableBody').closest('.class-scroll').classList.toggle('is-week', ui.view === 'week');
     if (ui.view === 'week' && value.days?.length) {
       $('#timetableBody').innerHTML = value.days.map(date => '<div class="class-column"><h3>' + e(hkDate(date, { month: 'numeric', day: 'numeric', weekday: 'short' })) + '</h3>' + (events.filter(row => row.date === date).map(card).join('') || '<p class="class-empty">暂无已确认课项</p>') + '</div>').join('');
     } else $('#timetableBody').innerHTML = events.map(card).join('') || '<p class="class-empty">' + (ui.data?.connection?.authorized ? '本日暂无已确认的上课或考试安排。' : '登录 Canvas 后显示个人课程表。') + '</p>';
@@ -57,13 +58,27 @@
     const first = ui.month + '-01', d = new Date(first + 'T12:00:00+08:00');
     const blank = (d.getUTCDay() + 6) % 7;
     const count = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-    let html = Array.from({ length: blank }, () => '<span></span>').join('');
+    const personal = [...(ui.data?.events || []), ...(ui.data?.overdue || [])];
+    const selectedInMonth = ui.date?.startsWith(ui.month);
+    const focusDate = selectedInMonth ? ui.date : today().startsWith(ui.month) ? today() : first;
+    let html = Array.from({ length: blank }, () => '<span aria-hidden="true"></span>').join('');
     for (let n = 1; n <= count; n++) {
       const date = ui.month + '-' + String(n).padStart(2, '0');
       const hints = (value.events || []).filter(row => row.start <= date && date <= row.end);
-      html += '<button type="button" data-calendar-date="' + date + '" class="' + (date === ui.date ? 'selected ' : '') + (date === today() ? 'today ' : '') + (hints.some(h => h.scope === 'all') ? 'holiday' : hints.length ? 'marked' : '') + '" aria-label="' + e(date + ' ' + hints.map(h => h.title).join('；')) + '">' + n + '</button>';
+      const arrangements = personal.filter(row => row.date === date);
+      html += '<button type="button" data-calendar-date="' + date + '" class="' + (date === ui.date ? 'selected ' : '') + (date === today() ? 'today ' : '') + (arrangements.length ? 'has-arrangements ' : '') + (hints.some(h => h.scope === 'all') ? 'holiday' : hints.length ? 'marked' : '') + '" tabindex="' + (date === focusDate ? '0' : '-1') + '" aria-pressed="' + (date === ui.date) + '"' + (date === today() ? ' aria-current="date"' : '') + ' aria-label="' + e(hkDate(date, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }) + (arrangements.length ? '，' + arrangements.length + ' 项个人安排' : '') + (hints.length ? '，' + hints.map(h => h.title).join('；') : '')) + '">' + n + (arrangements.length ? '<i class="personal-date-dot" aria-hidden="true"></i>' : '') + '</button>';
     }
+    const focusedDate = document.activeElement?.dataset?.calendarDate;
+    if (!ui.calendarFocus && focusedDate) ui.calendarFocus = focusedDate;
     $('#calendarDays').innerHTML = html;
+    if (ui.calendarFocus) {
+      const button = document.querySelector('[data-calendar-date="' + ui.calendarFocus + '"]');
+      if (button) button.focus({ preventScroll: true });
+      ui.calendarFocus = null;
+    }
+    $('#selectedDateTitle').textContent = hkDate(ui.date, { month: 'long', day: 'numeric' }) + ' · 个人安排';
+    const selected = personal.filter(row => row.date === ui.date);
+    $('#selectedDateEvents').innerHTML = selected.length ? selected.map(row => '<div class="calendar-agenda-item"><span>' + e(row.course) + ' · ' + e(kindLabel(row.kind)) + '</span><strong>' + anchor(row.url, row.title) + '</strong><small>' + e(row.timeText || row.time || '具体时间待核对') + (row.overdueState ? ' · 已过截止日期，请核对状态' : '') + '</small></div>').join('') : '<p class="calendar-agenda-empty">' + (ui.data?.connection?.native && !ui.data.connection.authorized ? '连接 Canvas 后查看个人安排。' : '本日暂无已读取的考试或作业。') + '</p>';
     $('#calendarWeek').textContent = value.teachingWeek ? '当前：学期 ' + value.teachingWeek.semester + ' · 第 ' + value.teachingWeek.number + ' 教学周' : '当前为非教学周 / 学年外';
     $('#calendarDatesTitle').textContent = '本月重要日期 · ' + (value.events || []).length + ' 项';
     $('#calendarEvents').innerHTML = (value.events || []).map(row => '<li><span>' + e(row.start.slice(5) + (row.end !== row.start ? ' — ' + row.end.slice(5) : '')) + '</span><p>' + e(row.title) + (row.tentative ? '（暂定）' : '') + (row.scope === 'evening' ? ' · 仅晚间停课' : '') + '</p></li>').join('') || '<li>本月暂无校历事项</li>';
@@ -116,7 +131,17 @@
     $('#timetableCourse').onchange = event => { ui.course = event.target.value; refresh(); };
     document.querySelectorAll('[data-calendar-nav]').forEach(b => b.onclick = () => { const d = new Date(ui.month + '-15T12:00:00+08:00'); d.setUTCMonth(d.getUTCMonth() + Number(b.dataset.calendarNav)); ui.month = d.toISOString().slice(0, 7); refresh(); });
     $('#calendarYear').onchange = event => { ui.year = event.target.value; ui.month = ui.year.slice(0, 4) + '-09'; refresh(); };
-    $('#calendarDays').onclick = event => { const b = event.target.closest('[data-calendar-date]'); if (b) { ui.date = b.dataset.calendarDate; ui.view = 'day'; refresh(); } };
+    $('#calendarDays').onclick = event => { const b = event.target.closest('[data-calendar-date]'); if (b) { ui.date = b.dataset.calendarDate; ui.calendarFocus = ui.date; ui.view = 'day'; refresh(); } };
+    $('#calendarDays').onkeydown = event => {
+      const button = event.target.closest('[data-calendar-date]');
+      if (!button || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      // Accumulate rapid key presses while the previous calendar request is pending.
+      const date = ui.calendarFocus || button.dataset.calendarDate;
+      const weekday = (new Date(date + 'T12:00:00+08:00').getUTCDay() + 6) % 7;
+      const offset = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7, Home: -weekday, End: 6 - weekday }[event.key];
+      ui.date = shift(date, offset); ui.month = ui.date.slice(0, 7); ui.calendarFocus = ui.date; ui.view = 'day'; refresh();
+    };
     $('#calendarRefresh').onclick = async () => { try { await api('/api/calendar/refresh'); $('#calendarStatus').textContent = '正在检查官方修订…'; $('#calendarRefresh').disabled = true; state.calendarBusy = true; schedulePoll(); } catch (error) { showNotice(error.message, 'error'); } };
     $('#addClassButton').onclick = () => formRow();
     $('#timetablePanel').onclick = async event => {
@@ -141,7 +166,7 @@
   }
   function render(data) {
     init(); ui.data = data; advanceDay();
-    const key = JSON.stringify([data.today, data.courses, data.timetable, data.academicCalendar, data.featuresRevision]);
+    const key = JSON.stringify([data.today, data.courses, data.timetable, data.academicCalendar, data.events, data.overdue, data.connection?.authorized, data.featuresRevision]);
     if (key === ui.key) {
       $('#addClassButton').disabled = !data.connection?.authorized || !data.courses?.length || Boolean(data.connection?.busy);
       return;
@@ -152,7 +177,7 @@
     if (data.timetable && ui.date === data.today && ui.view === 'day' && !ui.course) { ui.timetable = data.timetable; renderTimetable(); }
     $('#timetableCourse').innerHTML = '<option value="">全部课程</option>' + (data.courses || []).map(c => '<option value="' + e(c.id) + '"' + (String(c.id) === ui.course ? ' selected' : '') + '>' + e(c.code || c.name) + '</option>').join('');
     if (!$('#classDialog').open) $('#classForm').elements.courseId.innerHTML = (data.courses || []).map(c => '<option value="' + e(c.id) + '">' + e(c.code || c.name) + '</option>').join('');
-    if (!data.connection?.authorized) { ui.timetable = { events: [], pending: [] }; if ($('#classDialog').open) $('#classDialog').close(); renderTimetable(); }
+    if (!data.connection?.authorized) { if (ui.calendar) renderCalendar(); ui.timetable = { events: [], pending: [] }; if ($('#classDialog').open) $('#classDialog').close(); renderTimetable(); }
     if (!(data.academicCalendar && ui.month === data.academicCalendar.month && !ui.year && data.timetable && ui.date === data.today && ui.view === 'day' && !ui.course)) refresh();
   }
   function advanceDay() {

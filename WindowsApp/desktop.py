@@ -481,7 +481,7 @@ class Desktop:
             try:
                 from updater import Updater
                 if not self.updater: self.updater = Updater(self)
-            except Exception: self.notice("更新组件暂不可用，请重新安装完整的 1.9.1。")
+            except Exception: self.notice("更新组件暂不可用，请重新安装完整的 " + VERSION + "。")
             acknowledgement = os.environ.pop("POLYU_UPDATE_ACK", "")
             if acknowledgement:
                 target=Path(acknowledgement)

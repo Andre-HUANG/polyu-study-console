@@ -4,6 +4,7 @@ import Sparkle
 import Foundation
 import Darwin
 let applicationVersion = Bundle.main.infoDictionary!["CFBundleShortVersionString"] as! String
+let targetVersion = Bundle.main.infoDictionary!["TestTargetVersion"] as! String
 let testRoot = URL(fileURLWithPath: Bundle.main.infoDictionary!["TestRoot"] as! String)
 func record(_ key:String,_ value:Any=true) {
     let file=testRoot.appendingPathComponent("events-"+applicationVersion+".json")
@@ -40,7 +41,7 @@ final class Delegate:NSObject,NSApplicationDelegate,SPUUpdaterDelegate {
         record("launch",Int(getpid()))
         if Bundle.main.infoDictionary!["TestScenario"] as? String == "abort-recovery" {
             do {
-                try UpdateRecovery.prepare(version:"1.9.1")
+                try UpdateRecovery.prepare(version:targetVersion)
                 let spec=try JSONSerialization.jsonObject(with:Data(contentsOf:UpdateRecovery.marker)) as! [String:Any]
                 let folder=spec["folder"] as! String
                 guard UpdateRecovery.abortUncommitted() else { record("error","Abort rejected");NSApp.terminate(nil);return }
@@ -55,7 +56,7 @@ final class Delegate:NSObject,NSApplicationDelegate,SPUUpdaterDelegate {
             } catch {record("error",String(describing:error));NSApp.terminate(nil)}
             return
         }
-        if applicationVersion=="1.9.1" {
+        if applicationVersion==targetVersion {
             UpdateRecovery.recordLaunch()
             if Bundle.main.infoDictionary!["TestCrash"] as? Bool == true { exit(7) }
             UpdateRecovery.acknowledge()
@@ -63,7 +64,7 @@ final class Delegate:NSObject,NSApplicationDelegate,SPUUpdaterDelegate {
             DispatchQueue.main.asyncAfter(deadline:.now()+2) {NSApp.terminate(nil)}
             return
         }
-        if FileManager.default.fileExists(atPath:testRoot.appendingPathComponent("events-1.9.1.json").path) {
+        if FileManager.default.fileExists(atPath:testRoot.appendingPathComponent("events-"+targetVersion+".json").path) {
             record("rolledBack");NSApp.terminate(nil);return
         }
         updater=SPUUpdater(hostBundle:Bundle.main,applicationBundle:Bundle.main,userDriver:driver,delegate:self)

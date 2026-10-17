@@ -8,7 +8,7 @@ from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
 ROOT=pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT))
 from prepare_updater import prepare
-from release_build import source_hashes
+from release_build import source_hashes, VERSION, BUILD, BASELINE_VERSION, BASELINE_BUILD
 def run(*args):
  subprocess.run(list(map(str,args)),check=True,capture_output=True)
 def main():
@@ -42,11 +42,11 @@ def main():
    identity="local.polyu.updatesmoke."+uuid.uuid4().hex
    target=case/"installed"/"UpdaterSmoke.app"
    fresh=case/"new"/"UpdaterSmoke.app"
-   for app,version,build in [(target,"1.8.2","182"),(fresh,"1.9.1","191")]:
+   for app,version,build in [(target,BASELINE_VERSION,BASELINE_BUILD),(fresh,VERSION,BUILD)]:
     contents=app/"Contents";(contents/"MacOS").mkdir(parents=True);(contents/"Frameworks").mkdir()
     shutil.copy2(root/"Smoke",contents/"MacOS/PolyUConsole")
     shutil.copytree(sdk/"Sparkle.framework",contents/"Frameworks/Sparkle.framework",symlinks=True)
-    info={"CFBundleIdentifier":identity,"CFBundleExecutable":"PolyUConsole","CFBundlePackageType":"APPL","CFBundleName":"UpdaterSmoke","CFBundleVersion":build,"CFBundleShortVersionString":version,"TestRoot":str(case),"TestCrash":version=="1.9.1" and scenario=="rollback","TestScenario":scenario,"LSMinimumSystemVersion":"13.0","NSAppTransportSecurity":{"NSAllowsLocalNetworking":True},"SUPublicEDKey":pub,"SUFeedURL":f"http://127.0.0.1:{http.server_port}/feed.xml","SUEnableAutomaticChecks":False,"SUAutomaticallyUpdate":False}
+    info={"CFBundleIdentifier":identity,"CFBundleExecutable":"PolyUConsole","CFBundlePackageType":"APPL","CFBundleName":"UpdaterSmoke","CFBundleVersion":build,"CFBundleShortVersionString":version,"TestRoot":str(case),"TestTargetVersion":VERSION,"TestCrash":version==VERSION and scenario=="rollback","TestScenario":scenario,"LSMinimumSystemVersion":"13.0","NSAppTransportSecurity":{"NSAllowsLocalNetworking":True},"SUPublicEDKey":pub,"SUFeedURL":f"http://127.0.0.1:{http.server_port}/feed.xml","SUEnableAutomaticChecks":False,"SUAutomaticallyUpdate":False}
     (contents/"Info.plist").write_bytes(plistlib.dumps(info))
     run("codesign","--force","--deep","--sign","-",app)
     run("codesign","--verify","--deep","--strict",app)
@@ -56,14 +56,14 @@ def main():
    signature=base64.b64encode(key.sign(good)).decode()
    if scenario=="wrong-signature":signature=base64.b64encode(Ed25519PrivateKey.generate().sign(good)).decode()
    if scenario=="corrupt":package.write_bytes(good[:100])
-   xml=f'<?xml version="1.0"?><rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><title>Isolated test</title><item><title>1.9.1</title><description>Synthetic update rehearsal</description><enclosure url="http://127.0.0.1:{http.server_port}/update.zip" length="{len(good)}" type="application/octet-stream" sparkle:version="191" sparkle:shortVersionString="1.9.1" sparkle:edSignature="{signature}"/></item></channel></rss>'.encode()
+   xml=f'<?xml version="1.0"?><rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><title>Isolated test</title><item><title>{VERSION}</title><description>Synthetic update rehearsal</description><enclosure url="http://127.0.0.1:{http.server_port}/update.zip" length="{len(good)}" type="application/octet-stream" sparkle:version="{BUILD}" sparkle:shortVersionString="{VERSION}" sparkle:edSignature="{signature}"/></item></channel></rss>'.encode()
    feed=xml+b'<!-- sparkle-signatures:\nedSignature: '+base64.b64encode(key.sign(xml))+b'\nlength: '+str(len(xml)).encode()+b'\n-->\n'
    (public/"feed.xml").write_bytes(feed)
    process=None;watcher_pid=None
    try:
     process=subprocess.Popen(["open","-n","-W","-a",str(target),"--stdout",str(case/"out.txt"),"--stderr",str(case/"err.txt")])
     deadline=time.monotonic()+110
-    old_file=case/"events-1.8.2.json";new_file=case/"events-1.9.1.json"
+    old_file=case/("events-"+BASELINE_VERSION+".json");new_file=case/("events-"+VERSION+".json")
     while time.monotonic()<deadline:
      old=json.loads(old_file.read_text()) if old_file.exists() else {}
      new=json.loads(new_file.read_text()) if new_file.exists() else {}
@@ -75,13 +75,13 @@ def main():
      time.sleep(.2)
     else:raise AssertionError({"scenario":scenario,"old":old,"new":new,"stderr":(case/"err.txt").read_text()[-1500:] if (case/"err.txt").exists() else ""})
     current=plistlib.loads((target/"Contents/Info.plist").read_bytes())["CFBundleShortVersionString"]
-    assert current==("1.9.1" if scenario=="upgrade" else "1.8.2")
+    assert current==(VERSION if scenario=="upgrade" else BASELINE_VERSION)
     assert sentinel.read_text()=="untouched synthetic account"
     if scenario=="abort-recovery":assert old.get("abortRecoveryCleared") and not ready.exists()
     reports.append({"scenario":scenario,"ok":True,"installedVersion":current,"programAccountPreserved":True,"sdkDownloadValidated":scenario in {"upgrade","rollback"},"sourceRecoveryPrepared":bool(old.get("recoveryPrepared"))})
     print(json.dumps(reports[-1]),flush=True)
    finally:
-    for name in ["events-1.8.2.json","events-1.9.1.json"]:
+    for name in ["events-"+BASELINE_VERSION+".json","events-"+VERSION+".json"]:
      p=case/name
      if p.is_file():
       pid=json.loads(p.read_text()).get("launch")

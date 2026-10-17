@@ -203,7 +203,7 @@ final class NativeGUISmoke {
             ['accountSection','documents','courses'].every(id=>d.contains(document.getElementById(id)) && document.getElementById(id).hidden) &&
             d.contains(document.getElementById('softwareUpdateButton')) &&
             (()=>{const a=document.querySelector('.overview-summary').getBoundingClientRect(),b=document.getElementById('timetablePanel').getBoundingClientRect(),c=document.querySelector('.academic-calendar').getBoundingClientRect(),r=document.querySelector('.recent-row').getBoundingClientRect();
-              return (innerWidth>720 ? Math.abs(a.top-b.top)<2 && b.left>=a.right : b.top>=a.bottom) && (innerWidth>1150 ? Math.abs(c.top-a.top)<2 : c.top>=Math.max(a.bottom,b.bottom)) && r.top>=Math.max(a.bottom,b.bottom,c.bottom)})() &&
+              return b.top>=a.bottom && (innerWidth>780 ? Math.abs(c.top-b.top)<2 && c.left>=b.right : c.top>=b.bottom) && r.top>=Math.max(a.bottom,b.bottom,c.bottom) && document.documentElement.scrollWidth<=innerWidth+1})() &&
             document.querySelectorAll('.side-nav a').length===4 && !document.querySelector('.sidebar #appVersion')})()
             """) { value in
             guard value as? Bool == true else { self.fail("Settings-only modules or four-link navigation failed"); return }

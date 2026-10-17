@@ -14,6 +14,7 @@ import io
 import json
 import os
 import platform
+import re
 import shutil
 import struct
 import subprocess
@@ -341,6 +342,33 @@ def audit_pe(bundle):
     return {"status": "passed_static_only", "nativePayloadArchitecture": "x64", "bootstrapArchitecture": "x86", "managedAnyCPUAllowed": True, "unresolvedDllImports": unresolved, "binaryCount": len(records), "binaries": records}, {"status": "passed_static_only", "nativeDllLoadValidated": False, "resolution": layout, "explicitLoadPaths": {"clr_loader": "runtime/Lib/site-packages/clr_loader/ffi/dlls/amd64/ClrLoader.dll", "pythonnet": "runtime/Lib/site-packages/pythonnet/runtime/Python.Runtime.dll", "pywebviewManaged": ["runtime/Lib/site-packages/webview/lib/Microsoft.Web.WebView2.Core.dll", "runtime/Lib/site-packages/webview/lib/Microsoft.Web.WebView2.WinForms.dll"], "pywebviewNativePath": "runtime/Lib/site-packages/webview/lib/runtimes/win-x64/native", "winrt": "runtime/Lib/site-packages/winrt (all WinRT PYD and upstream msvcp140.dll together)"}, "upstreamBasis": "CPython v3.12.15 dynload_win.c LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|DEFAULT_DIRS; exact pinned clr_loader/pythonnet/pywebview/winrt wheel source"}
 
 
+def verify_pe_version(pe, expected_version):
+    """Reject stale installer/launcher resources even when the payload is current."""
+    values = {}
+    for group in getattr(pe, "FileInfo", []):
+        for item in group:
+            for table in getattr(item, "StringTable", []):
+                for key, value in table.entries.items():
+                    key = key.decode("utf-8") if isinstance(key, bytes) else key
+                    value = value.decode("utf-8") if isinstance(value, bytes) else value
+                    if key in {"ProductVersion", "FileVersion"}:
+                        if key in values and values[key] != value:
+                            raise RuntimeError("Conflicting Windows version resources")
+                        values[key] = value
+    if values != {"ProductVersion": expected_version, "FileVersion": expected_version}:
+        raise RuntimeError("Windows version resource differs from release identity")
+    parts = tuple(map(int, expected_version.split("."))) + (0,)
+    fixed = getattr(pe, "VS_FIXEDFILEINFO", [])
+    if len(fixed) != 1:
+        raise RuntimeError("Missing Windows fixed version resource")
+    info = fixed[0]
+    for prefix in ("FileVersion", "ProductVersion"):
+        ms, ls = getattr(info, prefix + "MS"), getattr(info, prefix + "LS")
+        if (ms >> 16, ms & 65535, ls >> 16, ls & 65535) != parts:
+            raise RuntimeError("Windows fixed version differs from release identity")
+    return True
+
+
 def compile_nsis(compiler, script, defines, log_name):
     environment = os.environ.copy()
     environment.update(NSISDIR=str(TOOLS / "nsis-3.13"), SOURCE_DATE_EPOCH=str(EPOCH))
@@ -398,8 +426,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--download", action="store_true", help="retrieve missing files from the official URLs in the SHA256 locks")
     arguments = parser.parse_args()
-    if VERSION != "1.9.1":
-        raise SystemExit("This assembly script is locked to 1.9.1")
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", VERSION) or any(int(n) > 65535 for n in VERSION.split(".")):
+        raise SystemExit("Release version must be a valid Windows numeric product version")
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     lock = json.loads((SOURCE / "runtime-lock.json").read_text(encoding="utf-8"))
     tools = json.loads((SOURCE / "build-tools-lock.json").read_text(encoding="utf-8"))
@@ -466,9 +494,11 @@ def main():
     output = ROOT / "Win发布"
     output.mkdir(exist_ok=True)
     installer = output / ("PolyUStudyConsole-" + VERSION + "-windows-x64-setup.exe")
-    compile_nsis(compiler, SOURCE / "installer.nsi", {"INSTALLER_OUT": installer, "APP_ICON": icon, "PAYLOAD_INSTALL": install, "PAYLOAD_UNINSTALL": uninstall}, "installer-build.log")
+    compile_nsis(compiler, SOURCE / "installer.nsi", {"INSTALLER_OUT": installer, "APP_ICON": icon, "PAYLOAD_INSTALL": install, "PAYLOAD_UNINSTALL": uninstall, "RELEASE_VERSION": VERSION}, "installer-build.log")
     import pefile
     setup = pefile.PE(str(installer))
+    verify_pe_version(setup, VERSION)
+    verify_pe_version(pefile.PE(str(bundle / "PolyUStudyConsole.exe")), VERSION)
     if setup.FILE_HEADER.Machine != 0x14c or setup.OPTIONAL_HEADER.Subsystem != 2:
         raise RuntimeError("Unexpected NSIS Windows GUI bootstrap architecture")
     archive = output / ("PolyUStudyConsole-" + VERSION + "-windows-x64.zip")

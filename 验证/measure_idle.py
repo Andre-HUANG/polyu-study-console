@@ -2,6 +2,8 @@
 """Repeated full native-app idle CPU sampling using disposable offline profiles."""
 import argparse,ctypes,hashlib,json,os,pathlib,platform,plistlib,signal,statistics,subprocess,sys,tempfile,time,uuid
 ROOT=pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0,str(ROOT))
+from release_build import VERSION, BUILD, BASELINE_VERSION
 class Usage(ctypes.Structure):
  _fields_=[("uuid",ctypes.c_ubyte*16)]+[(name,ctypes.c_uint64) for name in ("user","system","idleWakeups","interruptWakeups","pageins","wired","resident","footprint","start","exit")]
 class Timebase(ctypes.Structure):_fields_=[("numer",ctypes.c_uint32),("denom",ctypes.c_uint32)]
@@ -40,11 +42,12 @@ def main():
   source.write_text('import AppKit\nlet pid=pid_t(CommandLine.arguments[1])!\nif let app=NSRunningApplication(processIdentifier:pid) { if CommandLine.arguments[2]=="hide" { app.hide() } else { app.unhide();app.activate(options:[.activateAllWindows,.activateIgnoringOtherApps]) } }')
   subprocess.run(["xcrun","swiftc","-module-cache-path",str(work/"modules"),str(source),"-o",str(work/"visibility")],check=True,capture_output=True)
   measurement_apps={}
-  for label,original in [("1.8.2",a.baseline),("1.9.1",a.candidate)]:
+  for label,original in [(BASELINE_VERSION,a.baseline),(VERSION,a.candidate)]:
    copy=work/("CPU-"+label+".app")
    subprocess.run(["ditto","--norsrc","--noextattr",str(original.resolve()),str(copy)],check=True,capture_output=True)
    metadata=copy/"Contents/Info.plist"
    info=plistlib.loads(metadata.read_bytes())
+   if info.get("CFBundleShortVersionString") != label:raise RuntimeError("Measured app version differs from its label")
    info["CFBundleIdentifier"]="local.polyu.cpu."+label.replace(".","")+"."+uuid.uuid4().hex
    info["CFBundleDisplayName"]="PolyU CPU test "+label
    metadata.write_bytes(plistlib.dumps(info))
@@ -94,8 +97,8 @@ def main():
       if backend:
        try:os.killpg(backend,signal.SIGTERM)
        except ProcessLookupError:pass
-  medians={label:{state:statistics.median(r["cpuSeconds"] for r in rows if r["version"]==label and r["state"]==state) for state in ["visible","hidden"]} for label in ["1.8.2","1.9.1"]}
-  reduction={state:1-medians["1.9.1"][state]/medians["1.8.2"][state] if medians["1.8.2"][state] else None for state in ["visible","hidden"]}
- report={"machTimebase":{"numer":timebase.numer,"denom":timebase.denom},"platform":platform.platform(),"trials":rows,"mediansCPUSeconds":medians,"reduction":reduction,"scope":"Native AppKit app, Python backend and their verified descendants. Detached WebKit XPC processes are excluded because ownership cannot be established from parent IDs. Owned program copies use unique bundle IDs to avoid installed-app collisions; isolated offline synthetic account. Visibility requested via app-owned NSRunningApplication. Same host, sequential alternating versions; OS background workload not controlled. CPU seconds and wakeups, no physical energy meter.","realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"binaries":{label:hashlib.sha256((app/"Contents/MacOS/PolyUConsole").read_bytes()).hexdigest() for label,app in [("1.8.2",a.baseline),("1.9.1",a.candidate)]}}
- out=ROOT/".build/idle-cpu-191.json";out.write_text(json.dumps(report,indent=2));print("CPU comparison written: "+str(out),flush=True)
+  medians={label:{state:statistics.median(r["cpuSeconds"] for r in rows if r["version"]==label and r["state"]==state) for state in ["visible","hidden"]} for label in [BASELINE_VERSION,VERSION]}
+  reduction={state:1-medians[VERSION][state]/medians[BASELINE_VERSION][state] if medians[BASELINE_VERSION][state] else None for state in ["visible","hidden"]}
+ report={"machTimebase":{"numer":timebase.numer,"denom":timebase.denom},"platform":platform.platform(),"trials":rows,"mediansCPUSeconds":medians,"reduction":reduction,"scope":"Native AppKit app, Python backend and their verified descendants. Detached WebKit XPC processes are excluded because ownership cannot be established from parent IDs. Owned program copies use unique bundle IDs to avoid installed-app collisions; isolated offline synthetic account. Visibility requested via app-owned NSRunningApplication. Same host, sequential alternating versions; OS background workload not controlled. CPU seconds and wakeups, no physical energy meter.","realAccountAccessed":False,"actualBatteryEnergyMeasured":False,"binaries":{label:hashlib.sha256((app/"Contents/MacOS/PolyUConsole").read_bytes()).hexdigest() for label,app in [(BASELINE_VERSION,a.baseline),(VERSION,a.candidate)]}}
+ out=ROOT/(".build/idle-cpu-"+BUILD+".json");out.write_text(json.dumps(report,indent=2));print("CPU comparison written: "+str(out),flush=True)
 if __name__=="__main__":main()
