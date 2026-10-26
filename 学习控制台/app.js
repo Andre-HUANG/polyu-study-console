@@ -13,7 +13,15 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
 function hkDate(date, options = { month: 'long', day: 'numeric', weekday: 'short' }) {
   if (!date) return '日期待确认';
   const parsed = new Date(`${date.slice(0, 10)}T00:00:00+08:00`);
-  return dateFormatter('zh-HK', { timeZone: 'Asia/Hong_Kong', ...options }).format(parsed);
+  return dateFormatter('zh-HK', { timeZone: 'Asia/Hong_Kong', ...options }).format(parsed).replace(/週/g, '周');
+}
+
+function urgencyClass(days, elapsed = false) {
+  if (elapsed || days < 0) return 'urgency-elapsed';
+  if (days <= 1) return 'urgency-urgent';
+  if (days <= 3) return 'urgency-soon';
+  if (days <= 7) return 'urgency-week';
+  return 'urgency-calm';
 }
 
 function hkMoment(value) {
@@ -233,7 +241,7 @@ function render(data) {
     document.querySelectorAll('[data-filter]').forEach(button => { const active = button.dataset.filter === 'all'; button.classList.toggle('selected', active); button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; });
     $('#documentSearch').value = ''; $('#documentMatches').innerHTML = '';
   }
-  $('#appVersion').textContent = `v${data.version || '2.0.0'}`;
+  $('#appVersion').textContent = `v${data.version || '2.1.0'}`;
   const today = data.today;
   $('#todayLabel').textContent = hkDate(today, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   $('#syncCaption').textContent = data.lastSync
@@ -255,7 +263,7 @@ function render(data) {
   $('#metricCourses').textContent = String(data.courseCount);
   $('#metricUpcoming').textContent = String(data.events.filter((event) => event.daysLeft <= 30).length);
   const exam = data.events.find((event) => ['midterm', 'final', 'test'].includes(event.kind));
-  $('#metricExam').textContent = exam ? String(exam.daysLeft).padStart(2, '0') : '—';
+  $('#metricExam').textContent = exam ? String(exam.daysLeft) : '—';
   $('#metricExamFoot').textContent = exam ? `${kindLabel(exam.kind)} · ${relative(exam.daysLeft)}` : '暂无已确认日期';
   renderFocus(data);
   renderGrades(data);
@@ -505,6 +513,8 @@ function gradeCourseMarkup(course) {
   const denominator = hasWeighted || canvasPrimary ? '%' : raw ? ` / ${gradeNumber(raw.points)}` : '';
   const scoreLabel = hasWeighted ? '已评分部分的当前成绩 · 按权重折算' : canvasPrimary ? 'Canvas 已公布的当前成绩' : raw
     ? `${raw.label} · 原始分，折算待定` : '课程折算待出分';
+  const numericPercent = hasWeighted ? course.currentPercent : canvasPrimary ? course.canvasCurrentPercent : raw && raw.points ? (raw.score / raw.points * 100) : null;
+  const progressValue = numericPercent != null && Number.isFinite(Number(numericPercent)) ? Math.max(0, Math.min(100, Math.round(Number(numericPercent)))) : null;
   const components = course.components.length
     ? `<div class="grade-table-head"><span>考核项</span><span>占总评</span><span>Canvas 得分</span><span>折算得分</span></div>${course.components.map(gradeComponentMarkup).join('')}`
     : '<p class="grade-no-scheme">尚未找到课程公布的百分比评分表。</p>';
@@ -514,6 +524,7 @@ function gradeCourseMarkup(course) {
     <summary><div class="grade-card-top"><span class="grade-card-code">${escapeHtml(course.code)}</span><span class="grade-card-status ${course.conflict ? 'conflict' : ''}">${escapeHtml(status)}</span></div>
       <h3>${escapeHtml(course.name)}</h3>
       <div class="grade-card-score"><strong>${escapeHtml(score)}</strong><span>${escapeHtml(denominator)}<small>${escapeHtml(scoreLabel)}</small></span></div>
+      <div class="grade-progress-wrap" aria-hidden="true"><progress class="grade-progress ${progressValue == null ? 'is-empty' : ''}" max="100" value="${progressValue ?? 0}"></progress></div>
       <div class="grade-card-bottom"><span>${course.gradedCount ? `${course.gradedCount} 项已出分` : '尚无已公布成绩'}</span><span>查看评分明细 <b aria-hidden="true">⌄</b></span></div>
     </summary>
     <div class="grade-card-detail">
@@ -577,11 +588,11 @@ function renderUpNext(data) {
     return;
   }
   list.innerHTML = following.map((event) => `
-    <div class="up-next-row">
+    <div class="up-next-row ${urgencyClass(event.daysLeft)}">
       <div class="date-tile"><strong>${escapeHtml(event.date.slice(8, 10))}</strong><span>${escapeHtml(hkDate(event.date, { month: 'short' }))}</span></div>
       <div class="up-next-content"><span class="eyeline">${escapeHtml(event.course)} <b>·</b> ${escapeHtml(kindLabel(event.kind))}</span>
         ${anchor(event.url, event.title, 'up-next-title')}</div>
-      <span class="days-away">${escapeHtml(relative(event.daysLeft))}</span>
+      <span class="days-away ${urgencyClass(event.daysLeft)}">${escapeHtml(relative(event.daysLeft))}</span>
     </div>`).join('');
 }
 
@@ -609,7 +620,7 @@ function eventMarkup(event) {
     ? ` · 占比 ${escapeHtml(event.weight)}` : ` · 权重${escapeHtml(event.weight)}`;
   const warnings = (event.warnings || []).filter((line) => line !== historicalNotice);
   const context = `<p class="event-source">${escapeHtml(source)}${weight}</p>` + (event.warnings || []).filter((line) => line === historicalNotice).map((line) => `<p class="event-note">${escapeHtml(line)}</p>`).join('');
-  return `<article class="event-row ${event.pending ? 'pending-event' : ''} ${elapsed ? 'elapsed-event' : ''}">
+  return `<article class="event-row ${event.pending ? 'pending-event' : ''} ${elapsed ? 'elapsed-event' : ''} ${urgencyClass(event.daysLeft, elapsed)}">
     <div class="event-date"><strong>${escapeHtml(event.date.slice(8, 10))}</strong><span>${escapeHtml(hkDate(event.date, { month: 'short' }))}</span></div>
     <div class="event-main"><div class="event-meta"><span class="kind-badge ${className}">${escapeHtml(kindLabel(event.kind))}</span><span>${escapeHtml(event.course)}</span><span class="meta-divider">·</span><span>${escapeHtml(dateLabel)}</span></div>
       <h3>${anchor(event.url, event.title)}</h3>
@@ -622,7 +633,7 @@ function eventMarkup(event) {
       ${event.timeText && !event.time ? `<p class="event-note">${escapeHtml(event.timeText)}</p>` : ''}
       ${sourcesMarkup(event.sources, `event:${event.id}`, context)}
     </div>
-    <div class="event-right"><span class="event-remaining">${escapeHtml(remaining)}</span>
+    <div class="event-right"><span class="event-remaining ${urgencyClass(event.daysLeft, elapsed)}">${escapeHtml(remaining)}</span>
       ${event.editable ? `<div class="row-actions"><button type="button" data-action="edit" data-id="${escapeHtml(event.id)}">编辑</button><button type="button" data-action="delete" data-id="${escapeHtml(event.id)}">删除</button></div>` : '<span class="canvas-source">CANVAS</span>'}
     </div>
   </article>`;
@@ -753,8 +764,8 @@ function openEventDialog(event = null) {
   form.querySelectorAll('[aria-invalid]').forEach(field => { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); });
   state.editOriginal = event ? { course: event.course, title: event.rawTitle } : null;
   $('#dialogTitle').textContent = event ? '编辑安排' : '添加安排';
-  form.elements.course.disabled = !!event;
-  form.elements.title.readOnly = !!event;
+  form.elements.course.disabled = false;
+  form.elements.title.readOnly = false;
   if (event) {
     form.elements.course.value = event.course;
     form.elements.title.value = event.rawTitle;

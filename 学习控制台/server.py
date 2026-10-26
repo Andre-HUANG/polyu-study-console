@@ -1018,27 +1018,35 @@ class Handler(BaseHTTPRequestHandler):
         source = "Canvas / 来源核对记录"
         state = load_json(PROFILE / "state.json", {"manual_deadlines": []})
         manual = list(state.get("manual_deadlines") or [])
-        if original:
-            if not isinstance(original, dict) or original.get("course") != course or original.get("title") != title:
-                raise ValueError("编辑时课程和事项名称不能改变；可删除后重新添加")
-            matches = [x for x in manual if x.get("course") == course and x.get("item") == title]
-            if not matches:
+        if original is not None:
+            if not isinstance(original, dict):
                 raise ValueError("这项安排已被改动，请刷新后重试")
-            if (matches[0].get("source") or "").startswith(DOCUMENT_DEADLINE_PREFIX):
+            orig_course = str(original.get("course") or "").strip()
+            orig_title = str(original.get("title") or "").strip()
+            orig_indices = [i for i, x in enumerate(manual) if x.get("course") == orig_course and x.get("item") == orig_title]
+            if len(orig_indices) != 1:
+                raise ValueError("这项安排已被改动，请刷新后重试")
+            orig_idx = orig_indices[0]
+            orig_row = manual[orig_idx]
+            if (orig_row.get("source") or "").startswith(DOCUMENT_DEADLINE_PREFIX):
                 raise ValueError("此安排来自课程文件扫描，请打开 Canvas 来源核对。")
-            source = matches[0].get("source") or source
+            if (course, title) != (orig_course, orig_title) and any(
+                i != orig_idx and x.get("course") == course and x.get("item") == title
+                for i, x in enumerate(manual)
+            ):
+                raise ValueError("同课程已有同名安排，请编辑现有事项。")
+            source = orig_row.get("source") or source
             if not weight:
-                weight = matches[0].get("weight") or ""
-        previous_kind = matches[0].get('kind') if original else None
+                weight = orig_row.get("weight") or ""
+        previous_kind = orig_row.get('kind') if original is not None else None
         selected_kind = kind or (previous_kind if previous_kind in KINDS else classify(title))
         row = {"course": course, "item": title, "date": date, "time": time or None,
                "time_text": "" if time else "具体时间待确认", "weight": weight or "—",
                "url": url, "note": note, "source": source,
                "kind": selected_kind, "status": "待参加" if selected_kind != "assignment" else "未交"}
-        matches = [i for i, item in enumerate(manual) if item.get("course") == course and item.get("item") == title]
-        if original:
-            manual[matches[0]] = row
-        elif matches:
+        if original is not None:
+            manual[orig_idx] = row
+        elif any(item.get("course") == course and item.get("item") == title for item in manual):
             raise ValueError("同课程已有同名安排，请编辑现有事项。")
         else:
             manual.append(row)

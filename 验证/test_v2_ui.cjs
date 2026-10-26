@@ -6,6 +6,7 @@ const path = require('node:path');
 const http = require('node:http');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(__dirname, '..');
+const release = JSON.parse(fs.readFileSync(path.join(root, '学习控制台/release.json'), 'utf8'));
 const output = path.join(root, '.build/v2-ui');
 fs.mkdirSync(output, { recursive: true });
 const day = '2026-10-18';
@@ -35,7 +36,7 @@ function fixture(authorized = true) {
   const events = authorized ? [event('canvas:1', 'Urban systems report', day, 0),
     event('canvas:2', 'Midterm assessment', '2026-10-21', 3, 'midterm', 'DEMO302'),
     event('canvas:3', 'Research proposal', '2026-11-05', 18, 'assignment', 'DEMO403')] : [];
-  return { today: day, version: '2.0.0', revision: authorized ? 'synthetic-authorized' : 'synthetic-empty',
+  return { today: day, version: release.version, revision: authorized ? 'synthetic-authorized' : 'synthetic-empty',
     courseCount: authorized ? courses.length : 0, courses: authorized ? courses : [], events,
     overdue: authorized ? [{ ...event('canvas:4', 'Lab reflection', '2026-10-16', -2), overdue: true,
       submissionConfirmed: true, overdueLabel: 'Canvas 显示未提交', overdueReason: 'Canvas 显示未提交' }] : [],
@@ -112,6 +113,45 @@ async function main() {
       data.connection.needsLogin = false; data.connection.stage = '';
       await page.evaluate(() => poll());
       assert.notEqual(await page.locator('#workspaceWelcome').getAttribute('data-tone'), 'working');
+    });
+    await check('release identity and urgency cues retain readable text', async () => {
+      assert.equal(await page.locator('#appVersion').textContent(), 'v' + release.version);
+      assert(await page.locator('#eventList .event-row').nth(0).evaluate(e => e.classList.contains('urgency-urgent')));
+      assert(await page.locator('#eventList .event-row').nth(1).evaluate(e => e.classList.contains('urgency-soon')));
+      assert(await page.locator('#eventList .event-row').nth(2).evaluate(e => e.classList.contains('urgency-calm')));
+      assert.match(await page.locator('#eventList').textContent(), /Urban systems report|Midterm assessment/);
+      assert.doesNotMatch(await page.locator('#eventList').textContent(), /週/);
+    });
+    await check('grade progress represents known scores and leaves unknown ones empty', async () => {
+      const bars = page.locator('#gradeCourseGrid .grade-progress');
+      assert.equal(await bars.count(), 3);
+      assert.equal(await bars.nth(0).getAttribute('value'), '86');
+      assert(await bars.nth(1).evaluate(e => e.classList.contains('is-empty')));
+      assert(await bars.nth(2).evaluate(e => e.classList.contains('is-empty')));
+      const changed = structuredClone(data); changed.grades.courses[0].canvasCurrentPercent = 125;
+      await page.evaluate(value => render(value), changed);
+      assert.equal(await page.locator('#gradeCourseGrid .grade-progress').nth(0).getAttribute('value'), '100');
+      await page.evaluate(value => render(value), data);
+    });
+    await check('personal edit sends new course and title with original identity', async () => {
+      const editable = { ...event('manual:synthetic', 'Original personal final', day, 0, 'final'),
+        editable: true, source: 'manual', sourceLabel: '个人安排' };
+      const changed = structuredClone(data); changed.events.push(editable);
+      await page.evaluate(value => render(value), changed);
+      await page.locator('[data-action="edit"][data-id="manual:synthetic"]').click();
+      assert(await page.locator('#eventForm [name="course"]').isEnabled());
+      assert.equal(await page.locator('#eventForm [name="title"]').getAttribute('readonly'), null);
+      await page.locator('#eventForm [name="course"]').selectOption('DEMO302');
+      await page.locator('#eventForm [name="title"]').fill('Renamed personal final');
+      const request = page.waitForRequest(req => req.url().endsWith('/api/event/save'));
+      await page.locator('#eventForm button[type="submit"]').click();
+      const payload = (await request).postDataJSON();
+      assert.equal(payload.course, 'DEMO302');
+      assert.equal(payload.title, 'Renamed personal final');
+      assert.equal(payload.kind, 'final');
+      assert.deepEqual(payload.original, { course: 'DEMO201', title: 'Original personal final' });
+      await page.locator('#eventDialog').waitFor({ state: 'hidden' });
+      await page.evaluate(value => render(value), data);
     });
     await check('deadline search, ranges and clearing combine correctly', async () => {
       await page.locator('#eventRange').selectOption('7'); assert.equal(await page.locator('#eventList .event-row').count(), 2);

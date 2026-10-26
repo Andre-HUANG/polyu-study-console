@@ -2,12 +2,13 @@
 
 连接香港理工大学 Canvas，集中查看考试与作业、成绩、课程变化和文档证据。学生制作的工具，非学校官方应用。首次启动为空框架，没有默认课程、预设评分比例或随包账号资料。
 
-当前版本：**2.0.0（构建 200）**，以 1.9.1 为基线，改进学习总览、资料搜索、安排筛选与失败恢复。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。只有正式 Release 中的文件代表已发布版本；本仓库候选源码仍需通过下述发布门禁。所有历史 Release、标签和既有下载资产继续保留。
+当前版本：**2.1.0（构建 210）**，以 2.0.0 为基线，更新界面、窄窗口布局、截止日期提示和成绩进度条，并支持手动安排改名与调整课程。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。只有正式 Release 中的文件代表已发布版本；本仓库候选源码仍需通过下述发布门禁。所有历史 Release、标签和既有下载资产继续保留。
 
 ## 可下载版本
 
 | 版本 | 功能与适用范围 | 下载与对应说明 |
 | --- | --- | --- |
+| v2.1.0 | 更新界面、日期紧迫程度和成绩进度条；手动安排支持改名与调整课程 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v2.1.0) · [验收范围](release/validation-2.1.0.md) |
 | v2.0.0 | 学习总览与快捷资料搜索、安排搜索和日期范围、过期核对视图、校历个人安排、交互与安装器修复 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v2.0.0) · [验收范围](release/validation-2.0.0.md) |
 | v1.8.1 | 历史隐私安全修复版：本地 API 认证、Mac Keychain、Windows DPAPI 与跨平台打包修复；保留原始发布文件及哈希 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.8.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.8.1) |
 | v1.9.1（1.9 系列） | 历史版本：包含 1.8.2 的课程表、性能优化和签名更新，以及默认关闭、用户主动开启的本机记住密码 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.9.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.9.1) |
@@ -18,8 +19,8 @@
 
 | 平台 | 安装包 | 系统与签名 |
 | --- | --- | --- |
-| Apple Silicon Mac | PolyUStudyConsole-2.0.0-arm64.dmg、.zip | macOS 13+，arm64；ad-hoc 签名，**未 Apple 公证** |
-| AMD / Intel Windows | PolyUStudyConsole-2.0.0-windows-x64-setup.exe、.zip | Windows 10 2004+、.NET Framework 4.8、WebView2 Runtime；未 Authenticode 签名 |
+| Apple Silicon Mac | PolyUStudyConsole-2.1.0-arm64.dmg、.zip | macOS 13+，arm64；ad-hoc 签名，**未 Apple 公证** |
+| AMD / Intel Windows | PolyUStudyConsole-2.1.0-windows-x64-setup.exe、.zip | Windows 10 2004+、.NET Framework 4.8、WebView2 Runtime；未 Authenticode 签名 |
 
 下载后对照同一 Release 的 SHA256SUMS.txt 校验。Mac 将完整 app 复制到应用程序目录；Windows 使用 Setup 或完整解压 Portable ZIP。应用自带 Python。安装说明见 [Mac](MacApp/安装与使用.txt) 与 [Windows](WindowsApp/安装与使用.txt)。只有正式 Release 中出现的文件才是已发布下载；CI 候选包不代表完成真实 Canvas SSO 验证。
 
@@ -52,7 +53,7 @@ Mac 数据：~/Library/Application Support/PolyU study控制台/account/。Windo
 
 当前账号可见课程、作业、Quiz、公告、已公布成绩及附件；PDF 表格、Word 正文、本机 OCR 与全文检索；来源、页码、原文、未公布日期和冲突状态均保留。评分方案不明确或匹配不可靠时保持空白。Canvas 当前成绩单独显示。
 
-[SECURITY_TESTS.md](SECURITY_TESTS.md) 区分合成回归、真实本机运行、未执行及环境阻塞。真实学校登录/MFA、个人课表准确性、不同 ad-hoc 签名 helper 更新均不由离线测试证明；独立现有会话只读验收范围与最终测试状态见 [2.0 验收说明](release/validation-2.0.0.md)。[Actions](https://github.com/Andre-HUANG/polyu-study-console/actions) 是远程 CI 实际结果的来源。
+[SECURITY_TESTS.md](SECURITY_TESTS.md) 区分合成回归、真实本机运行、未执行及环境阻塞。真实学校登录/MFA、个人课表准确性、不同 ad-hoc 签名 helper 更新均不由离线测试证明；独立现有会话只读验收范围与最终测试状态见 [2.1 验收说明](release/validation-2.1.0.md)。[Actions](https://github.com/Andre-HUANG/polyu-study-console/actions) 是远程 CI 实际结果的来源。
 
 ## 开发与发布
 

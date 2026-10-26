@@ -164,12 +164,85 @@ class SettingsChecks(unittest.TestCase):
         save_private(self.profile / 'snapshot.json', {'assignments': {'1': {'course': 'TEST', 'name': 'Final exam', 'due_at': '2026-12-16T08:00:00Z'}}})
         rows = server.dashboard_data()['events']
         self.assertEqual([r['kind'] for r in rows], ['final', 'final'])
-        edit = {**payload, 'date': '2026-12-17', 'original': {'course': 'TEST', 'title': payload['title']}}
+        edit = {**payload, 'title': 'Updated final assessment', 'date': '2026-12-17', 'original': {'course': 'TEST', 'title': payload['title']}}
         edit.pop('kind')
         handler.save_event(edit)
-        self.assertEqual(json.loads((self.profile / 'state.json').read_text())['manual_deadlines'][0]['kind'], 'final')
+        saved = json.loads((self.profile / 'state.json').read_text())['manual_deadlines'][0]
+        self.assertEqual(saved['kind'], 'final')
+        self.assertEqual(saved['item'], 'Updated final assessment')
         for invalid in ['other', [], {'kind': 'final'}]:
             with self.subTest(invalid=invalid), self.assertRaises(ValueError): handler.save_event({**payload, 'kind': invalid})
+
+    def test_personal_edit_can_move_course_and_preserve_original_evidence(self):
+        self.authorize()
+        config = json.loads((self.profile / 'config.json').read_text())
+        config['courses'].append({'id': 2, 'code': 'OTHER', 'name': 'Synthetic other'})
+        save_private(self.profile / 'config.json', config)
+        handler = object.__new__(server.Handler)
+        row = {'course': 'TEST', 'title': 'Original final', 'date': '2026-12-15',
+               'kind': 'final', 'weight': '40%', 'url': HOST + '/courses/1'}
+        handler.save_event(row)
+        state = json.loads((self.profile / 'state.json').read_text())
+        state['manual_deadlines'][0]['source'] = 'Independent manual source note'
+        save_private(self.profile / 'state.json', state)
+        handler.save_event({'course': 'OTHER', 'title': 'Renamed final', 'date': '2026-12-16',
+                            'url': HOST + '/courses/2',
+                            'original': {'course': 'TEST', 'title': row['title']}})
+        saved = json.loads((self.profile / 'state.json').read_text())['manual_deadlines']
+        self.assertEqual(len(saved), 1)
+        self.assertEqual((saved[0]['course'], saved[0]['item'], saved[0]['kind']),
+                         ('OTHER', 'Renamed final', 'final'))
+        self.assertEqual(saved[0]['weight'], '40%')
+        self.assertEqual(saved[0]['source'], 'Independent manual source note')
+        self.assertEqual(saved[0]['url'], HOST + '/courses/2')
+
+    def test_personal_rename_rejects_duplicate_destination_without_writing(self):
+        self.authorize()
+        handler = object.__new__(server.Handler)
+        payload = {'course': 'TEST', 'date': '2026-12-15', 'url': HOST + '/courses/1'}
+        handler.save_event({**payload, 'title': 'First'})
+        handler.save_event({**payload, 'title': 'Second'})
+        path = self.profile / 'state.json'
+        before = path.read_bytes()
+        with self.assertRaisesRegex(ValueError, '同名'):
+            handler.save_event({**payload, 'title': 'Second',
+                                'original': {'course': 'TEST', 'title': 'First'}})
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_personal_edit_rejects_stale_malformed_or_ambiguous_original(self):
+        self.authorize()
+        handler = object.__new__(server.Handler)
+        payload = {'course': 'TEST', 'title': 'First', 'date': '2026-12-15', 'url': HOST + '/courses/1'}
+        handler.save_event(payload)
+        path = self.profile / 'state.json'
+        before = path.read_bytes()
+        for original in ({}, [], 'First', {'course': 'TEST', 'title': 'Missing'}):
+            with self.subTest(original=original), self.assertRaises(ValueError):
+                handler.save_event({**payload, 'title': 'Updated', 'original': original})
+            self.assertEqual(path.read_bytes(), before)
+        state = json.loads(before)
+        state['manual_deadlines'].append(dict(state['manual_deadlines'][0]))
+        save_private(path, state)
+        before = path.read_bytes()
+        with self.assertRaises(ValueError):
+            handler.save_event({**payload, 'title': 'Updated',
+                                'original': {'course': 'TEST', 'title': 'First'}})
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_personal_rename_cannot_modify_a_document_generated_record(self):
+        self.authorize()
+        handler = object.__new__(server.Handler)
+        payload = {'course': 'TEST', 'title': 'Source final', 'date': '2026-12-15', 'url': HOST + '/courses/1'}
+        handler.save_event(payload)
+        path = self.profile / 'state.json'
+        state = json.loads(path.read_text())
+        state['manual_deadlines'][0]['source'] = server.DOCUMENT_DEADLINE_PREFIX + 'synthetic-file'
+        save_private(path, state)
+        before = path.read_bytes()
+        with self.assertRaisesRegex(ValueError, '课程文件'):
+            handler.save_event({**payload, 'title': 'Changed final',
+                                'original': {'course': 'TEST', 'title': 'Source final'}})
+        self.assertEqual(path.read_bytes(), before)
 
     def test_document_generated_final_keeps_category_after_reconciliation(self):
         self.authorize()
