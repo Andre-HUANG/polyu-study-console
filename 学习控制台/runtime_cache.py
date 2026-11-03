@@ -52,7 +52,7 @@ FILES = ("config.json", "login.json", "state.json", "snapshot.json", "app-settin
          "assignment-meta.json", "announcements.json", "grading_schemes.json",
          "canvas-course-grades.json", "documents/index.json", "documents/downloads.json",
          "sync-status.json", "documents/timetable.json", "timetable-manual.json",
-         "calendar/official.json")
+         "calendar/official.json", "event-marks.json")
 
 def revision(profile, epoch, day):
     value = [str(Path(profile).resolve()), epoch, day,

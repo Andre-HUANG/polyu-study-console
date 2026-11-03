@@ -1,13 +1,13 @@
 {
   "name": "PolyU study控制台",
-  "version": "2.1.0",
-  "build": "210",
+  "version": "2.2.0",
+  "build": "220",
   "status": "candidate",
   "targets": [
     "macOS-arm64",
     "Windows-x64"
   ],
-  "baselineVersion": "2.0.0",
-  "baselineBuild": "200",
-  "updateDescription": "2.1：更新学习总览与窄窗口布局、截止日期紧迫程度提示、成绩进度条；手动安排支持改名与调整课程，并保留分类与来源。"
+  "baselineVersion": "2.1.0",
+  "baselineBuild": "210",
+  "updateDescription": "2.2：作业可标记完成并随时撤销，首页只提醒未完成事项；当前筛选的考试与作业可导出为日历文件；新增未来 14 天负荷条与成绩目标测算，侧栏随滚动高亮。"
 }

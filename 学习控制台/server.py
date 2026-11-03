@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -35,6 +36,7 @@ from course_evidence import VERSION as EVIDENCE_VERSION
 from assessment_types import KINDS, EXAM_RE, classify
 from diagnostic_log import DiagnosticLog, error_code, validate_event
 from local_access import LocalAccess
+import calendar_export
 import runtime_cache
 import academic_calendar
 import timetable
@@ -520,6 +522,47 @@ def event_due_time(row):
     return due
 
 
+MARKS_FILE = "event-marks.json"
+MARK_LIMIT = 400
+MARK_KEY_RE = re.compile(r"[0-9a-f]{32}")
+
+
+def mark_key(row):
+    """Personal completion follows one item and one due moment; a moved date re-surfaces it."""
+    identifier = str(row.get("id") or "")
+    identity = (json.dumps(["manual", row.get("course") or "", row.get("rawTitle") or ""], ensure_ascii=False)
+                if identifier.startswith("manual:") else identifier)
+    due = row.get("dueAt") or (str(row.get("date") or "") + "T" + str(row.get("time") or ""))
+    return hashlib.sha256((identity + "\n" + due).encode("utf-8")).hexdigest()[:32]
+
+
+def markable(row):
+    return row.get("kind") == "assignment" and not row.get("pending")
+
+
+def canvas_reports_unsubmitted(row):
+    return (row.get("source") == "canvas" and row.get("submissionState") == "unsubmitted"
+            and row.get("submissionStateObserved") is True)
+
+
+def load_marks():
+    value = load_json(PROFILE / MARKS_FILE, {})
+    marks = value.get("marks") if isinstance(value, dict) else None
+    if not isinstance(marks, dict): return {}
+    return {key: {"at": entry["at"]} for key, entry in marks.items()
+            if isinstance(key, str) and MARK_KEY_RE.fullmatch(key) and isinstance(entry, dict) and isinstance(entry.get("at"), str)}
+
+
+def apply_marks(rows, marks):
+    for row in rows:
+        if not markable(row): continue
+        key = mark_key(row)
+        row["markKey"] = key
+        row["done"] = key in marks
+        if row["done"]: row["doneAt"] = marks[key]["at"]
+    return rows
+
+
 def split_deadline_events(events, now):
     """Keep source uncertainty separate from a date that has passed."""
     completed = SUBMITTED | {"done", "completed", "已完成", "已提交", "已评分", "已交"}
@@ -640,6 +683,8 @@ def dashboard_data():
         row["daysLeft"] = (datetime.fromisoformat(row["date"]).date() - today).days
     events.sort(key=lambda x: (x["date"], x["time"] or "00:00", x["course"] or ""))
     upcoming, overdue = split_deadline_events(events, now)
+    marks = load_marks() if signed_in else {}
+    apply_marks(upcoming, marks); apply_marks(overdue, marks)
 
     undated = []
     for aid, row in (snapshot.get("assignments") or {}).items():
@@ -964,6 +1009,12 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/event/delete":
                 message = self.delete_event(payload)
                 diagnostics().record('event.delete', 'success')
+            elif path == "/api/event/mark":
+                message = self.mark_event(payload)
+                diagnostics().record('event.mark', 'success')
+            elif path == "/api/export/calendar":
+                message = self.export_calendar(payload)
+                diagnostics().record('calendar.export', 'success')
             else:
                 return self.send_json({"error": "操作不存在"}, HTTPStatus.NOT_FOUND)
             runtime_cache.clear()
@@ -1066,6 +1117,49 @@ class Handler(BaseHTTPRequestHandler):
         manual.pop(index-1)
         save_private(PROFILE / "state.json", {"manual_deadlines": manual})
         return "手动安排已删除。"
+
+    def mark_event(self, payload):
+        if not set(payload) <= {"key", "done", "confirm"} or not isinstance(payload.get("done"), bool):
+            raise ValueError("完成标记请求无效")
+        key = payload.get("key")
+        if not isinstance(key, str) or not MARK_KEY_RE.fullmatch(key):
+            raise ValueError("完成标记请求无效")
+        if "confirm" in payload and not isinstance(payload["confirm"], bool):
+            raise ValueError("完成标记请求无效")
+        data = dashboard_data()
+        row = next((r for r in data["events"] + data["overdue"] if r.get("markKey") == key), None)
+        marks = load_marks()
+        if payload["done"]:
+            if row is None or not markable(row):
+                raise ValueError("这项作业已变化或不可标记，请刷新后重试。")
+            if canvas_reports_unsubmitted(row) and payload.get("confirm") is not True:
+                raise ValueError("Canvas 上次同步显示未提交；如已通过其他方式提交，请确认后再标记。")
+            marks[key] = {"at": datetime.now(HK).isoformat(timespec="seconds")}
+            if len(marks) > MARK_LIMIT:
+                for old in sorted(marks, key=lambda k: marks[k]["at"])[:len(marks) - MARK_LIMIT]:
+                    if old != key: marks.pop(old)
+            message = "已标记完成。可在「显示已完成」中撤销。"
+        else:
+            if key not in marks: raise ValueError("这项完成标记已不存在，请刷新后重试。")
+            marks.pop(key)
+            message = "已恢复为待完成。"
+        save_private(PROFILE / MARKS_FILE, {"version": 1, "marks": marks})
+        return message
+
+    def export_calendar(self, payload):
+        ids = payload.get("ids")
+        if set(payload) != {"ids"} or not isinstance(ids, list) or not ids or len(ids) > calendar_export.LIMIT or any(
+                not isinstance(value, str) or not value or len(value) > 240 for value in ids):
+            raise ValueError("请选择要导出的安排")
+        wanted = set(ids)
+        rows = [row for row in dashboard_data()["events"] if row.get("id") in wanted]
+        skipped = sum(1 for row in rows if row.get("pending"))
+        body, count = calendar_export.build([row for row in rows if not row.get("pending")], datetime.now(HK), APP_VERSION)
+        if not count:
+            raise ValueError("当前筛选中没有可导出的已确认日期安排。")
+        calendar_export.write(PROFILE, body)
+        return (f"已导出 {count} 项安排到本机日历文件 {calendar_export.FILENAME}，打开后可加入系统日历。"
+                + (f" {skipped} 项日期待核对的安排未导出。" if skipped else ""))
 
 
 def main():

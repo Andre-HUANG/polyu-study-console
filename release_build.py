@@ -23,12 +23,13 @@ CONSOLE_FILES = (
     "native_canvas.py", "canvas_api.py", "canvas_sync.py", "canvas_web.py",
     "canvas_archive.py", "canvas_grading.py", "canvas_documents.py", "document_text.py",
     "pdf_layout.py", "windows_document.py", "assessment_reader.py", "course_evidence.py",
-    "document_deadlines.py", "document_search.py", "freshness.py", "change_detection.py", "sync_support.py", "index.html", "app.js", "styles.css",
+    "document_deadlines.py", "document_search.py", "freshness.py", "change_detection.py", "sync_support.py", "calendar_export.py", "index.html", "app.js", "styles.css",
 )
 ASSETS = ("polyu-logo.png", "polyu-favicon.ico", "polyu-emblem.jpg", "SOURCES.txt", "remember-login.js")
 FORBIDDEN = {".jiujiastudy", "救驾", "coach-tools", "plans", "reports", "grading_schemes.json",
     "canvas-course-grades.json", "canvas-grading-settings.json", "canvas-cookies.json", "login.json",
-    "credentials", "consent.json", "protected.bin", "config.json", "state.json", "snapshot.json", "documents", "image-ocr", "managed-deadlines.json", "diagnostics", "events.json", "app.log", "backend.log"}
+    "credentials", "consent.json", "protected.bin", "config.json", "state.json", "snapshot.json", "documents", "image-ocr", "managed-deadlines.json", "diagnostics", "events.json", "app.log", "backend.log",
+    "event-marks.json", "exports", "polyu-schedule.ics"}
 
 
 def verify_bundle(root):

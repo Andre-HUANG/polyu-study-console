@@ -1,4 +1,4 @@
-/* PolyU Study Console v2.1 — Editorial Academic Studio Design System */
+/* PolyU Study Console v2.2 — Editorial Academic Studio Design System */
 :root {
   color-scheme: light;
   --wine: #8d1738;
@@ -887,6 +887,69 @@ body.settings-open { overflow: hidden; }
 /* Motion & Power Preferences */
 .low-power *, .low-power *::before, .low-power *::after { animation: none !important; transition: none !important; }
 body.low-power html { scroll-behavior: auto; }
+/* 2.2 — Workload strip (next 14 days) */
+.workload { margin-top: 14px; padding: 14px 16px 12px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: linear-gradient(180deg, var(--surface-subtle), #fff); }
+.workload-days { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; align-items: end; }
+.workload-day {
+  appearance: none; border: 1px solid transparent; background: transparent; border-radius: 9px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 2px 5px; min-width: 0;
+  color: var(--muted); transition: background 0.14s ease, border-color 0.14s ease;
+}
+.workload-day:hover { background: var(--rose-soft); border-color: var(--rose-border); }
+.workload-bar { position: relative; display: flex; flex-direction: column-reverse; justify-content: flex-start; width: 100%; max-width: 26px; height: 54px; border-radius: 6px; background: #f1eff3; overflow: hidden; }
+.workload-bar i { display: block; width: 100%; min-height: 6px; }
+.workload-tasks { background: #7fb6d9; }
+.workload-exams { background: var(--wine); }
+.workload-day b { font-size: 0.72rem; line-height: 1; min-height: 0.72rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.workload-day small { display: flex; flex-direction: column; align-items: center; font-size: 0.68rem; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; }
+.workload-day small em { font-style: normal; font-weight: 600; font-size: 0.62rem; color: var(--subtle); }
+.workload-day.is-weekend small em { color: var(--red); }
+.workload-day.is-today { background: var(--rose); border-color: var(--rose-border); }
+.workload-day.is-today small { color: var(--wine); }
+.workload-day.is-peak .workload-bar { box-shadow: 0 0 0 2px var(--soon-border); }
+.workload-foot { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 10px; }
+.workload-summary { margin: 0 2px; font-size: 0.76rem; color: var(--muted); line-height: 1.55; }
+.workload-legend { display: flex; gap: 12px; margin: 0; flex: none; font-size: 0.7rem; color: var(--muted); font-weight: 650; }
+.workload-legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.legend-exam::before { background: var(--wine); }
+.legend-task::before { background: #7fb6d9; }
+
+/* 2.2 — Completion marks and calendar export */
+.schedule-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.schedule-actions .topbar-icon { width: 15px; height: 15px; }
+.done-toggle b { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--ok-bg); color: var(--ok-fg); font-size: 0.7rem; line-height: 18px; }
+.done-toggle[aria-pressed="true"] { color: var(--ok-fg); border-color: var(--ok-border); background: var(--ok-bg); }
+.mark-button {
+  appearance: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  min-height: 30px; padding: 0 10px 0 7px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: #fff; color: var(--ink-secondary); font-size: 0.72rem; font-weight: 680;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
+}
+.mark-button:hover:not(:disabled) { border-color: var(--ok-border); color: var(--ok-fg); background: var(--ok-bg); }
+.mark-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.mark-box { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid currentColor; font-size: 0.66rem; line-height: 1; font-weight: 800; }
+.mark-button.is-done { border-color: var(--ok-border); background: var(--ok-bg); color: var(--ok-fg); }
+.mark-button.is-done .mark-box { background: var(--ok-fg); border-color: var(--ok-fg); color: #fff; }
+.done-event .event-main h3, .done-event .event-main h3 a { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+.done-event .event-date { background: var(--ok-bg); color: var(--ok-fg); border: 1px solid var(--ok-border); }
+.done-event .event-remaining { color: var(--muted); background: var(--surface-subtle); border-color: var(--line); }
+.event-status.done-status { color: var(--ok-fg); background: var(--ok-bg); border-color: var(--ok-border); }
+.event-list:focus { outline: none; }
+
+/* 2.2 — Grade target planner */
+.grade-target { margin-top: 14px; padding: 14px 14px 12px; border: 1px dashed var(--rose-border); border-radius: 10px; background: #fff; }
+.grade-target-head h4 { margin: 2px 0 8px; font-size: 0.86rem; color: var(--wine-ink); }
+.grade-target-field { display: inline-flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 680; color: var(--ink-secondary); }
+.grade-target-field input { width: 92px; min-height: 36px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; font-size: 0.86rem; font-variant-numeric: tabular-nums; color: var(--ink); background: #fff; }
+.grade-target-field input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px var(--rose); outline: none; }
+.grade-target-field b { color: var(--muted); font-weight: 680; }
+.grade-target-result { margin: 8px 0 6px; font-size: 0.78rem; line-height: 1.55; color: var(--ink-secondary); }
+.grade-target[data-state="ok"] .grade-target-result { color: var(--ok-fg); font-weight: 680; }
+.grade-target[data-state="reached"] .grade-target-result { color: var(--ok-fg); font-weight: 680; }
+.grade-target[data-state="stretch"] .grade-target-result { color: var(--soon-fg); font-weight: 680; }
+.grade-target[data-state="out"] .grade-target-result { color: var(--urgent-fg); font-weight: 680; }
+.grade-target small { display: block; font-size: 0.7rem; color: var(--subtle); line-height: 1.5; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -976,6 +1039,13 @@ body.low-power html { scroll-behavior: auto; }
   .event-row { grid-template-columns: 46px minmax(0, 1fr); gap: 12px; padding: 16px 0; }
   .event-date { width: 45px; height: 52px; }
   .event-right { grid-column: 2; flex-direction: row; justify-content: space-between; align-items: center; margin-top: -2px; }
+  .event-right { flex-wrap: wrap; gap: 8px; }
+  .schedule-heading { flex-wrap: wrap; gap: 12px; }
+  .schedule-actions { justify-content: flex-start; }
+  .workload { padding: 12px 10px 10px; }
+  .workload-days { gap: 3px; }
+  .workload-bar { height: 44px; }
+  .workload-foot { flex-direction: column; gap: 6px; }
   .undated-details { margin: 0 -18px; padding: 0 18px; }
   .undated-list { grid-template-columns: 1fr; }
   .summary-hint { display: none; }
@@ -1018,6 +1088,7 @@ body.low-power html { scroll-behavior: auto; }
   .class-toolbar select { max-width: 125px; }
   .class-item { grid-template-columns: 80px minmax(0, 1fr); gap: 8px; }
   .schedule-toolbar { display: block; }
+  .workload-days { grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 8px; }
   .schedule-toolbar .select-wrap { display: block; margin-top: 10px; }
   .schedule-toolbar select { width: 100%; }
   .course-grid, .form-grid, .class-form-grid { grid-template-columns: 1fr; }

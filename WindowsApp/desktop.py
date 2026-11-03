@@ -256,9 +256,10 @@ class Bridge:
         elif action == "openSource":
             if not school_url(target): raise ValueError("来源地址必须属于学校 Canvas")
             webbrowser.open(target)
-        elif action in {"dataFolder", "filesFolder"}:
+        elif action in {"dataFolder", "filesFolder", "exportsFolder"}:
             target = app.root / "account"
             if action == "filesFolder": target /= "documents/files"
+            if action == "exportsFolder": target /= "exports"
             if target.exists(): os.startfile(display_path(target))
         else: raise ValueError("不支持的本机操作")
         return {"ok": True}

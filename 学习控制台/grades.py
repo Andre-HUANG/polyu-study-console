@@ -82,11 +82,25 @@ def component_data(spec, rows, safe_url, allow_weight, raw_assignment_meta):
         "name": spec["name"], "weight": weight, "score": score, "points": points,
         "weighted": weighted, "gradedCount": len(graded), "itemCount": len(matches),
         "assessedWeight": assessed_weight, "expectedCount": expected,
-        "sources": spec.get("sources") or [], "conflict": bool(spec.get("conflict")), "alternatives": spec.get("alternatives") or [],
+        "sources": spec.get("sources") or [], "conflict": bool(spec.get("conflict")), "complex": bool(spec.get("complex")), "alternatives": spec.get("alternatives") or [],
         "note": spec.get("note") or "",
         "status": "graded" if weighted is not None and complete else "partial" if graded else "submitted" if submitted else "pending",
         "items": graded, "matchedIds": [str(aid) for aid, _ in matches],
     }
+
+
+def target_planning(components, verified, earned, assessed_weight):
+    """What-if inputs only for a coherent 100% scheme; never fills an unknown grade."""
+    weights = [item["weight"] for item in components]
+    if (not verified or not components or earned is None or assessed_weight is None
+            or any(w is None or w <= 0 for w in weights)
+            or any(item["conflict"] or item.get("complex") for item in components)):
+        return None
+    total = sum(weights)
+    remaining = round(total - assessed_weight, 3)
+    if abs(total - 100) > 0.5 or remaining < 0.5:
+        return None
+    return {"totalWeight": round(total, 3), "earned": earned, "assessedWeight": assessed_weight, "remainingWeight": remaining}
 
 
 def build_grades(courses, assignments, safe_url, raw_assignment_meta=None, schemes_path=None, course_totals=None):
@@ -140,5 +154,6 @@ def build_grades(courses, assignments, safe_url, raw_assignment_meta=None, schem
             "canvasCurrentPercent": finite_number((course_totals.get(str(course.get("id"))) or {}).get("currentPercent"))
                 if any(published_grade(row) for _, row in rows) else None,
             "currentPercent": round(earned / assessed_weight * 100, 2) if assessed_weight else None,
+            "planning": target_planning(components, bool(allow and not conflict and not mapping_conflict), earned, assessed_weight),
         })
     return {"recent": recent[:10], "courses": course_rows}

@@ -24,6 +24,9 @@ grading_schemes.json
 canvas-course-grades.json
 canvas-grading-settings.json
 managed-deadlines.json
+event-marks.json
+exports/
+*.ics
 MacApp/runtime-cache/
 MacApp/document-vendor/
 MacApp/document-vendor

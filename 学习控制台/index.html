@@ -19,7 +19,7 @@
       <a class="brand" href="#top" aria-label="PolyU 学习控制台首页">
         <img src="/assets/polyu-logo.png" alt="香港理工大学 The Hong Kong Polytechnic University" class="official-logo">
       </a>
-      <div class="brand-caption">study 控制台 <span>2.1</span></div>
+      <div class="brand-caption">study 控制台 <span id="brandVersion">2.2</span></div>
       <div class="side-label">工作区</div>
       <nav class="side-nav">
         <a class="active" href="#top"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg></span> 学习总览</a>
@@ -58,9 +58,9 @@
         </section>
 
         <section class="metrics" aria-label="学习数据概览">
-          <div class="metric metric-week"><span class="metric-kicker">NEXT 7 DAYS</span><strong id="metricWeek">—</strong><span class="metric-foot" id="metricWeekRange">未来 7 天内的安排</span></div>
+          <div class="metric metric-week"><span class="metric-kicker">NEXT 7 DAYS</span><strong id="metricWeek">—</strong><span class="metric-foot" id="metricWeekRange">未来 7 天内的待完成安排</span></div>
           <div class="metric"><span class="metric-kicker">NEXT EXAM</span><strong id="metricExam">—</strong><span class="metric-foot" id="metricExamFoot">最近考试</span></div>
-          <div class="metric"><span class="metric-kicker">UPCOMING</span><strong id="metricUpcoming">—</strong><span class="metric-foot">未来 30 天内的安排</span></div>
+          <div class="metric"><span class="metric-kicker">UPCOMING</span><strong id="metricUpcoming">—</strong><span class="metric-foot">未来 30 天内的待完成安排</span></div>
           <div class="metric"><span class="metric-kicker">COURSES</span><strong id="metricCourses">—</strong><span class="metric-foot">Canvas 已同步课程</span></div>
         </section>
 
@@ -94,6 +94,7 @@
         <div class="overview-grid recent-row">
           <section class="up-next panel" aria-labelledby="upNextTitle">
             <div class="panel-heading"><div><p class="section-kicker">ON THE HORIZON</p><h2 id="upNextTitle">接下来的安排</h2></div><a href="#schedule" class="text-link">查看全部</a></div>
+            <div id="workload" class="workload" hidden><div id="workloadDays" class="workload-days" role="group" aria-label="未来 14 天的待完成安排"></div><div class="workload-foot"><p id="workloadSummary" class="workload-summary" role="status"></p><p class="workload-legend" aria-hidden="true"><span class="legend-exam">考试</span><span class="legend-task">作业 / 事项</span></p></div></div>
             <div id="upNextList" class="up-next-list"><p class="loading-text">正在读取近期安排…</p></div>
           </section>
         </div>
@@ -123,7 +124,7 @@
         <section id="schedule" class="schedule-section panel" aria-labelledby="scheduleTitle">
           <div class="panel-heading schedule-heading">
             <div><p class="section-kicker">EXAMS & DEADLINES</p><h2 id="scheduleTitle">考试与作业安排</h2><p class="section-note">查看考试时间和作业截止日期。</p></div>
-            <button id="addEventButton" class="button button-outline" type="button"><span aria-hidden="true">＋</span> 添加安排</button>
+            <div class="schedule-actions"><button id="exportCalendarButton" class="button button-light" type="button" title="把当前筛选中已确认日期的安排导出为日历文件（.ics）"><svg class="topbar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.8"/><path d="M5 1.75v2.5M11 1.75v2.5M2 6.5h12M8 8.5v3.5M6.5 10.5 8 12l1.5-1.5"/></svg>导出日历</button><button id="addEventButton" class="button button-outline" type="button"><span aria-hidden="true">＋</span> 添加安排</button></div>
           </div>
           <div class="schedule-toolbar">
             <div class="segmented" role="tablist" aria-label="安排类型">
@@ -135,9 +136,9 @@
             </div>
             <label class="select-wrap"><span class="sr-only">按课程筛选</span><select id="courseFilter"><option value="all">全部课程</option></select></label>
           </div>
-          <div class="schedule-search"><label class="schedule-query"><span class="sr-only">搜索安排</span><input id="eventSearch" type="search" maxlength="120" placeholder="搜索名称、课程、地点或备注…"></label><label class="schedule-range"><span class="sr-only">安排日期范围</span><select id="eventRange"><option value="upcoming">全部未来安排</option><option value="7">未来 7 天</option><option value="30">未来 30 天</option><option value="overdue">已过截止日期</option></select></label><button id="clearEventFilters" class="button button-light" type="button" hidden>清除筛选</button></div>
+          <div class="schedule-search"><label class="schedule-query"><span class="sr-only">搜索安排</span><input id="eventSearch" type="search" maxlength="120" placeholder="搜索名称、课程、地点或备注…"></label><label class="schedule-range"><span class="sr-only">安排日期范围</span><select id="eventRange"><option value="upcoming">全部未来安排</option><option value="7">未来 7 天</option><option value="30">未来 30 天</option><option value="overdue">已过截止日期</option></select></label><button id="toggleDone" class="button button-light done-toggle" type="button" aria-pressed="false" hidden>显示已完成 <b id="doneCount">0</b></button><button id="clearEventFilters" class="button button-light" type="button" hidden>清除筛选</button></div>
           <p id="eventResults" class="event-results" role="status" aria-live="polite"></p>
-          <div id="eventList" class="event-list" aria-label="筛选后的安排"><p class="loading-text">正在读取安排…</p></div>
+          <div id="eventList" class="event-list" aria-label="筛选后的安排" tabindex="-1"><p class="loading-text">正在读取安排…</p></div>
           <details class="undated-details" data-preserve="undated"><summary><span>日期待核对的事项 <b id="undatedCount">0</b></span><span class="summary-hint">含文件中的考试提及与日期冲突</span></summary><div id="undatedList" class="undated-list"></div></details>
         </section>
 
@@ -211,7 +212,7 @@
           <p class="section-note">只保留最近 200 条操作记录。退出登录会删除账号日志；登录前及本次退出结果仅在本次运行中显示。</p>
         </section>
     </div>
-    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v2.1.0</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
+    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v2.2.0</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
   </dialog>
 
   <dialog id="eventDialog" class="event-dialog" aria-labelledby="dialogTitle">

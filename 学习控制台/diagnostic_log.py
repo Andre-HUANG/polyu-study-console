@@ -18,6 +18,7 @@ EVENTS = {
     "logout": "退出登录", "logout.cleanup": "删除账号数据",
     "sync": "更新 Canvas", "settings.sync": "修改自动同步设置",
     "event.save": "保存个人安排", "event.delete": "删除个人安排",
+    "event.mark": "更新作业完成标记", "calendar.export": "导出日历文件",
     "operation": "本机操作",
 }
 RESULTS = {"attempt": "开始", "success": "成功", "failure": "失败", "cancelled": "已取消", "partial": "部分完成"}

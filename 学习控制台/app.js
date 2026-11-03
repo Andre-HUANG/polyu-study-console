@@ -1,5 +1,5 @@
 let csrf = document.querySelector('meta[name="csrf-token"]').content;
-const state = { data: null, filter: 'all', course: 'all', eventSearch: '', eventRange: 'upcoming', busy: false, editOriginal: null, documentFilter: 'all', documentSearch: '', searchResults: null, settingsTab: 'account', logs: null, logFilter: 'all' };
+const state = { data: null, filter: 'all', course: 'all', eventSearch: '', eventRange: 'upcoming', showDone: false, busy: false, editOriginal: null, documentFilter: 'all', documentSearch: '', searchResults: null, settingsTab: 'account', logs: null, logFilter: 'all', targets: new Map(), section: '' };
 let searchTimer, searchRequest;
 const dateFormats = new Map();
 function dateFormatter(locale, options) { const key = JSON.stringify([locale, options]); if (!dateFormats.has(key)) (() => { if (dateFormats.size >= 24) dateFormats.delete(dateFormats.keys().next().value); dateFormats.set(key, new Intl.DateTimeFormat(locale, options)); })(); return dateFormats.get(key); }
@@ -73,6 +73,17 @@ function kindLabel(kind) {
   return { midterm: '期中考试', final: '期末考试', test: '其他测试', assignment: '作业 / 事项' }[kind] || '安排';
 }
 
+const examKinds = new Set(['midterm', 'final', 'test']);
+const openItem = (event) => !event.done;
+const openEvents = (data) => (data?.events || []).filter(openItem);
+const openOverdue = (data) => (data?.overdue || []).filter(openItem);
+const canvasUnsubmitted = (event) => event.source === 'canvas' && event.submissionState === 'unsubmitted' && event.submissionStateObserved === true;
+
+function shiftDate(value, days) {
+  const parsed = new Date(`${value}T12:00:00+08:00`); parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
 function validLink(url) {
   try {
     const parsed = new URL(url);
@@ -103,6 +114,8 @@ function setBusy(busy) {
   state.busy = busy;
   $('#refreshButton').disabled = busy || Boolean(state.data?.connection?.native && !state.data.connection.authorized);
   $('#addEventButton').disabled = busy || !state.data?.courseCount;
+  $('#exportCalendarButton').disabled = busy || !exportableRows().length;
+  document.querySelectorAll('#eventList [data-action="mark"]').forEach((button) => { button.disabled = busy; });
   $('#eventForm button[type="submit"]').disabled = busy;
   $('#refreshButton').classList.toggle('spinning', busy);
   $('#refreshButton').innerHTML = busy
@@ -111,7 +124,7 @@ function setBusy(busy) {
 }
 
 function updateActiveNav() {
-  const target = $('#settingsDialog').open && state.settingsTab === 'courses' ? '#courses' : location.hash || '#top';
+  const target = $('#settingsDialog').open && state.settingsTab === 'courses' ? '#courses' : state.section || location.hash || '#top';
   document.querySelectorAll('.side-nav a').forEach((link) => {
     const active = link.getAttribute('href') === target;
     link.classList.toggle('active', active);
@@ -236,12 +249,14 @@ function render(data) {
   if (data.connection?.native && !data.connection.authorized) {
     searchRequest?.abort(); documentsRequest?.abort(); documentsRevision = null; clearTimeout(searchTimer);
     state.documentSearch = ''; state.searchResults = null;
-    state.eventSearch = ''; state.eventRange = 'upcoming'; state.course = 'all'; state.filter = 'all';
+    state.eventSearch = ''; state.eventRange = 'upcoming'; state.course = 'all'; state.filter = 'all'; state.showDone = false; state.targets.clear();
     $('#eventSearch').value = ''; $('#eventRange').value = 'upcoming';
     document.querySelectorAll('[data-filter]').forEach(button => { const active = button.dataset.filter === 'all'; button.classList.toggle('selected', active); button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; });
     $('#documentSearch').value = ''; $('#documentMatches').innerHTML = '';
   }
-  $('#appVersion').textContent = `v${data.version || '2.1.0'}`;
+  const version = /^\d+\.\d+\.\d+$/.test(data.version || '') ? data.version : '2.2.0';
+  $('#appVersion').textContent = `v${version}`;
+  $('#brandVersion').textContent = version.split('.').slice(0, 2).join('.');
   const today = data.today;
   $('#todayLabel').textContent = hkDate(today, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   $('#syncCaption').textContent = data.lastSync
@@ -258,11 +273,12 @@ function render(data) {
   $('#latestContentDetail').innerHTML = change
     ? `${escapeHtml(change.type)} · ${escapeHtml(change.course || 'Canvas')} · ${anchor(change.url, change.title)}`
     : '暂未获取课程内容的更新时间';
-  $('#metricWeek').textContent = String(data.events.filter((event) => event.daysLeft <= 7).length);
-  $('#metricWeekRange').textContent = '未来 7 天内的安排';
+  const pending = openEvents(data), doneSoon = data.events.filter((event) => event.done && event.daysLeft <= 7).length;
+  $('#metricWeek').textContent = String(pending.filter((event) => event.daysLeft <= 7).length);
+  $('#metricWeekRange').textContent = doneSoon ? `未来 7 天待完成 · 另有 ${doneSoon} 项已完成` : '未来 7 天内的待完成安排';
   $('#metricCourses').textContent = String(data.courseCount);
-  $('#metricUpcoming').textContent = String(data.events.filter((event) => event.daysLeft <= 30).length);
-  const exam = data.events.find((event) => ['midterm', 'final', 'test'].includes(event.kind));
+  $('#metricUpcoming').textContent = String(pending.filter((event) => event.daysLeft <= 30).length);
+  const exam = data.events.find((event) => examKinds.has(event.kind));
   $('#metricExam').textContent = exam ? String(exam.daysLeft) : '—';
   $('#metricExamFoot').textContent = exam ? `${kindLabel(exam.kind)} · ${relative(exam.daysLeft)}` : '暂无已确认日期';
   renderFocus(data);
@@ -295,7 +311,7 @@ function openDocumentSearch() {
 
 function renderWorkspace(data) {
   const connection = data.connection || {}, signedOut = connection.native && !connection.authorized;
-  const waiting = (data.undated || []).length, overdue = (data.overdue || []).length;
+  const waiting = (data.undated || []).length, overdue = openOverdue(data).length;
   const pendingClasses = data.timetable?.pendingTotal ?? data.timetable?.pending?.length ?? 0;
   let title = '今天，从这里开始。', description = '查看近期安排、核对原文，把重要日期放在眼前。', action = 'schedule', label = '查看考试与作业', tone = 'ready';
   if (connection.needsLogin) {
@@ -312,8 +328,8 @@ function renderWorkspace(data) {
     title = '更新资料，再安排下一步。'; description = '当前资料已超过 24 小时。更新 Canvas，核对课程与文件中的最新变动。'; action = 'refresh'; label = '更新 Canvas'; tone = 'attention';
   } else if (waiting || pendingClasses) {
     description = `有 ${[waiting ? `${waiting} 项日期` : '', pendingClasses ? `${pendingClasses} 项课表安排` : ''].filter(Boolean).join('、')}待核对。打开来源确认后，再作安排。`;
-  } else if (!(data.events || []).length) {
-    description = '近期暂无已确认日期的安排。你可以查看课程资料，或根据原文添加安排。';
+  } else if (!openEvents(data).length) {
+    description = (data.events || []).length ? '近期已确认的作业都已标记完成。可以查看课程资料，或核对考试安排。' : '近期暂无已确认日期的安排。你可以查看课程资料，或根据原文添加安排。';
   }
   $('#workspaceWelcome').dataset.tone = tone;
   $('#welcomeTitle').textContent = title; $('#welcomeDescription').textContent = description;
@@ -503,7 +519,34 @@ function gradeComponentMarkup(component) {
   </div>`;
 }
 
-function gradeCourseMarkup(course) {
+function targetMarkup(course, index) {
+  const plan = course.planning;
+  if (!plan) return '';
+  return `<div class="grade-target" data-earned="${escapeHtml(plan.earned)}" data-remaining="${escapeHtml(plan.remainingWeight)}">
+    <div class="grade-target-head"><p class="section-kicker">TARGET PLANNER</p><h4>目标测算</h4></div>
+    <label class="grade-target-field"><span>目标总评</span><input type="number" inputmode="decimal" min="0" max="100" step="0.5" data-target-course="${escapeHtml(course.code)}" value="${escapeHtml(state.targets.get(course.code) || '')}" placeholder="例如 80" aria-describedby="grade-target-${index}"><b aria-hidden="true">%</b></label>
+    <p id="grade-target-${index}" class="grade-target-result" aria-live="polite"></p>
+    <small>仅按已核对的 100% 评分方案计算；未公布成绩不按零分计，结果只用于规划参考。</small>
+  </div>`;
+}
+
+function renderTarget(box) {
+  if (!box) return;
+  const input = box.querySelector('input'), result = box.querySelector('.grade-target-result');
+  const earned = Number(box.dataset.earned), remaining = Number(box.dataset.remaining);
+  const raw = input.value.trim(), target = Number(raw);
+  box.dataset.state = 'idle';
+  if (!raw || !Number.isFinite(target) || target < 0 || target > 100 || !Number.isFinite(earned) || !(remaining > 0)) {
+    result.textContent = raw ? '请输入 0–100 之间的目标百分比。' : `输入目标百分比，估算尚未计入折算的 ${gradeNumber(remaining)}% 权重需要的平均得分率。`;
+    return;
+  }
+  const need = (target - earned) / remaining * 100;
+  if (need <= 0) { box.dataset.state = 'reached'; result.textContent = `已折算 ${gradeNumber(earned)} 分，已不低于 ${gradeNumber(target)}% 的目标。`; }
+  else if (need > 100) { box.dataset.state = 'out'; result.textContent = `剩余 ${gradeNumber(remaining)}% 权重需平均 ${gradeNumber(need)}%，超过满分；按当前方案难以达到 ${gradeNumber(target)}%。`; }
+  else { box.dataset.state = need >= 85 ? 'stretch' : 'ok'; result.textContent = `剩余 ${gradeNumber(remaining)}% 权重平均达到 ${gradeNumber(Math.ceil(need * 10) / 10)}%，即可达到 ${gradeNumber(target)}%（还需约 ${gradeNumber(Math.max(0, target - earned))} 分）。`; }
+}
+
+function gradeCourseMarkup(course, index) {
   const hasCanvas = course.canvasCurrentPercent != null;
   const hasWeighted = course.earned != null;
   const canvasPrimary = hasCanvas && course.basis === 'canvas' && !course.conflict && !hasWeighted;
@@ -534,6 +577,7 @@ function gradeCourseMarkup(course) {
       <div class="grade-component-table">${components}</div>${other}
       ${hasWeighted ? `<p class="grade-subtotal">已评分部分：${escapeHtml(gradeNumber(course.earned))} / ${escapeHtml(gradeNumber(course.assessedWeight))} 权重点（${escapeHtml(gradeNumber(course.currentPercent))}%）。未结算项目未计入。</p>` : '<p class="grade-subtotal muted">课程折算暂为空；未公布的成绩未按零分计。</p>'}
       ${hasCanvas ? `<p class="canvas-grade-reference">Canvas 已公布的当前成绩：${escapeHtml(gradeNumber(course.canvasCurrentPercent))}%（按 Canvas 当前设置显示）</p>` : ''}
+      ${targetMarkup(course, index)}
     </div>
   </details>`;
 }
@@ -556,10 +600,11 @@ function renderGrades(data) {
   });
   $('#gradeCourseGrid').innerHTML = courses.length ? courses.map(gradeCourseMarkup).join('')
     : '<p class="empty-state">尚未读取到课程成绩。</p>';
+  document.querySelectorAll('#gradeCourseGrid .grade-target').forEach(renderTarget);
 }
 
 function renderFocus(data) {
-  const next = data.events[0];
+  const next = openEvents(data)[0];
   if (!next) {
     $('#focusCourse').textContent = '考试与作业';
     const loggedOut = data.connection?.native && !data.connection.authorized;
@@ -580,11 +625,43 @@ function renderFocus(data) {
   else $('#focusLink').removeAttribute('href');
 }
 
+function renderWorkload(data) {
+  const box = $('#workload');
+  const loggedOut = data.connection?.native && !data.connection.authorized;
+  box.hidden = Boolean(loggedOut) || !data.today;
+  if (box.hidden) return;
+  const days = Array.from({ length: 14 }, (_, index) => shiftDate(data.today, index));
+  const rows = openEvents(data);
+  const counts = days.map((date) => {
+    const items = rows.filter((event) => event.date === date);
+    return { date, exams: items.filter((event) => examKinds.has(event.kind)).length, tasks: items.filter((event) => !examKinds.has(event.kind)).length, total: items.length };
+  });
+  const peak = Math.max(3, ...counts.map((day) => day.total));
+  const busiest = counts.reduce((best, day) => day.total > best.total ? day : best, counts[0]);
+  const crowded = busiest.total >= 2;
+  $('#workloadDays').innerHTML = counts.map((day, index) => {
+    const weekday = hkDate(day.date, { weekday: 'narrow' });
+    const label = `${hkDate(day.date, { month: 'long', day: 'numeric', weekday: 'short' })}：${day.total ? [day.exams ? `${day.exams} 项考试` : '', day.tasks ? `${day.tasks} 项作业或事项` : ''].filter(Boolean).join('、') : '没有待完成安排'}`;
+    const weekend = ['六', '日'].includes(weekday);
+    return `<button type="button" class="workload-day${index === 0 ? ' is-today' : ''}${weekend ? ' is-weekend' : ''}${crowded && day === busiest ? ' is-peak' : ''}" data-workload-date="${escapeHtml(day.date)}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
+      <span class="workload-bar" aria-hidden="true">${day.tasks ? `<i class="workload-tasks" data-height="${Math.round(day.tasks / peak * 100)}"></i>` : ''}${day.exams ? `<i class="workload-exams" data-height="${Math.round(day.exams / peak * 100)}"></i>` : ''}</span>
+      <b aria-hidden="true">${day.total || ''}</b><small aria-hidden="true">${index === 0 ? '今' : escapeHtml(day.date.slice(8, 10).replace(/^0/, ''))}<em>${escapeHtml(weekday)}</em></small></button>`;
+  }).join('');
+  // The page CSP forbids inline style attributes; CSSOM sizing stays allowed.
+  $('#workloadDays').querySelectorAll('[data-height]').forEach((bar) => { bar.style.height = `${Math.max(8, Number(bar.dataset.height))}%`; });
+  const total = counts.reduce((sum, day) => sum + day.total, 0), exams = counts.reduce((sum, day) => sum + day.exams, 0);
+  $('#workloadSummary').textContent = total
+    ? `未来 14 天待完成 ${total} 项${exams ? `，其中考试 ${exams} 项` : ''}。${crowded ? `最集中：${hkDate(busiest.date, { month: 'long', day: 'numeric', weekday: 'short' })}（${busiest.total} 项）。` : '每天最多 1 项。'}点按日期可在校历中查看。`
+    : '未来 14 天暂无待完成的已确认安排。';
+}
+
 function renderUpNext(data) {
+  renderWorkload(data);
   const list = $('#upNextList');
-  const following = data.events.slice(1, 5);
+  const pending = openEvents(data);
+  const following = pending.slice(1, 5);
   if (!following.length) {
-    list.innerHTML = data.events.length ? '<p class="empty-state">暂无更多已确认的近期安排。</p>' : '<p class="empty-state">暂无已确认的近期安排。</p>';
+    list.innerHTML = pending.length ? '<p class="empty-state">暂无更多待完成的近期安排。</p>' : '<p class="empty-state">暂无待完成的近期安排。</p>';
     return;
   }
   list.innerHTML = following.map((event) => `
@@ -620,11 +697,13 @@ function eventMarkup(event) {
     ? ` · 占比 ${escapeHtml(event.weight)}` : ` · 权重${escapeHtml(event.weight)}`;
   const warnings = (event.warnings || []).filter((line) => line !== historicalNotice);
   const context = `<p class="event-source">${escapeHtml(source)}${weight}</p>` + (event.warnings || []).filter((line) => line === historicalNotice).map((line) => `<p class="event-note">${escapeHtml(line)}</p>`).join('');
-  return `<article class="event-row ${event.pending ? 'pending-event' : ''} ${elapsed ? 'elapsed-event' : ''} ${urgencyClass(event.daysLeft, elapsed)}">
+  const doneLine = event.done ? `<p class="event-status done-status">已标记完成${event.doneAt ? ` · ${escapeHtml(hkMoment(event.doneAt))}` : ''}${canvasUnsubmitted(event) ? ' · Canvas 上次同步仍显示未提交，请以 Canvas 为准' : ''}</p>` : '';
+  const markButton = event.markKey ? `<button type="button" class="mark-button${event.done ? ' is-done' : ''}" data-action="mark" data-id="${escapeHtml(event.id)}" data-mark="${escapeHtml(event.markKey)}" aria-pressed="${event.done ? 'true' : 'false'}" aria-label="${escapeHtml(`${event.done ? '撤销完成标记' : '标记完成'}：${event.title}`)}"${state.busy ? ' disabled' : ''}><span class="mark-box" aria-hidden="true">${event.done ? '✓' : ''}</span>${event.done ? '已完成' : '标记完成'}</button>` : '';
+  return `<article class="event-row ${event.pending ? 'pending-event' : ''} ${elapsed ? 'elapsed-event' : ''} ${event.done ? 'done-event' : ''} ${urgencyClass(event.daysLeft, elapsed)}" data-event-id="${escapeHtml(event.id)}">
     <div class="event-date"><strong>${escapeHtml(event.date.slice(8, 10))}</strong><span>${escapeHtml(hkDate(event.date, { month: 'short' }))}</span></div>
     <div class="event-main"><div class="event-meta"><span class="kind-badge ${className}">${escapeHtml(kindLabel(event.kind))}</span><span>${escapeHtml(event.course)}</span><span class="meta-divider">·</span><span>${escapeHtml(dateLabel)}</span></div>
       <h3>${anchor(event.url, event.title)}</h3>
-      ${elapsed ? `<p class="event-status">${escapeHtml(event.overdueLabel || (event.overdueState === 'canvas_unsubmitted' ? 'Canvas 上次同步显示未提交' : '已过日期，提交状态待核对'))}</p>` : ''}
+      ${elapsed && !event.done ? `<p class="event-status">${escapeHtml(event.overdueLabel || (event.overdueState === 'canvas_unsubmitted' ? 'Canvas 上次同步显示未提交' : '已过日期，提交状态待核对'))}</p>` : ''}${doneLine}
       ${event.note ? `<p class="event-note">${escapeHtml(event.note)}</p>` : ''}
       ${event.location ? `<p class="event-location">地点：${escapeHtml(event.location)}</p>` : ''}
       ${event.coverage?.length ? `<p class="event-note">范围：${escapeHtml(event.coverage.join('；'))}</p>` : ''}
@@ -633,27 +712,53 @@ function eventMarkup(event) {
       ${event.timeText && !event.time ? `<p class="event-note">${escapeHtml(event.timeText)}</p>` : ''}
       ${sourcesMarkup(event.sources, `event:${event.id}`, context)}
     </div>
-    <div class="event-right"><span class="event-remaining ${urgencyClass(event.daysLeft, elapsed)}">${escapeHtml(remaining)}</span>
+    <div class="event-right"><span class="event-remaining ${urgencyClass(event.daysLeft, elapsed)}">${escapeHtml(remaining)}</span>${markButton}
       ${event.editable ? `<div class="row-actions"><button type="button" data-action="edit" data-id="${escapeHtml(event.id)}">编辑</button><button type="button" data-action="delete" data-id="${escapeHtml(event.id)}">删除</button></div>` : '<span class="canvas-source">CANVAS</span>'}
     </div>
   </article>`;
 }
 
-function renderEvents(data) {
-  if (!data) return;
+function eventMatcher() {
   const query = state.eventSearch.trim().toLocaleLowerCase();
-  const matches = event => (state.filter === 'all' || event.kind === state.filter) &&
+  return event => (state.filter === 'all' || event.kind === state.filter) &&
     (state.course === 'all' || event.course === state.course) &&
     (!query || [event.title, event.course, event.note, event.location, event.reason].filter(Boolean).join(' ').toLocaleLowerCase().includes(query));
-  const elapsed = state.eventRange === 'overdue';
-  const all = elapsed ? (data.overdue || []) : data.events;
-  const rows = all.filter(event => matches(event) && (!['7', '30'].includes(state.eventRange) || event.daysLeft <= Number(state.eventRange)));
-  const filtered = Boolean(query) || state.filter !== 'all' || state.course !== 'all' || state.eventRange !== 'upcoming';
+}
+
+function filteredEvents(data) {
+  if (!data) return { rows: [], done: [], elapsed: false };
+  const matches = eventMatcher(), elapsed = state.eventRange === 'overdue';
+  const all = elapsed ? (data.overdue || []) : (data.events || []);
+  const inRange = all.filter(event => matches(event) && (!['7', '30'].includes(state.eventRange) || event.daysLeft <= Number(state.eventRange)));
+  const done = inRange.filter(event => event.done);
+  return { rows: state.showDone ? inRange : inRange.filter(openItem), done, elapsed };
+}
+
+function exportableRows() {
+  if (state.eventRange === 'overdue' || (state.data?.connection?.native && !state.data.connection.authorized)) return [];
+  return filteredEvents(state.data).rows.filter(event => !event.pending && /^\d{4}-\d{2}-\d{2}$/.test(event.date || ''));
+}
+
+function renderEvents(data) {
+  if (!data) return;
+  const matches = eventMatcher();
+  const { rows, done, elapsed } = filteredEvents(data);
+  const query = state.eventSearch.trim();
+  const filtered = Boolean(query) || state.filter !== 'all' || state.course !== 'all' || state.eventRange !== 'upcoming' || state.showDone;
   $('#clearEventFilters').hidden = !filtered;
-  $('#eventResults').textContent = `${rows.length} 项${elapsed ? '已过截止日期的作业' : '安排'}${filtered ? ' · 已应用筛选' : ''}${elapsed ? '。提交状态以 Canvas 或原文核对结果为准。' : ' · 时间以香港时间显示。'}`;
+  const toggle = $('#toggleDone');
+  toggle.hidden = !done.length && !state.showDone;
+  toggle.setAttribute('aria-pressed', String(state.showDone));
+  toggle.firstChild.textContent = state.showDone ? '隐藏已完成 ' : '显示已完成 ';
+  $('#doneCount').textContent = String(done.length);
+  const hiddenDone = !state.showDone && done.length ? ` · ${done.length} 项已完成已隐藏` : '';
+  $('#eventResults').textContent = `${rows.length} 项${elapsed ? '已过截止日期的作业' : '安排'}${hiddenDone}${filtered ? ' · 已应用筛选' : ''}${elapsed ? '。提交状态以 Canvas 或原文核对结果为准；核对后可标记完成。' : ' · 时间以香港时间显示。'}`;
   const loggedOut = data.connection?.native && !data.connection.authorized;
-  const empty = loggedOut ? '连接 Canvas 后，这里显示你的考试与作业。' : filtered ? '没有匹配的安排。试试其他关键词，或清除筛选。' : '暂无已确认日期的近期安排。你可以查看待核对事项，或根据原文添加安排。';
+  const empty = loggedOut ? '连接 Canvas 后，这里显示你的考试与作业。' : done.length && !state.showDone ? '当前筛选下的作业都已标记完成。点「显示已完成」可查看或撤销。' : filtered ? '没有匹配的安排。试试其他关键词，或清除筛选。' : '暂无已确认日期的近期安排。你可以查看待核对事项，或根据原文添加安排。';
   $('#eventList').innerHTML = rows.length ? rows.map(eventMarkup).join('') : `<div class="empty-state roomy">${empty}</div>`;
+  const exportable = exportableRows().length;
+  $('#exportCalendarButton').disabled = state.busy || !exportable;
+  $('#exportCalendarButton').title = elapsed ? '已过日期的作业不导出到日历' : exportable ? `把当前筛选中 ${exportable} 项已确认日期的安排导出为日历文件（.ics）` : '当前筛选中没有可导出的已确认日期安排';
   const pendingRows = data.undated.filter(matches);
   $('#undatedCount').textContent = String(pendingRows.length);
   $('#undatedList').innerHTML = pendingRows.length
@@ -662,7 +767,7 @@ function renderEvents(data) {
 }
 
 function clearEventFilters() {
-  state.filter = 'all'; state.course = 'all'; state.eventSearch = ''; state.eventRange = 'upcoming';
+  state.filter = 'all'; state.course = 'all'; state.eventSearch = ''; state.eventRange = 'upcoming'; state.showDone = false;
   $('#eventSearch').value = ''; $('#eventRange').value = 'upcoming'; $('#courseFilter').value = 'all';
   document.querySelectorAll('[data-filter]').forEach(button => { const active = button.dataset.filter === 'all'; button.classList.toggle('selected', active); button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; });
   renderEvents(state.data);
@@ -829,6 +934,58 @@ async function refresh() {
 }
 
 
+async function markEvent(event, button) {
+  if (state.busy || !event.markKey) return;
+  const done = !event.done;
+  const payload = { key: event.markKey, done };
+  if (done && canvasUnsubmitted(event)) {
+    if (!confirm(`Canvas 上次同步显示「${event.rawTitle || event.title}」未提交。\n如已通过线下或其他平台提交，可以标记完成；Canvas 状态不会改变。`)) return;
+    payload.confirm = true;
+  }
+  const row = button?.closest('.event-row');
+  const neighbour = row?.nextElementSibling?.querySelector('[data-action="mark"]') || row?.previousElementSibling?.querySelector('[data-action="mark"]');
+  const neighbourKey = neighbour?.dataset.mark;
+  setBusy(true);
+  try {
+    const result = await api('/api/event/mark', payload);
+    showNotice(result.message, 'success');
+  } catch (error) {
+    showNotice(error.message, 'error');
+  } finally {
+    setBusy(Boolean(state.data?.connection?.busy));
+    const target = document.querySelector(`#eventList [data-mark="${CSS.escape(event.markKey)}"]`) || (neighbourKey && document.querySelector(`#eventList [data-mark="${CSS.escape(neighbourKey)}"]`));
+    (target || $('#eventList')).focus({ preventScroll: Boolean(target) });
+  }
+}
+
+async function exportCalendar() {
+  const rows = exportableRows();
+  if (state.busy || !rows.length) return;
+  const button = $('#exportCalendarButton');
+  setBusy(true);
+  button.setAttribute('aria-busy', 'true');
+  try {
+    const result = await api('/api/export/calendar', { ids: rows.slice(0, 300).map((event) => event.id) });
+    showNotice(`${result.message}${rows.length > 300 ? ' 一次最多导出 300 项，请缩小筛选后分批导出。' : ''}`, 'success');
+    if (window.webkit?.messageHandlers?.polyu || window.pywebview?.api?.native_action) nativeAction('exportsFolder');
+  } catch (error) {
+    showNotice(error.message, 'error');
+  } finally { button.removeAttribute('aria-busy'); setBusy(Boolean(state.data?.connection?.busy)); }
+}
+
+function initSectionSpy() {
+  // Event-driven only: the observer reports band crossings and never polls.
+  if (!('IntersectionObserver' in window)) return;
+  const sections = ['#schedule', '#grades'].map((id) => $(id)).filter(Boolean);
+  const observer = new IntersectionObserver(() => {
+    const line = innerHeight * 0.35;
+    const active = sections.filter((section) => { const box = section.getBoundingClientRect(); return box.top <= line && box.bottom > line; }).pop();
+    const next = active ? `#${active.id}` : '#top';
+    if (next !== state.section) { state.section = next; updateActiveNav(); }
+  }, { threshold: [0, 1], rootMargin: '-35% 0px -64% 0px' });
+  sections.forEach((section) => observer.observe(section));
+}
+
 async function deleteEvent(event) {
   if (state.busy || !confirm(`删除「${event.rawTitle}」的手动安排？`)) return;
   setBusy(true);
@@ -934,8 +1091,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!item) return;
     if (button.dataset.action === 'edit') openEventDialog(item);
     if (button.dataset.action === 'delete') deleteEvent(item);
+    if (button.dataset.action === 'mark') markEvent(item, button);
   });
+  $('#toggleDone').addEventListener('click', () => { state.showDone = !state.showDone; renderEvents(state.data); });
+  $('#exportCalendarButton').addEventListener('click', exportCalendar);
+  $('#workloadDays').addEventListener('click', (event) => {
+    const day = event.target.closest('[data-workload-date]');
+    if (!day || !window.academicUI?.select) return;
+    window.academicUI.select(day.dataset.workloadDate);
+    $('.academic-calendar').scrollIntoView({ block: 'nearest' });
+  });
+  $('#gradeCourseGrid').addEventListener('input', (event) => {
+    const input = event.target.closest('input[data-target-course]');
+    if (!input) return;
+    state.targets.set(input.dataset.targetCourse, input.value);
+    renderTarget(input.closest('.grade-target'));
+  });
+  initSectionSpy();
   window.addEventListener('hashchange', () => {
+    if (['#top', '#schedule', '#grades'].includes(location.hash)) state.section = location.hash;
     if (location.hash === '#courses') { history.replaceState(null, '', '#top'); openSettings('courses', $('#coursesNav')); }
     else if (location.hash === '#documents') { history.replaceState(null, '', '#top'); openSettings('documents', $('#settingsButton')); }
     updateActiveNav();

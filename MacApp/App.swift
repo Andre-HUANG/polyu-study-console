@@ -5,7 +5,7 @@ import CryptoKit
 import Sparkle
 
 let applicationName = "PolyU study控制台"
-let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.1.0"
+let applicationVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.2.0"
 let canvasHost = "https://canvas.polyu.edu.hk"
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, URLSessionTaskDelegate {
@@ -364,6 +364,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         case "logout": logout()
         case "dataFolder": openDataFolder()
         case "filesFolder": openFilesFolder()
+        case "exportsFolder": openExportsFolder()
         default: break
         }
     }
@@ -660,6 +661,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         if testIsolation != nil { notice("隔离测试资料保存在临时目录。不会打开其他应用。"); return }
         let folder = dataDirectory.appendingPathComponent("account/documents/files", isDirectory: true)
         NSWorkspace.shared.open(FileManager.default.fileExists(atPath: folder.path) ? folder : dataDirectory)
+    }
+    @objc func openExportsFolder() {
+        if testIsolation != nil { notice("隔离测试资料保存在临时目录。不会打开其他应用。"); return }
+        let folder = dataDirectory.appendingPathComponent("account/exports", isDirectory: true)
+        let file = folder.appendingPathComponent("polyu-schedule.ics", isDirectory: false)
+        if FileManager.default.fileExists(atPath: file.path) { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+        else { NSWorkspace.shared.open(FileManager.default.fileExists(atPath: folder.path) ? folder : dataDirectory) }
     }
     func loadConsole() {
         postNative("bootstrap", payload: [:]) { result in

@@ -2,12 +2,13 @@
 
 连接香港理工大学 Canvas，集中查看考试与作业、成绩、课程变化和文档证据。学生制作的工具，非学校官方应用。首次启动为空框架，没有默认课程、预设评分比例或随包账号资料。
 
-当前版本：**2.1.0（构建 210）**，以 2.0.0 为基线，更新界面、窄窗口布局、截止日期提示和成绩进度条，并支持手动安排改名与调整课程。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。只有正式 Release 中的文件代表已发布版本；本仓库候选源码仍需通过下述发布门禁。所有历史 Release、标签和既有下载资产继续保留。
+当前版本：**2.2.0（构建 220）**，以 2.1.0 为基线，新增作业完成标记、导出日历文件、未来 14 天负荷条和成绩目标测算。安装包与签名更新源见 [GitHub Releases](https://github.com/Andre-HUANG/polyu-study-console/releases/latest)。只有正式 Release 中的文件代表已发布版本；本仓库候选源码仍需通过下述发布门禁。所有历史 Release、标签和既有下载资产继续保留。
 
 ## 可下载版本
 
 | 版本 | 功能与适用范围 | 下载与对应说明 |
 | --- | --- | --- |
+| v2.2.0 | 作业完成标记与撤销、当前筛选导出 .ics 日历、未来 14 天负荷条、成绩目标测算、侧栏滚动高亮 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v2.2.0) · [验收范围](release/validation-2.2.0.md) |
 | v2.1.0 | 更新界面、日期紧迫程度和成绩进度条；手动安排支持改名与调整课程 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v2.1.0) · [验收范围](release/validation-2.1.0.md) |
 | v2.0.0 | 学习总览与快捷资料搜索、安排搜索和日期范围、过期核对视图、校历个人安排、交互与安装器修复 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v2.0.0) · [验收范围](release/validation-2.0.0.md) |
 | v1.8.1 | 历史隐私安全修复版：本地 API 认证、Mac Keychain、Windows DPAPI 与跨平台打包修复；保留原始发布文件及哈希 | [安装包、SHA256 与发行说明](https://github.com/Andre-HUANG/polyu-study-console/releases/tag/v1.8.1) · [该版本源码](https://github.com/Andre-HUANG/polyu-study-console/tree/v1.8.1) |
@@ -19,12 +20,20 @@
 
 | 平台 | 安装包 | 系统与签名 |
 | --- | --- | --- |
-| Apple Silicon Mac | PolyUStudyConsole-2.1.0-arm64.dmg、.zip | macOS 13+，arm64；ad-hoc 签名，**未 Apple 公证** |
-| AMD / Intel Windows | PolyUStudyConsole-2.1.0-windows-x64-setup.exe、.zip | Windows 10 2004+、.NET Framework 4.8、WebView2 Runtime；未 Authenticode 签名 |
+| Apple Silicon Mac | PolyUStudyConsole-2.2.0-arm64.dmg、.zip | macOS 13+，arm64；ad-hoc 签名，**未 Apple 公证** |
+| AMD / Intel Windows | PolyUStudyConsole-2.2.0-windows-x64-setup.exe、.zip | Windows 10 2004+、.NET Framework 4.8、WebView2 Runtime；未 Authenticode 签名 |
 
 下载后对照同一 Release 的 SHA256SUMS.txt 校验。Mac 将完整 app 复制到应用程序目录；Windows 使用 Setup 或完整解压 Portable ZIP。应用自带 Python。安装说明见 [Mac](MacApp/安装与使用.txt) 与 [Windows](WindowsApp/安装与使用.txt)。只有正式 Release 中出现的文件才是已发布下载；CI 候选包不代表完成真实 Canvas SSO 验证。
 
 打开「设置 → Canvas 账号 → 登录并授权 Canvas」，在学校网页完成验证。可主动开启「在本机记住账号和密码」，同意说明后，本次或下次成功登录才会保存；以后打开学校登录窗口自动填入一次，仍需手动点击登录和完成学校验证。默认每小时同步，可手动更新。正式个人考试安排以学校 eStudent 信息为准。
+
+## 2.2 新增
+
+- 作业行可「标记完成」：已完成事项默认隐藏，「显示已完成」可查看或撤销。首页数字、最近安排、过期提醒和校历圆点只计未完成事项。标记只保存在本机账号目录，绑定截止时间；截止日期变化后自动失效并重新提醒。Canvas 明确显示未提交的作业需要再次确认，Canvas 的提交状态不会因此改变。
+- 「导出日历」把当前筛选中已确认日期的考试与作业写成 `account/exports/polyu-schedule.ics`（香港时间；有具体时间的提前 24 小时提醒，全天事项前一天 9:00 提醒），并在访达或资源管理器中定位，可导入 Apple 日历、Outlook 或 Google 日历。日期待核对和已过日期的事项不导出；文件不上传，退出登录时随账号删除。
+- 「接下来的安排」显示未来 14 天负荷条，点按日期在校历中查看当天清单。
+- 成绩卡片只在评分方案完整核对（合计 100%、无权重冲突或复杂规则）且已有折算时提供「目标测算」：输入目标总评，估算尚未计入部分需要的平均得分率；未公布成绩不按零分计。
+- 侧栏随页面滚动高亮当前栏目；以上新控件均不增加后台轮询。
 
 ## 2.0 日常使用
 
@@ -53,7 +62,7 @@ Mac 数据：~/Library/Application Support/PolyU study控制台/account/。Windo
 
 当前账号可见课程、作业、Quiz、公告、已公布成绩及附件；PDF 表格、Word 正文、本机 OCR 与全文检索；来源、页码、原文、未公布日期和冲突状态均保留。评分方案不明确或匹配不可靠时保持空白。Canvas 当前成绩单独显示。
 
-[SECURITY_TESTS.md](SECURITY_TESTS.md) 区分合成回归、真实本机运行、未执行及环境阻塞。真实学校登录/MFA、个人课表准确性、不同 ad-hoc 签名 helper 更新均不由离线测试证明；独立现有会话只读验收范围与最终测试状态见 [2.1 验收说明](release/validation-2.1.0.md)。[Actions](https://github.com/Andre-HUANG/polyu-study-console/actions) 是远程 CI 实际结果的来源。
+[SECURITY_TESTS.md](SECURITY_TESTS.md) 区分合成回归、真实本机运行、未执行及环境阻塞。真实学校登录/MFA、个人课表准确性、不同 ad-hoc 签名 helper 更新均不由离线测试证明；独立现有会话只读验收范围与最终测试状态见 [2.2 验收说明](release/validation-2.2.0.md)。[Actions](https://github.com/Andre-HUANG/polyu-study-console/actions) 是远程 CI 实际结果的来源。
 
 ## 开发与发布
 

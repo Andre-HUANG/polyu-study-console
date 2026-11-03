@@ -65,7 +65,7 @@
     for (let n = 1; n <= count; n++) {
       const date = ui.month + '-' + String(n).padStart(2, '0');
       const hints = (value.events || []).filter(row => row.start <= date && date <= row.end);
-      const arrangements = personal.filter(row => row.date === date);
+      const arrangements = personal.filter(row => row.date === date && !row.done);
       html += '<button type="button" data-calendar-date="' + date + '" class="' + (date === ui.date ? 'selected ' : '') + (date === today() ? 'today ' : '') + (arrangements.length ? 'has-arrangements ' : '') + (hints.some(h => h.scope === 'all') ? 'holiday' : hints.length ? 'marked' : '') + '" tabindex="' + (date === focusDate ? '0' : '-1') + '" aria-pressed="' + (date === ui.date) + '"' + (date === today() ? ' aria-current="date"' : '') + ' aria-label="' + e(hkDate(date, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }) + (arrangements.length ? '，' + arrangements.length + ' 项个人安排' : '') + (hints.length ? '，' + hints.map(h => h.title).join('；') : '')) + '">' + n + (arrangements.length ? '<i class="personal-date-dot" aria-hidden="true"></i>' : '') + '</button>';
     }
     const focusedDate = document.activeElement?.dataset?.calendarDate;
@@ -78,7 +78,7 @@
     }
     $('#selectedDateTitle').textContent = hkDate(ui.date, { month: 'long', day: 'numeric' }) + ' · 个人安排';
     const selected = personal.filter(row => row.date === ui.date);
-    $('#selectedDateEvents').innerHTML = selected.length ? selected.map(row => '<div class="calendar-agenda-item"><span>' + e(row.course) + ' · ' + e(kindLabel(row.kind)) + '</span><strong>' + anchor(row.url, row.title) + '</strong><small>' + e(row.timeText || row.time || '具体时间待核对') + (row.overdueState ? ' · 已过截止日期，请核对状态' : '') + '</small></div>').join('') : '<p class="calendar-agenda-empty">' + (ui.data?.connection?.native && !ui.data.connection.authorized ? '连接 Canvas 后查看个人安排。' : '本日暂无已读取的考试或作业。') + '</p>';
+    $('#selectedDateEvents').innerHTML = selected.length ? selected.map(row => '<div class="calendar-agenda-item"><span>' + e(row.course) + ' · ' + e(kindLabel(row.kind)) + '</span><strong>' + anchor(row.url, row.title) + '</strong><small>' + e(row.timeText || row.time || '具体时间待核对') + (row.done ? ' · 已标记完成' : row.overdueState ? ' · 已过截止日期，请核对状态' : '') + '</small></div>').join('') : '<p class="calendar-agenda-empty">' + (ui.data?.connection?.native && !ui.data.connection.authorized ? '连接 Canvas 后查看个人安排。' : '本日暂无已读取的考试或作业。') + '</p>';
     $('#calendarWeek').textContent = value.teachingWeek ? '当前：学期 ' + value.teachingWeek.semester + ' · 第 ' + value.teachingWeek.number + ' 教学周' : '当前为非教学周 / 学年外';
     $('#calendarDatesTitle').textContent = '本月重要日期 · ' + (value.events || []).length + ' 项';
     $('#calendarEvents').innerHTML = (value.events || []).map(row => '<li><span>' + e(row.start.slice(5) + (row.end !== row.start ? ' — ' + row.end.slice(5) : '')) + '</span><p>' + e(row.title) + (row.tentative ? '（暂定）' : '') + (row.scope === 'evening' ? ' · 仅晚间停课' : '') + '</p></li>').join('') || '<li>本月暂无校历事项</li>';
@@ -180,6 +180,10 @@
     if (!data.connection?.authorized) { if (ui.calendar) renderCalendar(); ui.timetable = { events: [], pending: [] }; if ($('#classDialog').open) $('#classDialog').close(); renderTimetable(); }
     if (!(data.academicCalendar && ui.month === data.academicCalendar.month && !ui.year && data.timetable && ui.date === data.today && ui.view === 'day' && !ui.course)) refresh();
   }
+  function select(date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !ui.data) return;
+    ui.date = date; ui.month = date.slice(0, 7); ui.year = ''; ui.view = 'day'; ui.calendarFocus = date; refresh();
+  }
   function advanceDay() {
     const day = today(), previous = ui.currentDay;
     if (previous && previous !== day) {
@@ -188,5 +192,5 @@
     }
     ui.currentDay = day;
   }
-  window.academicUI = { init, render, refresh, cancel, tick: advanceDay };
+  window.academicUI = { init, render, refresh, cancel, select, tick: advanceDay };
 })();

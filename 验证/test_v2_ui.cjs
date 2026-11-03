@@ -18,6 +18,7 @@ const courses = [
 ];
 const event = (id, title, date, daysLeft, kind = 'assignment', course = 'DEMO201') => ({
   id, title, rawTitle: title, date, daysLeft, kind, course, courseName: courses.find(c => c.code === course).name,
+  ...(kind === 'assignment' ? { markKey: id.replace(/[^0-9]/g, '').padStart(32, 'a'), done: false } : {}),
   time: kind === 'assignment' ? '23:59' : '14:30', location: kind === 'assignment' ? '' : '教学楼 A201',
   weight: '—', source: 'canvas', sourceLabel: 'Canvas 作业', status: '未交', editable: false, url: source,
   sources: [{ title: 'Synthetic course outline.pdf', locator: '第 3 页', quote: 'Synthetic evidence only.', url: source }],
@@ -51,7 +52,7 @@ function fixture(authorized = true) {
       earned: null, canvasCurrentPercent: i === 0 ? 86 : null, basis: 'canvas', gradedCount: i === 0 ? 2 : 0 })) : [] },
     academicCalendar: calendar, timetable: authorized ? timetable : { ...timetable, events: [] } };
 }
-let data = fixture(false), failDocuments = false, failSave = false, requests = [], delayAcademic = 0;
+let data = fixture(false), failDocuments = false, failSave = false, requests = [], delayAcademic = 0, posts = [];
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.jpg': 'image/jpeg' };
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://127.0.0.1'); requests.push(u.pathname);
@@ -61,6 +62,18 @@ const server = http.createServer((req, res) => {
     else finish();
   };
   if (u.pathname.startsWith('/api/')) {
+    if (req.method === 'POST' && ['/api/event/mark', '/api/export/calendar'].includes(u.pathname)) {
+      let body = ''; req.on('data', chunk => { body += chunk; });
+      return req.on('end', () => {
+        const payload = JSON.parse(body || '{}'); posts.push({ path: u.pathname, payload });
+        if (u.pathname === '/api/export/calendar') return send(200, { message: `已导出 ${payload.ids.length} 项安排到本机日历文件 polyu-schedule.ics`, data });
+        const row = [...data.events, ...data.overdue].find(r => r.markKey === payload.key);
+        if (!row) return send(400, { error: '合成测试：标记不存在' });
+        row.done = payload.done; if (payload.done) row.doneAt = '2026-10-18T10:00:00+08:00'; else delete row.doneAt;
+        data = { ...data, revision: data.revision + '+' };
+        return send(200, { message: payload.done ? '已标记完成。' : '已恢复为待完成。', data });
+      });
+    }
     if (u.pathname === '/api/data') return send(200, data);
     if (u.pathname === '/api/status') return send(200, { revision: data.revision, connection: data.connection });
     if (u.pathname === '/api/documents') return send(failDocuments ? 503 : 200, failDocuments ? { error: '合成测试：文档暂不可读' } : docs);
@@ -75,7 +88,8 @@ const server = http.createServer((req, res) => {
   const name = u.pathname === '/' ? 'index.html' : u.pathname.slice(1);
   const allowed = ['index.html', 'app.js', 'academic-ui.js', 'styles.css', 'assets/polyu-logo.png', 'assets/polyu-favicon.ico', 'assets/polyu-emblem.jpg'];
   if (!allowed.includes(name)) { res.writeHead(404); return res.end(); }
-  res.writeHead(200, { 'Content-Type': mime[path.extname(name)] || 'text/plain' });
+  // Mirror the production policy so inline styles or scripts fail this regression.
+  res.writeHead(200, { 'Content-Type': mime[path.extname(name)] || 'text/plain', 'Content-Security-Policy': "default-src 'self' data:; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" });
   res.end(fs.readFileSync(path.join(root, '学习控制台', name)));
 });
 const checks = [], errors = [];
@@ -89,7 +103,7 @@ async function main() {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
     await context.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
     const page = await context.newPage(); page.on('pageerror', e => errors.push(String(e)));
-    await page.addInitScript(() => { window.syntheticActions = []; window.webkit = { messageHandlers: { polyu: { postMessage: v => window.syntheticActions.push(v) } } }; });
+    await page.addInitScript(() => { window.cspViolations = []; document.addEventListener('securitypolicyviolation', e => window.cspViolations.push(e.violatedDirective + ' ' + (e.sample || ''))); window.syntheticActions = []; window.webkit = { messageHandlers: { polyu: { postMessage: v => window.syntheticActions.push(v) } } }; });
     await page.goto(base); await page.waitForFunction(() => document.querySelector('#metricCourses').textContent === '0');
     await check('first connection is actionable', async () => {
       await page.locator('#welcomeAction').click();
@@ -152,6 +166,95 @@ async function main() {
       assert.deepEqual(payload.original, { course: 'DEMO201', title: 'Original personal final' });
       await page.locator('#eventDialog').waitFor({ state: 'hidden' });
       await page.evaluate(value => render(value), data);
+    });
+    await check('2.2 completion marks hide work, update counts and can be undone', async () => {
+      assert.equal(await page.locator('#brandVersion').textContent(), release.version.split('.').slice(0, 2).join('.'));
+      assert.equal(await page.locator('#metricWeek').textContent(), '2');
+      const mark = page.locator('#eventList [data-action="mark"]').first();
+      assert.equal(await mark.getAttribute('aria-pressed'), 'false');
+      await mark.click();
+      await page.waitForFunction(() => document.querySelectorAll('#eventList .event-row').length === 2);
+      const sent = posts.at(-1); assert.equal(sent.path, '/api/event/mark'); assert.equal(sent.payload.done, true); assert.equal(sent.payload.confirm, undefined);
+      assert.equal(await page.locator('#metricWeek').textContent(), '1');
+      assert.match(await page.locator('#metricWeekRange').textContent(), /1 项已完成/);
+      assert.equal(await page.locator('#focusTitle').textContent(), 'Midterm assessment');
+      assert(await page.locator('#toggleDone').isVisible()); assert.equal(await page.locator('#doneCount').textContent(), '1');
+      assert.match(await page.locator('#eventResults').textContent(), /1 项已完成已隐藏/);
+      assert(await page.evaluate(() => document.activeElement.closest('#eventList') !== null));
+      await page.locator('#toggleDone').click();
+      assert.equal(await page.locator('#eventList .event-row').count(), 3);
+      assert(await page.locator('#eventList .event-row.done-event').count() === 1);
+      assert.match(await page.locator('#eventList .done-event').textContent(), /已标记完成/);
+      await page.locator('#eventList .done-event [data-action="mark"]').click();
+      await page.waitForFunction(() => !document.querySelector('#eventList .done-event'));
+      assert.equal(posts.at(-1).payload.done, false);
+      assert.equal(await page.locator('#metricWeek').textContent(), '2');
+      await page.locator('#clearEventFilters').click();
+      assert(await page.locator('#toggleDone').isHidden());
+    });
+    await check('2.2 explicit Canvas unsubmitted state asks before marking', async () => {
+      const original = data;
+      data = structuredClone(data); data.events[0] = { ...data.events[0], source: 'canvas', submissionState: 'unsubmitted', submissionStateObserved: true };
+      data.revision += ':unsubmitted'; await page.evaluate(value => render(value), data);
+      const count = posts.length;
+      page.once('dialog', dialog => dialog.dismiss());
+      await page.locator('#eventList [data-action="mark"]').first().click();
+      await page.waitForTimeout(150); assert.equal(posts.length, count);
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator('#eventList [data-action="mark"]').first().click();
+      await page.waitForFunction(n => window.fetch && document.querySelectorAll('#eventList .event-row').length === 2, count);
+      assert.equal(posts.at(-1).payload.confirm, true);
+      data = original; await page.evaluate(value => render(value), data);
+    });
+    await check('2.2 calendar export sends the visible confirmed rows and reveals the file', async () => {
+      await page.locator('#courseFilter').selectOption('DEMO302');
+      await page.evaluate(() => { window.syntheticActions.length = 0; });
+      await page.locator('#exportCalendarButton').click();
+      await page.waitForFunction(() => window.syntheticActions.some(a => a.action === 'exportsFolder'));
+      assert.deepEqual(posts.at(-1).payload.ids, ['canvas:2']);
+      assert.match(await page.locator('#notice').textContent(), /已导出 1 项/);
+      await page.locator('#clearEventFilters').click();
+      await page.locator('#eventRange').selectOption('overdue');
+      assert(await page.locator('#exportCalendarButton').isDisabled());
+      await page.locator('#clearEventFilters').click();
+      assert(await page.locator('#exportCalendarButton').isEnabled());
+    });
+    await check('2.2 workload strip covers 14 days and opens the calendar date', async () => {
+      assert.equal(await page.locator('#workloadDays .workload-day').count(), 14);
+      assert.match(await page.locator('#workloadSummary').textContent(), /未来 14 天待完成 2 项.*每天最多 1 项/);
+      const heights = await page.locator('#workloadDays .workload-bar i').evaluateAll(bars => bars.map(b => b.style.height));
+      assert(heights.length >= 2 && heights.every(h => /%$/.test(h)));
+      await page.locator('[data-workload-date="2026-10-21"]').click();
+      await page.waitForFunction(() => document.querySelector('[data-calendar-date="2026-10-21"]')?.getAttribute('aria-pressed') === 'true');
+      assert.match(await page.locator('#selectedDateEvents').textContent(), /Midterm assessment/);
+      await page.locator(`[data-calendar-date="${day}"]`).click();
+    });
+    await check('2.2 grade target planner uses only the verified remaining weight', async () => {
+      const original = data;
+      data = structuredClone(data); data.revision += ':planning';
+      Object.assign(data.grades.courses[2], { earned: 18, assessedWeight: 20, currentPercent: 90, gradedCount: 1,
+        planning: { totalWeight: 100, earned: 18, assessedWeight: 20, remainingWeight: 80 } });
+      await page.evaluate(value => render(value), data);
+      const card = page.locator('#gradeCourseGrid .grade-course-card').filter({ hasText: 'DEMO403' });
+      await card.locator('summary').click();
+      assert.equal(await page.locator('#gradeCourseGrid .grade-target').count(), 1);
+      const input = card.locator('.grade-target input');
+      await input.fill('80'); assert.match(await card.locator('.grade-target-result').textContent(), /77\.5%/);
+      await input.fill('100'); assert.match(await card.locator('.grade-target-result').textContent(), /超过满分/);
+      await input.fill('15'); assert.match(await card.locator('.grade-target-result').textContent(), /已不低于/);
+      await input.fill('150'); assert.match(await card.locator('.grade-target-result').textContent(), /0–100/);
+      await input.fill('80');
+      await page.evaluate(value => render({ ...value, revision: value.revision + ':rerender', grades: structuredClone(value.grades) }), data);
+      assert.equal(await card.locator('.grade-target input').inputValue(), '80');
+      assert.match(await card.locator('.grade-target-result').textContent(), /77\.5%/);
+      await card.locator('summary').click();
+      data = original; await page.evaluate(value => render(value), data);
+    });
+    await check('2.2 sidebar follows the scrolled section', async () => {
+      await page.evaluate(() => document.querySelector('#grades').scrollIntoView({ block: 'start' }));
+      await page.waitForFunction(() => document.querySelector('.side-nav a[href="#grades"]').getAttribute('aria-current') === 'page');
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForFunction(() => document.querySelector('.side-nav a[href="#top"]').getAttribute('aria-current') === 'page');
     });
     await check('deadline search, ranges and clearing combine correctly', async () => {
       await page.locator('#eventRange').selectOption('7'); assert.equal(await page.locator('#eventList .event-row').count(), 2);
@@ -230,7 +333,10 @@ async function main() {
       assert.doesNotMatch(await page.locator('#selectedDateEvents').textContent(), /Urban|Synthetic|DEMO/);
       assert.equal(await page.locator('#gradeCourseGrid .grade-course-card').count(), 0);
     });
-    await check('no uncaught browser errors', async () => assert.deepEqual(errors, []));
+    await check('no uncaught browser errors or CSP violations', async () => {
+      assert.deepEqual(errors, []);
+      assert.deepEqual(await page.evaluate(() => window.cspViolations), []);
+    });
     fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify({ ok: true, checks, errors, syntheticDataOnly: true, realCanvasValidated: false }, null, 2));
     console.log(JSON.stringify({ ok: true, checks: checks.length, output }));
   } finally { await browser.close(); }
