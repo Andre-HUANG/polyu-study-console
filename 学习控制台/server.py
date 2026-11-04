@@ -40,6 +40,7 @@ import calendar_export
 import runtime_cache
 import academic_calendar
 import timetable
+import evidence_review
 
 
 HERE = Path(__file__).resolve().parent
@@ -541,7 +542,7 @@ def markable(row):
 
 
 def canvas_reports_unsubmitted(row):
-    return (row.get("source") == "canvas" and row.get("submissionState") == "unsubmitted"
+    return (row.get("submissionState") == "unsubmitted"
             and row.get("submissionStateObserved") is True)
 
 
@@ -578,8 +579,7 @@ def split_deadline_events(events, now):
         candidate = (past and row.get("kind") == "assignment" and not row.get("pending")
                      and row.get("status") not in completed and row.get("submissionState") not in SUBMITTED)
         if candidate:
-            canvas_unsubmitted = (row.get("source") == "canvas" and row.get("submissionState") == "unsubmitted"
-                                  and row.get("submissionStateObserved") is True)
+            canvas_unsubmitted = canvas_reports_unsubmitted(row)
             row["overdueState"] = "canvas_unsubmitted" if canvas_unsubmitted else "date_passed"
             row["overdueLabel"] = ("Canvas 上次同步显示未提交" if canvas_unsubmitted else "已过日期，提交状态待核对")
             overdue.append(row)
@@ -601,6 +601,11 @@ def dashboard_data():
     courses = config.get("courses") or []
     course_names = {row.get("code"): row.get("name") for row in courses}
     documents = public_summary(PROFILE) if signed_in else {}
+    schemes = load_json(PROFILE / 'grading_schemes.json', {}) if signed_in else {}
+    review = evidence_review.project(PROFILE, config, documents, snapshot, state, schemes) if signed_in else {
+        'documents': documents, 'schemes': {}, 'reviews': {'items': [], 'history': []},
+        'events': [], 'suppressed': set(), 'hiddenCanvas': set(), 'hiddenManual': set()}
+    documents = review['documents']
     evidence = documents.get("evidence") or {}
     source_events = {DOCUMENT_DEADLINE_PREFIX + e["id"]: e for e in evidence.get("deadlines") or []}
 
@@ -610,6 +615,7 @@ def dashboard_data():
     manual_urls = {row.get("url") for row in manual if row.get("url")}
     manual_assignment_ids = {str(row.get("assignment_id")) for row in manual if row.get("assignment_id")}
     for i, row in enumerate(manual):
+        if i in review['hiddenManual']: continue
         date = row.get("date")
         if not isinstance(date, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             continue
@@ -640,9 +646,12 @@ def dashboard_data():
             "sources": sources,
             "pending": bool(row.get("pending")),
             "submissionState": linked_assignment.get("sub_state"),
+            "submissionStateObserved": linked_assignment.get("submission_state_observed") is True,
+            "cached": bool(linked_assignment.get("cached")),
         })
 
     for aid, row in (snapshot.get("assignments") or {}).items():
+        if str(aid) in review['suppressed']: continue
         if row.get("html_url") in manual_urls or str(aid) in manual_assignment_ids:
             continue
         due = local_time(row.get("due_at"))
@@ -677,8 +686,10 @@ def dashboard_data():
         if any(row.get("course") == event["course"] and row.get("date") == event["date"] and re.search(event["pattern"], row.get("rawTitle") or "", re.I) for row in events): continue
         sources = event.get("sources") or []
         events.append({**event, "id": "document:" + event["id"], "source": "documents", "rawTitle": event["title"], "courseName": course_names.get(event["course"], ""),
+            "time": event.get('time') or '',
             "weight": f"{event['weight']:g}%" if event.get("weight") is not None else "—", "status": "待参加" if event["kind"] != "assignment" else "未交", "pending": False,
             "url": safe_url(sources[0].get("url")) if sources else "", "note": "", "sourceLabel": "Canvas 课程文件 · 自动识别", "editable": False})
+    events.extend({**row, 'url': safe_url(row.get('url')), 'courseName': course_names.get(row['course'], '')} for row in review['events'])
     for row in events:
         row["daysLeft"] = (datetime.fromisoformat(row["date"]).date() - today).days
     events.sort(key=lambda x: (x["date"], x["time"] or "00:00", x["course"] or ""))
@@ -688,6 +699,7 @@ def dashboard_data():
 
     undated = []
     for aid, row in (snapshot.get("assignments") or {}).items():
+        if str(aid) in review['hiddenCanvas']: continue
         if row.get("due_at") or row.get("lock_at") or row.get("sub_state") in SUBMITTED:
             continue
         if row.get("html_url") in manual_urls or str(aid) in manual_assignment_ids:
@@ -735,7 +747,9 @@ def dashboard_data():
         "timetable": timetable.query(PROFILE, config, today.isoformat()) if signed_in else {"date": today.isoformat(), "view": "day", "days": [today.isoformat()], "events": [], "pending": [], "issues": []},
         "grades": build_grades(courses, snapshot.get("assignments"), safe_url,
                                raw_assignment_meta(snapshot, courses), PROFILE / "grading_schemes.json",
-                               load_json(PROFILE / "canvas-course-grades.json", {}) if signed_in else None),
+                               load_json(PROFILE / "canvas-course-grades.json", {}) if signed_in else None,
+                               schemes_override=review['schemes']),
+        "reviews": review['reviews'],
         "courseCount": len(courses), "courses": courses,
         "events": upcoming, "overdue": overdue, "undated": undated, "recent": recent[:10],
         "snapshotComplete": bool(snapshot.get("complete", False)),
@@ -873,7 +887,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_sensitive(status_data())
         if path == "/api/documents":
             with runtime_cache.snapshot():
-                value = public_summary(PROFILE) if connection_data()["authorized"] else {}
+                value = dashboard_data()['documents'] if connection_data()["authorized"] else {}
             return self.send_sensitive(value)
         if path == "/api/data":
             revision = status_data()["revision"]
@@ -1006,6 +1020,10 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/event/save":
                 message = self.save_event(payload)
                 diagnostics().record('event.save', 'success')
+            elif path == '/api/evidence/review':
+                message = evidence_review.mutate(PROFILE, load_json(PROFILE / 'config.json', {}),
+                    public_summary(PROFILE), load_json(PROFILE / 'snapshot.json', {}),
+                    load_json(PROFILE / 'state.json', {}), load_json(PROFILE / 'grading_schemes.json', {}), payload)
             elif path == "/api/event/delete":
                 message = self.delete_event(payload)
                 diagnostics().record('event.delete', 'success')

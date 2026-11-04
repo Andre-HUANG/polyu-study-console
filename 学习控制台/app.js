@@ -4,6 +4,7 @@ let searchTimer, searchRequest;
 const dateFormats = new Map();
 function dateFormatter(locale, options) { const key = JSON.stringify([locale, options]); if (!dateFormats.has(key)) (() => { if (dateFormats.size >= 24) dateFormats.delete(dateFormats.keys().next().value); dateFormats.set(key, new Intl.DateTimeFormat(locale, options)); })(); return dateFormats.get(key); }
 let settingsTrigger, logRequest, documentsRequest, documentsRevision;
+let activeReview = null, reviewTrigger = null, reviewSaving = false;
 const historicalNotice = '部分页面保留其他学年的日期；已采用当前学年且相互印证的安排';
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -77,7 +78,7 @@ const examKinds = new Set(['midterm', 'final', 'test']);
 const openItem = (event) => !event.done;
 const openEvents = (data) => (data?.events || []).filter(openItem);
 const openOverdue = (data) => (data?.overdue || []).filter(openItem);
-const canvasUnsubmitted = (event) => event.source === 'canvas' && event.submissionState === 'unsubmitted' && event.submissionStateObserved === true;
+const canvasUnsubmitted = (event) => event.submissionState === 'unsubmitted' && event.submissionStateObserved === true;
 
 function shiftDate(value, days) {
   const parsed = new Date(`${value}T12:00:00+08:00`); parsed.setUTCDate(parsed.getUTCDate() + days);
@@ -237,7 +238,7 @@ async function api(path, payload) {
 }
 
 function render(data) {
-  const contentKey = JSON.stringify([data.today, data.version, data.courses, data.events, data.overdue, data.undated, data.recent, data.grades, data.lastSync, data.freshness, data.recentChanges, data.latestCanvasChange]);
+  const contentKey = JSON.stringify([data.today, data.version, data.courses, data.events, data.overdue, data.undated, data.reviews, data.recent, data.grades, data.lastSync, data.freshness, data.recentChanges, data.latestCanvasChange]);
   if (state.contentKey === contentKey) {
     state.data = data; renderConnection(data); renderWorkspace(data); window.academicUI?.render(data);
     if ($('#settingsDialog').open && state.settingsTab === 'documents') selectSettingsTab('documents');
@@ -247,6 +248,8 @@ function render(data) {
   const expanded = new Map([...document.querySelectorAll('details[data-preserve]')].map((item) => [item.dataset.preserve, item.open]));
   state.data = data;
   if (data.connection?.native && !data.connection.authorized) {
+    if ($('#reviewDialog').open) $('#reviewDialog').close();
+    activeReview = null; $('#reviewFields').innerHTML = ''; $('#reviewSources').innerHTML = ''; $('#reviewNote').value = '';
     searchRequest?.abort(); documentsRequest?.abort(); documentsRevision = null; clearTimeout(searchTimer);
     state.documentSearch = ''; state.searchResults = null;
     state.eventSearch = ''; state.eventRange = 'upcoming'; state.course = 'all'; state.filter = 'all'; state.showDone = false; state.targets.clear();
@@ -254,7 +257,7 @@ function render(data) {
     document.querySelectorAll('[data-filter]').forEach(button => { const active = button.dataset.filter === 'all'; button.classList.toggle('selected', active); button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; });
     $('#documentSearch').value = ''; $('#documentMatches').innerHTML = '';
   }
-  const version = /^\d+\.\d+\.\d+$/.test(data.version || '') ? data.version : '2.2.0';
+  const version = /^\d+\.\d+\.\d+$/.test(data.version || '') ? data.version : '2.3.0';
   $('#appVersion').textContent = `v${version}`;
   $('#brandVersion').textContent = version.split('.').slice(0, 2).join('.');
   const today = data.today;
@@ -311,7 +314,9 @@ function openDocumentSearch() {
 
 function renderWorkspace(data) {
   const connection = data.connection || {}, signedOut = connection.native && !connection.authorized;
-  const waiting = (data.undated || []).length, overdue = openOverdue(data).length;
+  const reviewItems = data.reviews?.items || [];
+  const waiting = data.reviews ? reviewItems.filter(r => !unpublishedReview(r)).length : (data.undated || []).length, overdue = openOverdue(data).length;
+  const unpublished = data.reviews ? reviewItems.filter(unpublishedReview).length : 0;
   const pendingClasses = data.timetable?.pendingTotal ?? data.timetable?.pending?.length ?? 0;
   let title = '今天，从这里开始。', description = '查看近期安排、核对原文，把重要日期放在眼前。', action = 'schedule', label = '查看考试与作业', tone = 'ready';
   if (connection.needsLogin) {
@@ -327,7 +332,9 @@ function renderWorkspace(data) {
   } else if (data.freshness?.state === 'stale') {
     title = '更新资料，再安排下一步。'; description = '当前资料已超过 24 小时。更新 Canvas，核对课程与文件中的最新变动。'; action = 'refresh'; label = '更新 Canvas'; tone = 'attention';
   } else if (waiting || pendingClasses) {
-    description = `有 ${[waiting ? `${waiting} 项日期` : '', pendingClasses ? `${pendingClasses} 项课表安排` : ''].filter(Boolean).join('、')}待核对。打开来源确认后，再作安排。`;
+    description = `有 ${[waiting ? `${waiting} 项资料` : '', pendingClasses ? `${pendingClasses} 项课表安排` : ''].filter(Boolean).join('、')}待核实。对照原文确认，结果会录入对应安排或评分方案。`;
+  } else if (unpublished) {
+    description = `有 ${unpublished} 项尚未公布明确日期，后续同步会继续查找；已获知日期时可直接补充。`;
   } else if (!openEvents(data).length) {
     description = (data.events || []).length ? '近期已确认的作业都已标记完成。可以查看课程资料，或核对考试安排。' : '近期暂无已确认日期的安排。你可以查看课程资料，或根据原文添加安排。';
   }
@@ -335,9 +342,9 @@ function renderWorkspace(data) {
   $('#welcomeTitle').textContent = title; $('#welcomeDescription').textContent = description;
   $('#welcomeAction').textContent = label; $('#welcomeAction').dataset.action = action;
   $('#welcomeDocuments').hidden = Boolean(signedOut);
-  $('#pendingShortcut').hidden = !waiting; $('#pendingShortcut').textContent = `${waiting} 项日期待核对 →`;
+  $('#pendingShortcut').hidden = !waiting && !pendingClasses && !unpublished; $('#pendingShortcut').textContent = waiting + pendingClasses ? `${waiting + pendingClasses} 项待核实 →` : `${unpublished} 项待公布日期 →`;
   $('#overdueShortcut').hidden = !overdue; $('#overdueShortcut').textContent = `${overdue} 项已过截止日期 →`;
-  $('#attentionLinks').hidden = !waiting && !overdue;
+  $('#attentionLinks').hidden = !waiting && !pendingClasses && !unpublished && !overdue;
   const status = $('#canvasConnectionState');
   status.textContent = connection.needsLogin ? '需要重新登录' : signedOut ? '尚未连接' : connection.busy ? '正在同步' : connection.lastError || data.freshness?.state === 'partial' ? '部分未完成' : data.lastSync ? '已连接 · 本机资料' : '等待同步';
   status.dataset.tone = tone;
@@ -574,6 +581,7 @@ function gradeCourseMarkup(course, index) {
       ${course.source ? `<p class="grade-source">评分标准：${escapeHtml(course.source)}</p>` : ''}
       ${course.note ? `<p class="grade-caveat ${course.conflict ? 'conflict' : ''}">${escapeHtml(course.note)}</p>` : ''}
       ${course.mappingNote ? `<p class="grade-caveat conflict">${escapeHtml(course.mappingNote)}</p>` : ''}
+      ${(state.data?.reviews?.items || []).filter(r => r.type === 'grading' && r.course === course.code).map(r => `<button type="button" class="button button-outline" data-review-id="${escapeHtml(r.id)}">核实评分方案</button>`).join('')}
       <div class="grade-component-table">${components}</div>${other}
       ${hasWeighted ? `<p class="grade-subtotal">已评分部分：${escapeHtml(gradeNumber(course.earned))} / ${escapeHtml(gradeNumber(course.assessedWeight))} 权重点（${escapeHtml(gradeNumber(course.currentPercent))}%）。未结算项目未计入。</p>` : '<p class="grade-subtotal muted">课程折算暂为空；未公布的成绩未按零分计。</p>'}
       ${hasCanvas ? `<p class="canvas-grade-reference">Canvas 已公布的当前成绩：${escapeHtml(gradeNumber(course.canvasCurrentPercent))}%（按 Canvas 当前设置显示）</p>` : ''}
@@ -759,11 +767,136 @@ function renderEvents(data) {
   const exportable = exportableRows().length;
   $('#exportCalendarButton').disabled = state.busy || !exportable;
   $('#exportCalendarButton').title = elapsed ? '已过日期的作业不导出到日历' : exportable ? `把当前筛选中 ${exportable} 项已确认日期的安排导出为日历文件（.ics）` : '当前筛选中没有可导出的已确认日期安排';
-  const pendingRows = data.undated.filter(matches);
+  const hasReviews = Boolean(data.reviews);
+  const pendingRows = hasReviews ? (data.reviews.items || []).filter(unpublishedReview).filter(matches) : data.undated.filter(matches);
+  $('#undatedLabel').firstChild.textContent = hasReviews ? '待公布日期 ' : '日期待核对的事项 ';
+  $('#undatedHint').textContent = hasReviews ? '尚未公布不算来源冲突，后续同步继续查找' : '含文件中的考试提及与日期冲突';
   $('#undatedCount').textContent = String(pendingRows.length);
   $('#undatedList').innerHTML = pendingRows.length
-    ? pendingRows.map((event) => `<div class="undated-row"><span>${escapeHtml(event.course)}</span><div class="pending-copy">${anchor(event.url, event.title)}${event.reason ? `<p>${escapeHtml(event.reason)}</p>` : ''}${sourcesMarkup(event.sources, `pending:${event.id}`)}</div></div>`).join('')
-    : '<p class="empty-state">当前筛选下没有待核对日期的事项。</p>';
+    ? pendingRows.map((event) => `<div class="undated-row"><span>${escapeHtml(event.course)}</span><div class="pending-copy">${anchor(event.url, event.title)}${event.reason ? `<p>${escapeHtml(event.reason)}</p>` : ''}${sourcesMarkup(event.sources, `pending:${event.id}`)}${hasReviews ? `<button class="text-link" type="button" data-review-id="${escapeHtml(event.id)}">已获知日期 / 不适用</button>` : ''}</div></div>`).join('')
+    : `<p class="empty-state">当前筛选下没有${hasReviews ? '待公布' : '待核对'}日期的事项。</p>`;
+  renderReviews(data);
+}
+
+function unpublishedReview(row) { return row.type === 'date' && row.needsReview === false; }
+
+function reviewType(row) {
+  return row.type === 'grading' ? '评分方案' : row.type === 'detail' ? (row.field === 'time' ? '考试时间' : '地点') : '日期';
+}
+
+function reviewResult(row) {
+  if (row.action === 'dismiss') return '已排除，不录入安排。';
+  if (row.type === 'grading') return (row.components || []).map((c, i) => `${c.name || `第 ${i + 1} 项`} ${gradeNumber(c.weight)}%`).join(' · ');
+  return [row.date ? hkDate(row.date, { year: 'numeric', month: 'long', day: 'numeric' }) : '', row.time ? row.time + (row.endTime ? `–${row.endTime}` : '') : '', row.location].filter(Boolean).join(' · ');
+}
+
+function renderReviews(data) {
+  const reviews = data.reviews || {}, all = (reviews.items || []).filter(r => !unpublishedReview(r));
+  const query = state.eventSearch.trim().toLocaleLowerCase();
+  const matches = row => (state.course === 'all' || row.course === state.course) && (!query || [row.course, row.title, row.reason, row.note, row.location, ...(row.components || []).map(c => c.name)].filter(Boolean).join(' ').toLocaleLowerCase().includes(query));
+  const rows = all.filter(matches), history = (reviews.history || []).filter(matches);
+  $('#reviewCenter').hidden = !data.reviews || (!all.length && !(reviews.history || []).length);
+  $('#reviewCount').textContent = String(rows.length);
+  $('#reviewList').innerHTML = rows.length ? rows.map(row => `<article class="review-row"><div><span class="review-kind">${escapeHtml(row.course)} · ${reviewType(row)}</span><h4>${escapeHtml(row.title)}</h4><p>${escapeHtml(row.reason || '请核对来源后确认。')}</p>${row.lockedReason ? `<p class="review-locked">${escapeHtml(row.lockedReason)}</p>` : ''}${sourcesMarkup(row.sources, `review:${row.id}`)}</div><button class="button button-outline" type="button" data-review-id="${escapeHtml(row.id)}">${row.lockedReason ? '查看核实条件' : '核实并录入'}</button></article>`).join('') : `<p class="empty-state">${all.length ? '当前筛选下没有待核实事项。' : '当前没有待核实事项。已处理的内容已用于相应安排或评分方案。'}</p>`;
+  $('#reviewHistory').hidden = !history.length;
+  $('#reviewHistoryCount').textContent = String(history.length);
+  $('#reviewHistoryList').innerHTML = history.map(row => `<article class="review-row review-history-row"><div><span class="review-kind">${escapeHtml(row.course)} · ${reviewType(row)} · ${row.stale ? '需重新核实' : row.action === 'dismiss' ? '不适用' : '已核实'}</span><h4>${escapeHtml(row.title)}</h4><p>${escapeHtml(reviewResult(row))}</p><p>${escapeHtml(row.at ? hkLongMoment(row.at) : '')}${row.note ? ` · ${escapeHtml(row.note)}` : ''}</p>${row.stale ? '<p class="review-locked">来源已变化，请重新核实；本次旧决定已停止应用。</p>' : ''}${sourcesMarkup(row.sources, `review-history:${row.id}`)}</div><button class="text-link" type="button" data-review-reset="${escapeHtml(row.id)}">撤销核实</button></article>`).join('');
+}
+
+function openReviews() {
+  if ($('#settingsDialog').open) $('#settingsDialog').close();
+  clearEventFilters(); location.hash = '#schedule';
+  if ((state.data?.reviews?.items || []).some(r => !unpublishedReview(r))) {
+    $('#reviewCenter').scrollIntoView({ block: 'center' }); $('#reviewTitle').focus({ preventScroll: true });
+  } else if (state.data?.timetable?.pendingTotal || state.data?.timetable?.pending?.length) {
+    const details = $('#timetablePending'); details.open = true; details.scrollIntoView({ block: 'center' }); details.querySelector('summary')?.focus({ preventScroll: true });
+  } else {
+    const details = $('.undated-details'); details.open = true; details.scrollIntoView({ block: 'center' }); details.querySelector('summary').focus({ preventScroll: true });
+  }
+}
+
+function reviewField(name, label, type = 'text', value = '', extra = '') {
+  return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${escapeHtml(value)}" ${extra}></label>`;
+}
+
+function openReview(id, trigger) {
+  if (reviewSaving || state.busy) return;
+  const row = state.data?.reviews?.items?.find(r => r.id === id);
+  if (!row) { showNotice('这项资料已变化，请刷新后重试。', 'error'); return; }
+  activeReview = row; reviewTrigger = trigger;
+  const form = $('#reviewForm'); form.reset();
+  $('#reviewFormError').hidden = true; $('#reviewFormError').textContent = '';
+  $('#reviewDialogTitle').textContent = `核实${reviewType(row)}`;
+  $('#reviewContext').textContent = `${row.course} · ${row.title}。${row.reason || ''}`;
+  $('#reviewSources').innerHTML = (row.sources || []).map(source => `<div class="evidence-source">${anchor(source.url, source.title || 'Canvas 来源')}<small>${escapeHtml(source.locator || (source.page ? `第 ${source.page} 页` : 'Canvas 原文'))}</small>${source.quote ? `<blockquote>${escapeHtml(source.quote)}</blockquote>` : ''}</div>`).join('') || '<p class="section-note">暂未附原文摘录，请先打开对应 Canvas 来源核对。</p>';
+  let html = '';
+  if (row.type === 'date') {
+    html = reviewField('title', '事项名称', 'text', row.title, 'maxlength="120" required') + `<label class="field"><span>安排分类</span><select name="kind"><option value="assignment">作业 / 事项</option><option value="midterm">期中考试</option><option value="final">期末考试</option><option value="test">其他测试</option></select></label>` + reviewField('date', '已核实日期', 'date', row.date || '', 'required') + reviewField('time', '开始 / 截止时间（可选）', 'time', row.time) + reviewField('endTime', '结束时间（可选）', 'time', row.endTime) + reviewField('location', '地点（可选）', 'text', row.location, 'maxlength="160"');
+  } else if (row.type === 'detail') {
+    html = `<p class="field-full section-note">原文候选：${escapeHtml((row.alternatives || []).join(' / '))}</p>` + (row.field === 'time' ? reviewField('time', '已核实开始时间', 'time', row.time, 'required') + reviewField('endTime', '结束时间（可选）', 'time', row.endTime) : reviewField('location', '已核实地点', 'text', row.location, 'maxlength="160" required'));
+  } else if (row.type === 'grading') {
+    html = (row.components || []).map((component, i) => `<label class="field"><span>${escapeHtml(component.name)} · 占总评 %</span><input name="weight-${i}" data-review-weight="${escapeHtml(component.key)}" type="number" min="0" max="100" step="any" required value="${component.weight == null ? '' : escapeHtml(component.weight)}" ${row.lockedReason ? 'disabled' : ''}><small>${component.alternatives?.length ? `原文：${escapeHtml(component.alternatives.join(' / '))}%` : '请按课程完整评分方案填写'}</small></label>${sourcesMarkup(component.sources, `review-weight:${row.id}:${component.key}`)}`).join('');
+  }
+  $('#reviewFields').innerHTML = html;
+  if (row.type === 'date') form.elements.kind.value = ['assignment', 'midterm', 'final', 'test'].includes(row.kind) ? row.kind : 'test';
+  $('#reviewTotal').hidden = row.type !== 'grading';
+  $('#reviewDismiss').hidden = row.type !== 'date';
+  $('#reviewSave').disabled = Boolean(row.lockedReason);
+  $('#reviewSave').textContent = row.type === 'grading' ? '确认完整方案并应用' : '确认并录入';
+  $('#reviewDestination').textContent = row.lockedReason || (row.type === 'grading' ? '完整方案须合计 100%。确认后用于已公布分数的折算；未出分、对应关系不明或复杂规则仍留空。' : '确认后写入本机考试与作业安排，并更新相关日历信息；保留原始来源，可在核实记录中撤销。');
+  updateReviewTotal(); $('#reviewDialog').showModal();
+  $('#reviewDialogTitle').focus({ preventScroll: true }); form.scrollTop = 0; $('#reviewDialog').scrollTop = 0;
+}
+
+function updateReviewTotal() {
+  if (activeReview?.type !== 'grading') return;
+  const inputs = [...document.querySelectorAll('[data-review-weight]')], complete = inputs.length && inputs.every(i => i.value.trim() !== '' && Number.isFinite(Number(i.value)) && Number(i.value) > 0 && Number(i.value) <= 100);
+  const total = inputs.reduce((n, i) => n + (Number(i.value) || 0), 0);
+  $('#reviewTotal').textContent = `当前合计 ${gradeNumber(total)}%${!complete ? ' · 请补全每项权重' : Math.abs(total - 100) > .001 ? ' · 须合计 100% 才能应用' : ' · 完整方案'}`;
+}
+
+function reviewError(message, field) {
+  const error = $('#reviewFormError'); error.hidden = false; error.textContent = message;
+  (field || error).focus();
+}
+
+async function submitReview(action = 'confirm') {
+  if (!activeReview || reviewSaving || state.busy) return;
+  const row = activeReview, form = $('#reviewForm'), payload = { id: row.id, digest: row.digest, action, note: form.elements.note.value.trim() };
+  $('#reviewFormError').hidden = true;
+  if (action === 'dismiss') {
+    if (!payload.note) { reviewError('请填写不适用原因，便于以后检查或撤销。', form.elements.note); return; }
+  } else {
+    if (row.lockedReason) { reviewError(row.lockedReason); return; }
+    const invalid = [...form.querySelectorAll('input[required]')].find(input => !input.value.trim() || !input.checkValidity());
+    if (invalid) { reviewError('请补全已核实的信息，检查日期、时间或权重格式。', invalid); return; }
+    if (row.type === 'grading') {
+      payload.components = [...form.querySelectorAll('[data-review-weight]')].map(input => ({ key: input.dataset.reviewWeight, weight: Number(input.value) }));
+      if (payload.components.some(c => c.weight <= 0)) { reviewError('每项权重须大于 0 且不超过 100%，请核对完整评分方案。'); return; }
+      if (Math.abs(payload.components.reduce((n, c) => n + c.weight, 0) - 100) > .001) { reviewError('完整评分方案须合计 100%，请核对原文。'); return; }
+    } else {
+      const fields = row.type === 'date' ? ['title', 'kind', 'date', 'time', 'endTime', 'location'] : row.field === 'time' ? ['time', 'endTime'] : ['location'];
+      for (const name of fields) payload[name] = form.elements[name].value.trim();
+      if (payload.endTime && (!payload.time || payload.endTime <= payload.time)) { reviewError('结束时间须晚于开始时间。', form.elements.endTime); return; }
+    }
+  }
+  reviewSaving = true; $('#reviewSave').disabled = true; $('#reviewDismiss').disabled = true; form.setAttribute('aria-busy', 'true');
+  try {
+    const result = await api('/api/evidence/review', payload);
+    $('#reviewDialog').close(); documentsRevision = null;
+    showNotice(result.message || '核实结果已应用。', 'success');
+  } catch (error) { reviewError(error.message); }
+  finally { reviewSaving = false; $('#reviewSave').disabled = Boolean(activeReview?.lockedReason); $('#reviewDismiss').disabled = false; form.removeAttribute('aria-busy'); }
+}
+
+async function resetReview(id) {
+  if (state.busy || reviewSaving) return;
+  const row = state.data?.reviews?.history?.find(r => r.id === id);
+  if (!row || !confirm(`撤销「${row.title}」的核实结果？相关安排或折算将恢复为依据当前来源自动判断。`)) return;
+  reviewSaving = true;
+  try { const result = await api('/api/evidence/review', { id: row.id, digest: row.digest, action: 'reset' }); documentsRevision = null; showNotice(result.message || '已撤销核实。', 'success'); $('#reviewTitle').focus(); }
+  catch (error) { showNotice(error.message, 'error'); }
+  finally { reviewSaving = false; }
 }
 
 function clearEventFilters() {
@@ -783,6 +916,7 @@ function renderDocuments(data) {
   $('#documentPageCount').textContent = `${docs.processedPages || 0} / ${docs.pageCount || 0}`;
   $('#documentFindingCount').textContent = String(docs.findingCount || 0);
   $('#documentReviewCount').textContent = String(docs.reviewCount || 0);
+  $('#documentReviewButton').hidden = !(state.data?.reviews?.items || []).some(r => !unpublishedReview(r));
   $('#documentDownloadReport').textContent = docs.downloadedAt
     ? `${docs.downloadComplete ? 'Canvas 模块中可见附件已全部下载。' : '附件下载尚未全部完成，清单中的失败项会在下次登录同步时重试。'} ${docs.downloadedFiles || 0} / ${docs.downloadFileCount || 0} 个文件；完成时间 ${hkLongMoment(docs.downloadedAt)}。下载目录位于本机当前账号的 documents/files。`
     : '登录后先按课程与 Canvas 模块下载附件，下载阶段结束后才开始逐份识别。';
@@ -853,7 +987,7 @@ async function searchDocumentText() {
 function renderCourses(data) {
   const sorted = [...data.courses].sort((a, b) => a.code.localeCompare(b.code));
   $('#courseGrid').innerHTML = sorted.map((course, index) => {
-    const next = data.events.find((event) => event.course === course.code);
+    const next = openEvents(data).find((event) => event.course === course.code);
     const href = `https://canvas.polyu.edu.hk/courses/${encodeURIComponent(course.id)}/modules`;
     return `<article class="course-card"><div class="course-card-top"><span class="course-index">${String(index + 1).padStart(2, '0')}</span><span class="course-code">${escapeHtml(course.code)}</span></div>
       <h3>${escapeHtml(course.name)}</h3><p class="course-next">${next ? `下一项：${escapeHtml(next.title)} · ${escapeHtml(hkDate(next.date))}` : '暂无已确认日期的近期安排'}</p>
@@ -1000,6 +1134,9 @@ async function deleteEvent(event) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('click', (event) => {
+    const review = event.target.closest('[data-review-id]'), reset = event.target.closest('[data-review-reset]');
+    if (review) { openReview(review.dataset.reviewId, review); return; }
+    if (reset) { resetReview(reset.dataset.reviewReset); return; }
     const source = event.target.closest('a[target="_blank"]');
     if (source && window.pywebview?.api?.native_action && validLink(source.href)) {
       event.preventDefault();
@@ -1009,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#refreshButton').addEventListener('click', refresh);
   $('#searchButton').addEventListener('click', openDocumentSearch);
   document.addEventListener('keydown', event => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && !event.altKey && !event.isComposing && !$('#eventDialog').open && !$('#classDialog').open) { event.preventDefault(); openDocumentSearch(); }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && !event.altKey && !event.isComposing && !$('#eventDialog').open && !$('#classDialog').open && !$('#reviewDialog').open) { event.preventDefault(); openDocumentSearch(); }
   });
   $('#welcomeAction').addEventListener('click', event => {
     const action = event.currentTarget.dataset.action;
@@ -1020,7 +1157,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     else openSettings('account', event.currentTarget);
   });
   $('#welcomeDocuments').addEventListener('click', event => openSettings('documents', event.currentTarget));
-  $('#pendingShortcut').addEventListener('click', () => { clearEventFilters(); location.hash = '#schedule'; const details = $('.undated-details'); details.open = true; details.scrollIntoView({ block: 'center' }); details.querySelector('summary').focus({ preventScroll: true }); });
+  $('#pendingShortcut').addEventListener('click', openReviews);
+  $('#documentReviewButton').addEventListener('click', openReviews);
+  $('#reviewForm').addEventListener('submit', event => { event.preventDefault(); submitReview(); });
+  $('#reviewFields').addEventListener('input', updateReviewTotal);
+  $('#reviewDismiss').addEventListener('click', () => submitReview('dismiss'));
+  const closeReview = () => { if (!reviewSaving) $('#reviewDialog').close(); };
+  $('#reviewClose').addEventListener('click', closeReview); $('#reviewCancel').addEventListener('click', closeReview);
+  $('#reviewDialog').addEventListener('cancel', event => { if (reviewSaving) event.preventDefault(); });
+  $('#reviewDialog').addEventListener('close', () => {
+    activeReview = null;
+    if (state.data?.connection?.native && !state.data.connection.authorized) return;
+    if (reviewTrigger?.isConnected) reviewTrigger.focus();
+    else if (!$('#reviewCenter').hidden) $('#reviewTitle').focus({ preventScroll: true });
+    else $('#eventList').focus({ preventScroll: true });
+  });
   $('#overdueShortcut').addEventListener('click', () => { clearEventFilters(); state.eventRange = 'overdue'; $('#eventRange').value = 'overdue'; renderEvents(state.data); location.hash = '#schedule'; $('#eventRange').focus({ preventScroll: true }); });
   $('#eventSearch').addEventListener('input', event => { state.eventSearch = event.target.value; renderEvents(state.data); });
   $('#eventRange').addEventListener('change', event => { state.eventRange = event.target.value; renderEvents(state.data); });

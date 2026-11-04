@@ -1,0 +1,9 @@
+{
+  "version": "2.3.0",
+  "baselineVersion": "2.2.0",
+  "reportType": "pending-measurement",
+  "status": "not-measured",
+  "embeddedMeasurements": false,
+  "actualBatteryEnergyMeasured": false,
+  "note": "Performance acceptance is pending for the final 2.3.0 commit. No 2.2.0 measurements or receipts are reused."
+}

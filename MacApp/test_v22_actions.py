@@ -88,7 +88,7 @@ class V22Actions(unittest.TestCase):
         return next(r for r in data['events'] + data['overdue'] if r['rawTitle'] == title)
 
     def test_release_identity_advances_from_published_baseline(self):
-        self.assertEqual((VERSION, BUILD, BASELINE_VERSION, BASELINE_BUILD), ('2.2.0', '220', '2.1.0', '210'))
+        self.assertEqual((VERSION, BUILD, BASELINE_VERSION, BASELINE_BUILD), ('2.3.0', '230', '2.2.0', '220'))
         self.assertIn('calendar_export.py', CONSOLE_FILES)
         self.assertTrue({'event-marks.json', 'exports', 'polyu-schedule.ics'} <= FORBIDDEN)
         self.assertFalse(set(CONSOLE_FILES) & FORBIDDEN)

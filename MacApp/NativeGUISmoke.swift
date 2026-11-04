@@ -270,6 +270,7 @@ final class NativeGUISmoke {
             {...base,id:'synthetic-project',title:'Final project',rawTitle:'Final project',kind:'assignment'}],
             undated:[{id:'synthetic-unpublished',course:course.code,title:'期末考试日期未公布',kind:'final',reason:'尚未公布日期',sources:[]},
             {id:'synthetic-undated-project',course:course.code,title:'Project date pending',kind:'assignment',sources:[]}]};
+            window._smokeData.reviews={items:window._smokeData.undated.map(row=>({...row,type:'date',needsReview:false,digest:'synthetic-native-review'})),history:[]};
             window.polyuReload=async()=>render(window._smokeData);render(window._smokeData);
             document.querySelector('[data-filter="final"]').click();
             document.querySelector('[data-class-view="week"]').click();
@@ -280,7 +281,8 @@ final class NativeGUISmoke {
             collapsed:!!details && !details.open,summary:details?.querySelector('summary').textContent==='查看详情',
             sourceQuiet:!list.innerText.includes('核对来源') && !list.innerText.includes('自动识别'),historyQuiet:!list.innerText.includes(historicalNotice),
             conflictVisible:list.innerText.includes('地点信息需要核对'),timeVisible:list.innerText.includes('14:00'),venueVisible:list.innerText.includes('ZS301'),
-            onePending:document.getElementById('undatedCount').textContent==='1',unpublished:document.getElementById('undatedList').textContent.includes('尚未公布日期')},
+            onePending:document.getElementById('undatedCount').textContent==='1',unpublished:document.getElementById('undatedList').textContent.includes('尚未公布日期'),
+            reviewAction:document.querySelectorAll('#undatedList [data-review-id]').length===1},
             visibleText:list.innerText,pendingText:document.getElementById('undatedList').innerText}})()
             """) { value in
             guard let result = value as? [String: Any], let checks = result["checks"] as? [String: Bool], checks.values.allSatisfy({$0}) else {

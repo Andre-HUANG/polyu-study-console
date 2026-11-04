@@ -50,9 +50,9 @@ def read_json(path, default):
 
 FILES = ("config.json", "login.json", "state.json", "snapshot.json", "app-settings.json",
          "assignment-meta.json", "announcements.json", "grading_schemes.json",
-         "canvas-course-grades.json", "documents/index.json", "documents/downloads.json",
+         "canvas-course-grades.json", "canvas-grading-settings.json", "documents/index.json", "documents/downloads.json",
          "sync-status.json", "documents/timetable.json", "timetable-manual.json",
-         "calendar/official.json", "event-marks.json")
+         "calendar/official.json", "event-marks.json", "documents/reviews.json")
 
 def revision(profile, epoch, day):
     value = [str(Path(profile).resolve()), epoch, day,
