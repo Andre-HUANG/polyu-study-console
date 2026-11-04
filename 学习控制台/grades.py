@@ -103,13 +103,15 @@ def target_planning(components, verified, earned, assessed_weight):
     return {"totalWeight": round(total, 3), "earned": earned, "assessedWeight": assessed_weight, "remainingWeight": remaining}
 
 
-def build_grades(courses, assignments, safe_url, raw_assignment_meta=None, schemes_path=None, course_totals=None):
+def build_grades(courses, assignments, safe_url, raw_assignment_meta=None, schemes_path=None, course_totals=None, schemes_override=None):
     raw_assignment_meta = raw_assignment_meta or {}
     course_totals = course_totals or {}
     try:
         schemes = json.loads(Path(schemes_path or SCHEMES).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         schemes = {}
+    if schemes_override is not None:
+        schemes = schemes_override
     all_rows = [(str(aid), row) for aid, row in (assignments or {}).items() if isinstance(row, dict)]
     recent = [item for aid, row in all_rows if (item := grade_item(aid, row, safe_url))]
     recent.sort(key=lambda item: item["at"] or "", reverse=True)

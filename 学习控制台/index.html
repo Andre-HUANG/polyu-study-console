@@ -19,7 +19,7 @@
       <a class="brand" href="#top" aria-label="PolyU 学习控制台首页">
         <img src="/assets/polyu-logo.png" alt="香港理工大学 The Hong Kong Polytechnic University" class="official-logo">
       </a>
-      <div class="brand-caption">study 控制台 <span id="brandVersion">2.2</span></div>
+      <div class="brand-caption">study 控制台 <span id="brandVersion">2.3</span></div>
       <div class="side-label">工作区</div>
       <nav class="side-nav">
         <a class="active" href="#top"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg></span> 学习总览</a>
@@ -139,7 +139,12 @@
           <div class="schedule-search"><label class="schedule-query"><span class="sr-only">搜索安排</span><input id="eventSearch" type="search" maxlength="120" placeholder="搜索名称、课程、地点或备注…"></label><label class="schedule-range"><span class="sr-only">安排日期范围</span><select id="eventRange"><option value="upcoming">全部未来安排</option><option value="7">未来 7 天</option><option value="30">未来 30 天</option><option value="overdue">已过截止日期</option></select></label><button id="toggleDone" class="button button-light done-toggle" type="button" aria-pressed="false" hidden>显示已完成 <b id="doneCount">0</b></button><button id="clearEventFilters" class="button button-light" type="button" hidden>清除筛选</button></div>
           <p id="eventResults" class="event-results" role="status" aria-live="polite"></p>
           <div id="eventList" class="event-list" aria-label="筛选后的安排" tabindex="-1"><p class="loading-text">正在读取安排…</p></div>
-          <details class="undated-details" data-preserve="undated"><summary><span>日期待核对的事项 <b id="undatedCount">0</b></span><span class="summary-hint">含文件中的考试提及与日期冲突</span></summary><div id="undatedList" class="undated-list"></div></details>
+          <section id="reviewCenter" class="review-center" aria-labelledby="reviewTitle" hidden>
+            <div class="review-heading"><div><p class="section-kicker">CHECK & APPLY</p><h3 id="reviewTitle" tabindex="-1">待核实 <b id="reviewCount">0</b></h3><p class="section-note">对照原文核实后，结果直接用于安排或成绩计算；已处理事项移入核实记录。此清单仅按课程和搜索词筛选。</p></div></div>
+            <div id="reviewList" class="review-list"></div>
+            <details id="reviewHistory" class="review-history" data-preserve="review-history" hidden><summary>核实记录 <b id="reviewHistoryCount">0</b> · 查看 / 撤销</summary><div id="reviewHistoryList"></div></details>
+          </section>
+          <details class="undated-details" data-preserve="undated"><summary><span id="undatedLabel">日期待核对的事项 <b id="undatedCount">0</b></span><span class="summary-hint" id="undatedHint">含文件中的考试提及与日期冲突</span></summary><div id="undatedList" class="undated-list"></div></details>
         </section>
 
         <section id="grades" class="grades-section" aria-labelledby="gradesTitle">
@@ -189,6 +194,7 @@
         <section id="documents" class="document-section panel" data-settings-panel="documents" role="tabpanel" aria-labelledby="settings-documents-tab" hidden>
           <div class="panel-heading"><div><p class="section-kicker">INSIGHTS FROM YOUR DOCUMENTS</p><h2 id="documentsTitle">课程文档自动识别</h2><p class="section-note">从每门课的课件、提纲、日程和公告中提取考试、作业及评分细则。自动关联分散的日期、时间和地点，结果附原文与页码。</p></div><span id="documentStatus" class="document-status">等待登录</span></div>
           <div class="document-metrics"><div><strong id="documentDownloadCount">—</strong><span>已下载附件 / 模块所列</span></div><div><strong id="documentFileCount">—</strong><span>已识别文件 / 已发现</span></div><div><strong id="documentPageCount">—</strong><span>已处理页 / 位置</span></div><div><strong id="documentFindingCount">—</strong><span>已提取考核信息</span></div><div><strong id="documentReviewCount">—</strong><span>来源冲突 / 识别歧义</span></div></div>
+          <button id="documentReviewButton" class="button button-outline" type="button" hidden>前往核实并录入</button>
           <div id="documentLoadError" class="document-load-error" hidden><p id="documentLoadMessage" role="alert"></p><button id="documentRetry" class="button button-outline" type="button">重新读取</button></div>
           <p id="documentDownloadReport" class="document-progress" role="status" aria-live="polite">登录后先下载课程模块中的附件，再开始识别。</p>
           <button id="documentFolderButton" class="account-text-button" type="button">打开下载文件夹 ↗</button>
@@ -212,7 +218,21 @@
           <p class="section-note">只保留最近 200 条操作记录。退出登录会删除账号日志；登录前及本次退出结果仅在本次运行中显示。</p>
         </section>
     </div>
-    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v2.2.0</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
+    <div class="settings-footer"><span>PolyU study控制台 <span id="appVersion">v2.3.0</span></span><button id="softwareUpdateButton" class="button button-outline" type="button">软件更新</button></div>
+  </dialog>
+
+  <dialog id="reviewDialog" class="event-dialog review-dialog" aria-labelledby="reviewDialogTitle">
+    <form id="reviewForm" novalidate>
+      <div class="dialog-head"><div><p class="section-kicker">VERIFY THE SOURCE</p><h2 id="reviewDialogTitle" tabindex="-1">核实并录入</h2></div><button id="reviewClose" type="button" class="icon-button" aria-label="关闭核实">×</button></div>
+      <p id="reviewContext" class="dialog-note"></p>
+      <details class="review-evidence" open><summary>原文与来源</summary><div id="reviewSources" class="evidence-list"></div></details>
+      <p id="reviewFormError" class="form-error" role="alert" tabindex="-1" hidden></p>
+      <div id="reviewFields" class="form-grid"></div>
+      <p id="reviewTotal" class="section-note" role="status" hidden></p>
+      <label class="field review-note"><span>核实备注 <em>标记不适用时必填</em></span><textarea id="reviewNote" name="note" rows="2" maxlength="500" placeholder="例如：教师已说明此项不适用于本班"></textarea></label>
+      <p id="reviewDestination" class="dialog-note"></p>
+      <div class="dialog-actions review-dialog-actions"><button id="reviewDismiss" type="button" class="button button-outline">不适用</button><button id="reviewCancel" type="button" class="button button-light">稍后核实</button><button id="reviewSave" type="submit" class="button button-primary">确认并录入</button></div>
+    </form>
   </dialog>
 
   <dialog id="eventDialog" class="event-dialog" aria-labelledby="dialogTitle">
